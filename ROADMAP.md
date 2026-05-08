@@ -1,0 +1,2 @@
+# Authenication
+- There needs to be a headless authentication flow option for Gmail and all Google services, and all services for that matter. That way, this can be installed on a Linux box without browser interfaces.

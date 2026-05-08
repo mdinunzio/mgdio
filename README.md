@@ -65,6 +65,14 @@ read from the vault and refresh transparently.
 
 ## Quickstart
 
+A runnable end-to-end demo lives at [`examples/gmail.py`](examples/gmail.py)
+— authenticates, lists, searches, and sends two emails (plain + HTML with
+attachment) to yourself:
+
+```powershell
+uv run python examples/gmail.py
+```
+
 ```python
 from pathlib import Path
 

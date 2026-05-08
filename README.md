@@ -20,15 +20,15 @@ You only do this once per Google account.
 
 1. **Create or pick a project** at <https://console.cloud.google.com>.
 2. **Enable the Gmail API**: *APIs & Services → Library → Gmail API → Enable*.
-3. **Configure the OAuth consent screen** (*APIs & Services → OAuth consent screen*):
-   - User type: **External**.
-   - Fill in app name + your email.
-   - Add scope `https://www.googleapis.com/auth/gmail.modify`.
-   - Add yourself as a test user.
-   - **Click "Publish app"**. *Critical:* apps left in *Testing* mode have their
-     refresh tokens revoked every 7 days.
-4. **Create an OAuth client ID** (*APIs & Services → Credentials → Create
-   Credentials → OAuth client ID*):
+3. **Configure the app** under *Google Auth Platform* in the left nav:
+   - **Branding** — fill in app name and support email.
+   - **Audience** — set User type to **External**, add yourself under
+     *Test users*, then click **Publish app**. *Critical:* apps left in
+     *Testing* mode have their refresh tokens revoked every 7 days.
+   - **Data Access** — click *Add or remove scopes* and add
+     `https://www.googleapis.com/auth/gmail.modify`.
+4. **Create an OAuth client ID** under *Google Auth Platform → Clients →
+   Create client*:
    - Application type: **Desktop app**.
    - Click *Download JSON*.
 5. **Drop the file** at the path `mgdio` will print on first run, e.g.:

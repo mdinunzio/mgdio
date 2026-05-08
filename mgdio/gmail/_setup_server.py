@@ -325,22 +325,21 @@ _PAGE_TEMPLATE = """\
       <strong>Gmail API</strong>.</li>
 </ol>
 
-<h2>2. Configure the OAuth consent screen</h2>
+<h2>2. Configure the app under Google Auth Platform</h2>
 <ol>
-  <li>Go to <em>APIs &amp; Services -&gt; OAuth consent screen</em>.</li>
-  <li>User type: <strong>External</strong>. Fill in app name + your email.</li>
-  <li>Add the scope
+  <li><em>Branding</em>: fill in app name and support email.</li>
+  <li><em>Audience</em>: User type
+      <strong>External</strong>; add yourself under <em>Test users</em>;
+      then click <strong>Publish app</strong>. (Apps left in
+      <em>Testing</em> mode have their refresh tokens revoked every
+      7 days.)</li>
+  <li><em>Data Access</em>: click <em>Add or remove scopes</em> and add
       <code>https://www.googleapis.com/auth/gmail.modify</code>.</li>
-  <li>Add yourself as a test user.</li>
-  <li><strong>Click "Publish app"</strong> so refresh tokens do not expire
-      after 7 days. (Apps left in <em>Testing</em> mode have refresh
-      tokens revoked weekly.)</li>
 </ol>
 
 <h2>3. Create an OAuth client ID</h2>
 <ol>
-  <li>Go to <em>APIs &amp; Services -&gt; Credentials -&gt; Create
-      Credentials -&gt; OAuth client ID</em>.</li>
+  <li>Go to <em>Google Auth Platform -&gt; Clients -&gt; Create client</em>.</li>
   <li>Application type: <strong>Desktop app</strong>. (This lets the
       OAuth callback use any localhost port.)</li>
   <li>Click <em>Download JSON</em>.</li>

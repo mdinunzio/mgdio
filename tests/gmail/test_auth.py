@@ -122,7 +122,7 @@ class TestSetupServer:
         page = _setup_server._render_page(target)
 
         assert str(target) in page
-        assert "OAuth consent screen" in page
+        assert "Google Auth Platform" in page
         assert "Drag &amp; drop" in page
 
     def test_looks_like_client_secret_accepts_installed_and_web(self):

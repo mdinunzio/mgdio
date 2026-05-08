@@ -29,3 +29,4 @@ I'll be using a secondary account for all Google API calls outside of my main ac
     - C:\Users\mdinu\Code\deep_research_from_scratch
 - I've configured this project using uv, and I want to use flake8 for linting and black for formatting. 
 - I welcome your planning and expertise in the best way to access all this data, whether it's through a service account or an auth flow that gives me API access or some other methodology. Furthermore, your planning and help are appreciated on other fronts like credential management best practices and security protocols. 
+- Example files for user quickstart knowledge and demos go in the examples/ folder

@@ -20,10 +20,8 @@ import logging
 import keyring
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 
-from mgdio.exceptions import MissingClientSecretError
-from mgdio.gmail._setup_page import render_to_temp_and_open
+from mgdio.gmail._setup_server import run_setup_flow
 from mgdio.settings import (
     GMAIL_CLIENT_SECRET_PATH,
     GMAIL_SCOPES,
@@ -39,18 +37,14 @@ _credentials: Credentials | None = None
 def get_credentials() -> Credentials:
     """Return valid Gmail OAuth credentials, running the flow on first use.
 
-    On first call the user is taken through the browser-based consent
-    flow; the resulting refresh-token bundle is stored in the OS keyring
-    and reused on subsequent calls. Expired access tokens are refreshed
-    automatically.
+    On first call the user is taken through the browser-based onboarding
+    page (instructions + drag-and-drop upload of ``client_secret.json``)
+    and then Google's consent screen. The resulting refresh-token bundle
+    is stored in the OS keyring and reused on subsequent calls. Expired
+    access tokens are refreshed automatically.
 
     Returns:
         A valid ``google.oauth2.credentials.Credentials`` instance.
-
-    Raises:
-        MissingClientSecretError: If ``client_secret.json`` is missing
-            from :data:`mgdio.settings.APP_DATA_DIR`. The browser will
-            open with setup instructions before the exception is raised.
     """
     global _credentials
     if _credentials is not None and _credentials.valid:
@@ -62,7 +56,7 @@ def get_credentials() -> Credentials:
         creds.refresh(Request())
         _save_token_to_keyring(creds)
     if creds is None or not creds.valid:
-        creds = _run_oauth_flow()
+        creds = run_setup_flow(GMAIL_CLIENT_SECRET_PATH, list(GMAIL_SCOPES))
         _save_token_to_keyring(creds)
 
     _credentials = creds
@@ -93,17 +87,3 @@ def _load_token_from_keyring() -> Credentials | None:
 
 def _save_token_to_keyring(creds: Credentials) -> None:
     keyring.set_password(KEYRING_SERVICE_GMAIL, KEYRING_USERNAME_GMAIL, creds.to_json())
-
-
-def _run_oauth_flow() -> Credentials:
-    if not GMAIL_CLIENT_SECRET_PATH.exists():
-        render_to_temp_and_open(GMAIL_CLIENT_SECRET_PATH)
-        raise MissingClientSecretError(
-            f"client_secret.json not found. Drop it at "
-            f"{GMAIL_CLIENT_SECRET_PATH} and retry. "
-            f"(A browser window has opened with setup instructions.)"
-        )
-    flow = InstalledAppFlow.from_client_secrets_file(
-        str(GMAIL_CLIENT_SECRET_PATH), scopes=list(GMAIL_SCOPES)
-    )
-    return flow.run_local_server(port=0, open_browser=True)

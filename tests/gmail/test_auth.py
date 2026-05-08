@@ -5,9 +5,6 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock
 
-import pytest
-
-from mgdio.exceptions import MissingClientSecretError
 from mgdio.gmail import auth as gmail_auth
 from mgdio.settings import KEYRING_SERVICE_GMAIL, KEYRING_USERNAME_GMAIL
 
@@ -81,36 +78,21 @@ class TestGetCredentials:
             fake_keyring[(KEYRING_SERVICE_GMAIL, KEYRING_USERNAME_GMAIL)]
         ) == {"token": "refreshed"}
 
-    def test_missing_client_secret_raises_and_opens_help_page(
+    def test_runs_setup_flow_when_no_token_and_persists_result(
         self, tmp_appdata, fake_keyring, monkeypatch
     ):
-        opened = MagicMock()
-        monkeypatch.setattr(gmail_auth, "render_to_temp_and_open", opened)
-
-        with pytest.raises(MissingClientSecretError):
-            gmail_auth.get_credentials()
-
-        opened.assert_called_once()
-        assert fake_keyring == {}
-
-    def test_runs_oauth_flow_when_secret_present_and_persists_token(
-        self, tmp_appdata, fake_keyring, monkeypatch
-    ):
-        client_secret = tmp_appdata / "client_secret.json"
-        client_secret.write_text("{}", encoding="utf-8")
-
-        flow = MagicMock()
         new_creds = _make_creds(valid=True)
-        flow.run_local_server.return_value = new_creds
-        monkeypatch.setattr(
-            "mgdio.gmail.auth.InstalledAppFlow.from_client_secrets_file",
-            MagicMock(return_value=flow),
-        )
+        run_setup = MagicMock(return_value=new_creds)
+        monkeypatch.setattr(gmail_auth, "run_setup_flow", run_setup)
 
         result = gmail_auth.get_credentials()
 
         assert result is new_creds
-        flow.run_local_server.assert_called_once_with(port=0, open_browser=True)
+        run_setup.assert_called_once()
+        # First positional arg is the client_secret_path; second is the scopes list.
+        called_path, called_scopes = run_setup.call_args.args
+        assert called_path.name == "client_secret.json"
+        assert called_scopes == list(gmail_auth.GMAIL_SCOPES)
         assert (
             fake_keyring[(KEYRING_SERVICE_GMAIL, KEYRING_USERNAME_GMAIL)]
             == new_creds.to_json.return_value
@@ -132,15 +114,31 @@ class TestClearStoredToken:
         assert gmail_auth._credentials is None
 
 
-class TestSetupPage:
-    def test_render_writes_temp_html_with_path(self, tmp_path, monkeypatch):
-        from mgdio.gmail import _setup_page
+class TestSetupServer:
+    def test_render_page_includes_target_path_and_instructions(self, tmp_path):
+        from mgdio.gmail import _setup_server
 
-        monkeypatch.setattr(_setup_page.webbrowser, "open", lambda _url: None)
         target = tmp_path / "client_secret.json"
+        page = _setup_server._render_page(target)
 
-        out = _setup_page.render_to_temp_and_open(target)
+        assert str(target) in page
+        assert "OAuth consent screen" in page
+        assert "Drag &amp; drop" in page
 
-        contents = out.read_text(encoding="utf-8")
-        assert str(target) in contents
-        assert "OAuth consent screen" in contents
+    def test_looks_like_client_secret_accepts_installed_and_web(self):
+        from mgdio.gmail._setup_server import _looks_like_client_secret
+
+        assert _looks_like_client_secret(
+            {"installed": {"client_id": "x", "client_secret": "y"}}
+        )
+        assert _looks_like_client_secret(
+            {"web": {"client_id": "x", "client_secret": "y"}}
+        )
+
+    def test_looks_like_client_secret_rejects_garbage(self):
+        from mgdio.gmail._setup_server import _looks_like_client_secret
+
+        assert not _looks_like_client_secret({})
+        assert not _looks_like_client_secret({"installed": {"client_id": "x"}})
+        assert not _looks_like_client_secret("not a dict")
+        assert not _looks_like_client_secret({"installed": "string-not-dict"})

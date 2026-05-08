@@ -17,9 +17,20 @@ def cli() -> None:
     """mgdio: personal connectivity tools."""
 
 
-@cli.command()
+@cli.group()
 def auth() -> None:
-    """Force the OAuth flow (useful for first-run / diagnostics)."""
+    """Authentication commands."""
+
+
+@auth.command("gmail")
+def auth_gmail() -> None:
+    """Run (or re-run) the Gmail OAuth onboarding flow.
+
+    Opens a localhost setup page in your browser with instructions, a
+    drag-and-drop slot for ``client_secret.json``, and an Authorize
+    button that triggers Google's consent screen. The resulting token
+    is saved to your OS keyring.
+    """
     get_credentials()
     click.echo("Authenticated.")
 

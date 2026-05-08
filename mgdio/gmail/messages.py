@@ -107,9 +107,9 @@ def fetch_messages(
         batch: BatchHttpRequest = service.new_batch_http_request(callback=_on_response)
         for message_id in chunk:
             batch.add(
-                service.users().messages().get(
-                    userId="me", id=message_id, format="full"
-                ),
+                service.users()
+                .messages()
+                .get(userId="me", id=message_id, format="full"),
                 request_id=message_id,
             )
         try:
@@ -150,8 +150,7 @@ def fetch_message(message_id: str) -> GmailMessage:
 
 def _to_dataclass(raw: dict) -> GmailMessage:
     headers = {
-        h["name"].lower(): h["value"]
-        for h in raw.get("payload", {}).get("headers", [])
+        h["name"].lower(): h["value"] for h in raw.get("payload", {}).get("headers", [])
     }
     body_text, body_html = _parse_payload(raw.get("payload", {}))
 

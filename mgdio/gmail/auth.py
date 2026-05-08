@@ -92,9 +92,7 @@ def _load_token_from_keyring() -> Credentials | None:
 
 
 def _save_token_to_keyring(creds: Credentials) -> None:
-    keyring.set_password(
-        KEYRING_SERVICE_GMAIL, KEYRING_USERNAME_GMAIL, creds.to_json()
-    )
+    keyring.set_password(KEYRING_SERVICE_GMAIL, KEYRING_USERNAME_GMAIL, creds.to_json())
 
 
 def _run_oauth_flow() -> Credentials:

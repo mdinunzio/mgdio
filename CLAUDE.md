@@ -13,3 +13,7 @@ The goal of this project is to create a package of connectivity tools for person
     - Native API: The API is written by the service provider (e.g. native Google packages over smtplib)
     - Free: If possible, free solutions (especially in cases where access to Google services programmatically requires a business account or Google Suite).
 - If there are any complicated authentication workflows that should be abstracted away from the user as much as possible, for example if Google requires you to log in and download some JSON credentials and go through an auth workflow, that should be triggered automatically upon first use of the package. The storage of those credentials should be in an app data folder or something similar that is platform agnostic and also stored in such a way that the user doesn't have to worry about it and its whereabouts. It's usage is standardized for the package. 
+- Any authentication flows should be clearly documented both in the README, and we might want to also use the Python webbrowser package to render a stylized HTML page with the instructions to authenticate properly. 
+- I have some basic attempts at using these services. Note: they may not be the best way and don't meet the criteria above, that is why I'm trying to be more structured by initiating this project. However, they may still be generally useful to get a feel for what I've been doing:
+    - C:\Users\mdinu\Code\CloudServices\google_services
+    - C:\Users\mdinu\Code\deep_research_from_scratch

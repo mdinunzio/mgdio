@@ -1,6 +1,16 @@
 # Goal
 The goal of this project is to create a package of connectivity tools for personal use that I can install via pip or UV into my other Python project environments. This is so that I have a general way of accessing tools like email, text, Google Sheets or Google Calendar, among other things, in a standardized way. 
 
+# Serivces
+The services I'm interested in tapping into include, but are not limited to:
+- Gmail
+- Google Sheets
+- Google Calendar
+- YNAB
+- Twilio
+
+I'll be using a secondary account for all Google API calls outside of my main account, which has advanced threat protection on it. 
+
 # Setup
 - In general, functional code should be preferred over classes and stateful code in the cases where state is not necessary or in the cases where multiple instances of an object are not required (i.e., there is a singleton that can be accomplished with modules over classes). 
 - All code should have a corresponding PyTest which can be used to validate its performance. We should leverage test driven development.
@@ -17,3 +27,5 @@ The goal of this project is to create a package of connectivity tools for person
 - I have some basic attempts at using these services. Note: they may not be the best way and don't meet the criteria above, that is why I'm trying to be more structured by initiating this project. However, they may still be generally useful to get a feel for what I've been doing:
     - C:\Users\mdinu\Code\CloudServices\google_services
     - C:\Users\mdinu\Code\deep_research_from_scratch
+- I've configured this project using uv, and I want to use flake8 for linting and black for formatting. 
+- I welcome your planning and expertise in the best way to access all this data, whether it's through a service account or an auth flow that gives me API access or some other methodology. Furthermore, your planning and help are appreciated on other fronts like credential management best practices and security protocols. 

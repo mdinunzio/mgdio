@@ -1,15 +1,13 @@
-"""``mgdio`` console-script entry point.
-
-Currently exposes the authentication subsystem only. Service commands
-(gmail / calendar / sheets) will land in follow-up PRs on top of
-:mod:`mgdio.auth.google`.
-"""
+"""``mgdio`` console-script entry point."""
 
 from __future__ import annotations
+
+from pathlib import Path
 
 import click
 
 from mgdio.auth.google import clear_stored_token, get_credentials
+from mgdio.gmail import fetch_message, fetch_messages, send_email
 
 
 @click.group()
@@ -45,6 +43,90 @@ def auth_google(reset: bool) -> None:
         clear_stored_token()
     get_credentials()
     click.echo("Authenticated.")
+
+
+@cli.group()
+def gmail() -> None:
+    """Gmail commands (read, list, send)."""
+
+
+@gmail.command("list")
+@click.option("--query", "-q", default="", help="Gmail search query.")
+@click.option(
+    "--max",
+    "max_results",
+    default=5,
+    type=int,
+    show_default=True,
+    help="Max messages to fetch.",
+)
+def gmail_list(query: str, max_results: int) -> None:
+    """List recent inbox messages (subject + sender + date)."""
+    for message in fetch_messages(query, max_results):
+        click.echo(
+            f"{message.date:%Y-%m-%d %H:%M}  "
+            f"{message.sender[:40]:40}  "
+            f"{message.subject}  "
+            f"[{message.id}]"
+        )
+
+
+@gmail.command("get")
+@click.argument("message_id")
+def gmail_get(message_id: str) -> None:
+    """Print one message's headers, snippet, and plain-text body."""
+    message = fetch_message(message_id)
+    click.echo(f"Id:      {message.id}")
+    click.echo(f"Date:    {message.date:%Y-%m-%d %H:%M %Z}")
+    click.echo(f"From:    {message.sender}")
+    click.echo(f"To:      {', '.join(message.to)}")
+    if message.cc:
+        click.echo(f"Cc:      {', '.join(message.cc)}")
+    click.echo(f"Subject: {message.subject}")
+    click.echo(f"Labels:  {', '.join(message.label_ids)}")
+    click.echo(f"Snippet: {message.snippet}")
+    click.echo("---")
+    click.echo(message.body_text or "(no plain-text body)")
+
+
+@gmail.command("send")
+@click.option("--to", required=True, help="Recipient email address.")
+@click.option("--subject", required=True)
+@click.option("--body", required=True, help="Plain-text body.")
+@click.option("--cc", default=None, help="Optional cc address.")
+@click.option("--bcc", default=None, help="Optional bcc address.")
+@click.option(
+    "--html",
+    default=None,
+    help="Optional HTML body (sent as multipart/alternative).",
+)
+@click.option(
+    "--attach",
+    "attachments",
+    multiple=True,
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Attach a file. Repeatable.",
+)
+def gmail_send(
+    to: str,
+    subject: str,
+    body: str,
+    cc: str | None,
+    bcc: str | None,
+    html: str | None,
+    attachments: tuple[Path, ...],
+) -> None:
+    """Send an email."""
+    message_id = send_email(
+        to=to,
+        subject=subject,
+        body=body,
+        cc=cc,
+        bcc=bcc,
+        html=html,
+        attachments=list(attachments) or None,
+    )
+    click.echo(f"Sent: {message_id}")
 
 
 if __name__ == "__main__":

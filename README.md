@@ -3,9 +3,8 @@
 Personal connectivity tools (Gmail, Calendar, Sheets, YNAB, Twilio, ...) packaged
 so they can be `pip` / `uv add`-ed into any other project with a uniform API.
 
-> **Status — auth foundation only.** This release ships the unified
-> authentication subsystem. The previous Gmail surface has been removed and
-> will return in follow-up PRs on top of [`mgdio.auth.google`](mgdio/auth/google/).
+> **Status** — Unified Google auth subsystem (`mgdio.auth.google`) plus Gmail
+> read/send on top of it. Calendar and Sheets land in follow-up PRs.
 
 ## Why a dedicated auth subsystem
 
@@ -24,9 +23,10 @@ so they can be `pip` / `uv add`-ed into any other project with a uniform API.
 ```
 mgdio/
 ├── auth/
-│   ├── google/        # Gmail + Calendar + Sheets (this PR)
+│   ├── google/        # Gmail + Calendar + Sheets share one token
 │   ├── ynab/          # planned
 │   └── twilio/        # planned
+├── gmail/             # read + send on top of mgdio.auth.google
 ├── settings.py
 └── cli.py
 ```
@@ -97,19 +97,62 @@ uv run mgdio auth google --reset
 
 This is application configuration, not a per-session secret.
 
-## Programmatic use (planned service subpackages)
+## Gmail
 
-When the service modules return in follow-up PRs, they'll call into the auth
-subsystem like this:
+After running `mgdio auth google` once, Gmail is ready. Public API:
+
+```python
+from pathlib import Path
+
+from mgdio.gmail import fetch_messages, fetch_message, send_email
+
+# List the 5 most recent messages.
+for m in fetch_messages(max_results=5):
+    print(m.date, m.sender, m.subject, m.id)
+
+# Search with Gmail's query syntax.
+hits = fetch_messages(query="from:foo@bar.com after:2026/01/01", max_results=20)
+
+# Fetch a single message's full content (headers, snippet, plain + HTML body).
+msg = fetch_message("199a8b3c...")
+print(msg.body_text)
+
+# Send plain text.
+send_email(to="someone@example.com", subject="hi", body="hello from mgdio")
+
+# Send HTML + attachment, with cc/bcc.
+send_email(
+    to=["a@example.com", "b@example.com"],
+    subject="weekly report",
+    body="See attached. Plain-text fallback.",
+    html="<p>See <b>attached</b>.</p>",
+    cc="boss@example.com",
+    attachments=[Path("report.pdf")],
+)
+```
+
+CLI equivalents:
+
+```powershell
+uv run mgdio gmail list --max 5
+uv run mgdio gmail list --query "from:noreply@github.com" --max 3
+uv run mgdio gmail get <message_id>
+uv run mgdio gmail send --to me@example.com --subject hi --body "hello"
+uv run mgdio gmail send --to me@example.com --subject report `
+  --body "see attached" --attach report.pdf --attach summary.csv
+```
+
+Programmatic use of the shared auth (for the service modules that haven't
+landed yet, or for building your own Google API client directly):
 
 ```python
 from googleapiclient.discovery import build
 
 from mgdio.auth.google import get_credentials
 
-service = build("gmail", "v1", credentials=get_credentials(),
+service = build("calendar", "v3", credentials=get_credentials(),
                 cache_discovery=False)
-# ... or "calendar" v3, "sheets" v4 -- same credentials object
+# ...or "sheets" v4 -- same credentials object.
 ```
 
 No scopes argument, no per-service auth dance.
@@ -161,6 +204,42 @@ uv run mgdio auth google --reset   # opens browser again
 #     Start -> "Credential Manager" -> Windows Credentials -> search "mgdio:google"
 ```
 
+### Gmail quick-test commands
+
+After step 4 above (you've authenticated), exercise the Gmail surface:
+
+```powershell
+# Smoke: import the public Gmail API
+uv run python -c "from mgdio.gmail import fetch_messages, send_email, fetch_message, GmailMessage; print('imports OK')"
+
+# List your 5 most recent inbox messages
+uv run mgdio gmail list --max 5
+
+# Search with Gmail's query syntax
+uv run mgdio gmail list --query "is:unread" --max 5
+uv run mgdio gmail list --query "from:noreply@github.com newer_than:30d" --max 3
+
+# Pick an id from the list above and view the full message
+uv run mgdio gmail get <message_id>
+
+# Send a plain-text email to yourself
+uv run mgdio gmail send --to mdinunzio@gmail.com --subject "mgdio smoke" --body "hello"
+
+# Send with cc/bcc/html/attachment
+"demo content" | Out-File -Encoding utf8 demo.txt
+uv run mgdio gmail send --to mdinunzio@gmail.com --subject "rich smoke" `
+  --body "plain fallback" --html "<p><b>html</b> body</p>" --attach demo.txt
+Remove-Item demo.txt
+
+# End-to-end demo script (auth + list + search + send plain + send html+attach)
+uv run python examples/gmail.py
+
+# Opt-in real-API integration tests (sends a tagged email, then searches for it)
+$env:MGDIO_RUN_INTEGRATION = "1"
+uv run pytest tests/gmail/test_integration.py -ra
+Remove-Item Env:\MGDIO_RUN_INTEGRATION
+```
+
 ## Troubleshooting
 
 - **Refresh token expired / revoked** — verify the Google Auth Platform consent
@@ -175,8 +254,7 @@ uv run mgdio auth google --reset   # opens browser again
 
 Future subpackages, each per the same auth pattern:
 
-- `mgdio.gmail` (return on top of `mgdio.auth.google`)
-- `mgdio.calendar`
+- `mgdio.calendar` (next, on top of `mgdio.auth.google`)
 - `mgdio.sheets`
 - `mgdio.auth.ynab` + `mgdio.ynab`
 - `mgdio.auth.twilio` + `mgdio.twilio`

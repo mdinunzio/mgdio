@@ -1,22 +1,27 @@
-"""Localhost setup server for one-shot Gmail OAuth onboarding.
+"""Localhost setup server for one-shot Google OAuth onboarding.
 
-When the user runs ``mgdio auth gmail`` and there's no existing token,
-this module starts a tiny HTTP server on ``127.0.0.1`` (random port),
-opens the browser at ``/``, and walks the user through:
+Drives first-time setup for the unified Google identity used by every
+mgdio Google service (Gmail, Calendar, Sheets). When the user runs
+``mgdio auth google`` and there's no existing token, this module:
 
-1. Reading instructions for creating a Google Cloud OAuth client.
-2. Drag-and-dropping the downloaded ``client_secret.json``.
-3. Clicking "Authorize" to run the OAuth consent flow.
+1. Starts a tiny HTTP server on ``127.0.0.1`` (random port).
+2. Opens the browser at ``/`` to a stylized instructions page.
+3. Accepts ``client_secret.json`` via drag-and-drop.
+4. Triggers Google's OAuth consent flow when the user clicks Authorize.
 
 The server serves only the local user (``127.0.0.1`` bind), runs in a
 background thread, and shuts itself down once auth completes (or the
-user closes the page). The OAuth callback uses Google's
-``InstalledAppFlow.run_local_server(port=0)`` on a *separate* port - the
+user cancels). The OAuth callback uses Google's
+``InstalledAppFlow.run_local_server(port=0)`` on a *separate* port -- the
 two servers don't collide because the OAuth one is short-lived.
 
 Threading note: ``InstalledAppFlow.run_local_server`` blocks until the
 callback fires. We run it on a worker thread so the setup server's
 request handler can return immediately.
+
+The ``run_setup_flow`` entry point takes a ``client_secret_path`` and
+``scopes`` list, so this module is provider-neutral and could be reused
+by any future installed-app OAuth provider that wants the same UX.
 """
 
 from __future__ import annotations
@@ -63,7 +68,7 @@ def run_setup_flow(
     Starts a localhost HTTP server, opens the browser at the instructions
     page, and blocks until the user finishes (or aborts). The downloaded
     ``client_secret.json`` is written to ``client_secret_path``; the
-    returned credentials are *not* persisted - the caller stores them.
+    returned credentials are *not* persisted -- the caller stores them.
 
     Args:
         client_secret_path: Where to save the uploaded client_secret.json.
@@ -266,7 +271,7 @@ _PAGE_TEMPLATE = """\
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>mgdio - Gmail setup</title>
+<title>mgdio - Google setup</title>
 <style>
   :root {{ color-scheme: light dark; }}
   body {{
@@ -311,9 +316,11 @@ _PAGE_TEMPLATE = """\
 </style>
 </head>
 <body>
-<h1>mgdio - Gmail setup</h1>
+<h1>mgdio - Google setup</h1>
 <p>
-  One-time setup to authorize <strong>mgdio</strong> against your Gmail.
+  One-time setup to authorize <strong>mgdio</strong> against your Google
+  account. A single consent covers <strong>Gmail</strong>,
+  <strong>Calendar</strong>, and <strong>Sheets</strong>.
   This page is served from your own machine; nothing leaves localhost.
 </p>
 
@@ -321,8 +328,10 @@ _PAGE_TEMPLATE = """\
 <ol>
   <li>Open <a href="https://console.cloud.google.com/" target="_blank">
       console.cloud.google.com</a> and create or pick a project.</li>
-  <li>Under <em>APIs &amp; Services -&gt; Library</em>, enable
-      <strong>Gmail API</strong>.</li>
+  <li>Under <em>APIs &amp; Services -&gt; Library</em>, enable all three
+      APIs: <strong>Gmail API</strong>,
+      <strong>Google Calendar API</strong>, and
+      <strong>Google Sheets API</strong>.</li>
 </ol>
 
 <h2>2. Configure the app under Google Auth Platform</h2>
@@ -334,7 +343,13 @@ _PAGE_TEMPLATE = """\
       <em>Testing</em> mode have their refresh tokens revoked every
       7 days.)</li>
   <li><em>Data Access</em>: click <em>Add or remove scopes</em> and add
-      <code>https://www.googleapis.com/auth/gmail.modify</code>.</li>
+      all three of:
+      <ul>
+        <li><code>https://www.googleapis.com/auth/gmail.modify</code></li>
+        <li><code>https://www.googleapis.com/auth/calendar</code></li>
+        <li><code>https://www.googleapis.com/auth/spreadsheets</code></li>
+      </ul>
+  </li>
 </ol>
 
 <h2>3. Create an OAuth client ID</h2>

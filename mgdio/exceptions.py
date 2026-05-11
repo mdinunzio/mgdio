@@ -16,7 +16,7 @@ class MissingClientSecretError(MgdioAuthError):
 
 
 class MgdioAPIError(MgdioError):
-    """Wraps a googleapiclient.errors.HttpError from a Google API call."""
+    """An external API returned an error (HTTP, transport, or schema)."""
 
 
 class MgdioSendError(MgdioAPIError):

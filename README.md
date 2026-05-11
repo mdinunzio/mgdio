@@ -1,48 +1,64 @@
 # mgdio
 
-Personal connectivity tools (Gmail, Sheets, Calendar, YNAB, Twilio, ...) packaged
+Personal connectivity tools (Gmail, Calendar, Sheets, YNAB, Twilio, ...) packaged
 so they can be `pip` / `uv add`-ed into any other project with a uniform API.
 
-**Current status:** Gmail (read + send) only. Other services to come.
+> **Status — auth foundation only.** This release ships the unified
+> authentication subsystem. The previous Gmail surface has been removed and
+> will return in follow-up PRs on top of [`mgdio.auth.google`](mgdio/auth/google/).
 
-## Why another wrapper
+## Why a dedicated auth subsystem
 
-- **Stable auth** — OAuth refresh tokens that don't expire (consent-screen
-  *Published* in Google Cloud Console; see step 2 below).
-- **Native APIs** — Google's official `google-api-python-client`, not SMTP/IMAP.
-- **No paid Workspace required** — works against a personal `@gmail.com`.
-- **Credentials live in the OS credential vault** — Windows Credential Manager,
-  macOS Keychain, or Linux Secret Service. No plaintext token files.
+- **Stable** — OAuth refresh tokens that don't expire (consent screen *Published*
+  in Google Cloud Console).
+- **Native** — Google's official `google-api-python-client`, not SMTP/IMAP.
+- **Free** — works against a personal `@gmail.com`.
+- **Vault-backed** — tokens live in the OS credential vault: Windows Credential
+  Manager, macOS Keychain, or Linux Secret Service. No plaintext token files.
+- **One consent for all Google services** — Gmail, Calendar, and Sheets share a
+  single OAuth client and a single token under `mgdio:google`. Consent once;
+  every service subpackage just calls `get_credentials()`.
+
+## Layout
+
+```
+mgdio/
+├── auth/
+│   ├── google/        # Gmail + Calendar + Sheets (this PR)
+│   ├── ynab/          # planned
+│   └── twilio/        # planned
+├── settings.py
+└── cli.py
+```
+
+Each provider exposes the same triple: `get_credentials()`,
+`clear_stored_token()`, `reset_credentials_cache()`.
 
 ## One-time Google Cloud Console setup
 
 You only do this once per Google account.
 
 1. **Create or pick a project** at <https://console.cloud.google.com>.
-2. **Enable the Gmail API**: *APIs & Services → Library → Gmail API → Enable*.
+2. **Enable the APIs** under *APIs & Services → Library*:
+   - Gmail API
+   - Google Calendar API
+   - Google Sheets API
 3. **Configure the app** under *Google Auth Platform* in the left nav:
    - **Branding** — fill in app name and support email.
    - **Audience** — set User type to **External**, add yourself under
      *Test users*, then click **Publish app**. *Critical:* apps left in
      *Testing* mode have their refresh tokens revoked every 7 days.
-   - **Data Access** — click *Add or remove scopes* and add
-     `https://www.googleapis.com/auth/gmail.modify`.
+   - **Data Access** — click *Add or remove scopes* and add all three:
+     - `https://www.googleapis.com/auth/gmail.modify`
+     - `https://www.googleapis.com/auth/calendar`
+     - `https://www.googleapis.com/auth/spreadsheets`
 4. **Create an OAuth client ID** under *Google Auth Platform → Clients →
    Create client*:
    - Application type: **Desktop app**.
-   - Click *Download JSON*.
-5. **Drop the file** at the path `mgdio` will print on first run, e.g.:
-   - Windows: `%LOCALAPPDATA%\mgdio\client_secret.json`
-   - macOS: `~/Library/Application Support/mgdio/client_secret.json`
-   - Linux: `~/.local/share/mgdio/client_secret.json`
+   - Click *Download JSON*. (You'll drop this into the mgdio setup page in a moment;
+     no manual filesystem work.)
 
 ## Install
-
-In any project that needs it:
-
-```powershell
-uv add mgdio
-```
 
 For development on this repo:
 
@@ -54,90 +70,66 @@ uv pip install -e .
 ## First-run auth
 
 ```powershell
-uv run mgdio auth
+uv run mgdio auth google
 ```
 
-If `client_secret.json` is missing, a browser tab opens with the setup
-instructions and the exact path to drop the JSON. Once the file is in place,
-re-run the command — a Google consent screen opens, you approve, and the
-resulting OAuth token is written to your OS credential vault. Future calls
-read from the vault and refresh transparently.
+A localhost setup page opens in your browser. Drag-and-drop the
+`client_secret.json` you downloaded above, click **Authorize**, and approve the
+single consent screen covering all three Google scopes. The resulting token is
+written to your OS credential vault; future calls read from the vault and
+refresh transparently.
 
-## Quickstart
-
-A runnable end-to-end demo lives at [`examples/gmail.py`](examples/gmail.py)
-— authenticates, lists, searches, and sends two emails (plain + HTML with
-attachment) to yourself:
+To force a fresh consent flow (e.g. after rotating credentials or changing
+scopes):
 
 ```powershell
-uv run python examples/gmail.py
-```
-
-```python
-from pathlib import Path
-
-from mgdio.gmail import fetch_messages, send_email
-
-# Read the 5 most recent messages.
-for message in fetch_messages(max_results=5):
-    print(message.date, message.sender, message.subject)
-
-# Search using Gmail's query syntax.
-results = fetch_messages(query="from:noreply@github.com after:2026/01/01")
-
-# Send plain text.
-send_email(
-    to="someone@example.com",
-    subject="hello",
-    body="from mgdio",
-)
-
-# Send HTML + attachment.
-send_email(
-    to=["a@example.com", "b@example.com"],
-    subject="report",
-    body="see attached",
-    html="<p>see <b>attached</b></p>",
-    attachments=[Path("report.pdf")],
-)
-```
-
-## CLI
-
-```powershell
-uv run mgdio auth                                             # force OAuth flow
-uv run mgdio logout                                           # forget token
-uv run mgdio gmail list --max 5                               # list inbox
-uv run mgdio gmail list --query "from:foo@bar.com" --max 3
-uv run mgdio gmail send --to me@example.com --subject hi --body body
+uv run mgdio auth google --reset
 ```
 
 ## Where credentials live
 
-- **OAuth token**: stored in your OS credential vault under the name `mgdio:gmail`
-  (username `oauth_token`). On Windows you can inspect it via *Credential Manager
-  → Windows Credentials*.
-- **`client_secret.json`**: plain file in the platform-appropriate
-  application-data directory (see paths in step 5 of setup above). This is
-  application configuration, not a per-session secret.
+- **OAuth token**: OS credential vault under service `mgdio:google`, username
+  `oauth_token`. On Windows: *Credential Manager → Windows Credentials*.
+- **`client_secret.json`**: plain file at the platform-appropriate path:
+  - Windows: `%LOCALAPPDATA%\mgdio\google\client_secret.json`
+  - macOS: `~/Library/Application Support/mgdio/google/client_secret.json`
+  - Linux: `~/.local/share/mgdio/google/client_secret.json`
+
+This is application configuration, not a per-session secret.
+
+## Programmatic use (planned service subpackages)
+
+When the service modules return in follow-up PRs, they'll call into the auth
+subsystem like this:
+
+```python
+from googleapiclient.discovery import build
+
+from mgdio.auth.google import get_credentials
+
+service = build("gmail", "v1", credentials=get_credentials(),
+                cache_discovery=False)
+# ... or "calendar" v3, "sheets" v4 -- same credentials object
+```
+
+No scopes argument, no per-service auth dance.
 
 ## Troubleshooting
 
-- **`MissingClientSecretError`** — drop `client_secret.json` at the path the
-  error names, then re-run.
-- **Refresh token expired / revoked** — verify your OAuth consent screen is
-  *Published*, then `mgdio logout && mgdio auth`.
-- **Wrong scopes** — `mgdio logout && mgdio auth` to re-consent.
-- **Test the package without Google APIs** — run the unit suite:
-  `uv run pytest -m "not integration"`. To exercise the real API end-to-end
-  set `MGDIO_RUN_INTEGRATION=1` and run `uv run pytest -m integration`.
+- **Refresh token expired / revoked** — verify the Google Auth Platform consent
+  screen is *Published*, then `mgdio auth google --reset`.
+- **Scope mismatch after upgrade** — if a future release adds a new Google scope,
+  the first call will fall back to the setup flow. Approve the new scope on the
+  consent screen.
+- **Test the package without Google APIs** — `uv run pytest -ra`. The unit suite
+  uses an in-memory keyring fixture and never touches your real vault.
 
 ## Roadmap
 
-Future subpackages, each with the same pattern (per-service auth + service
-singleton + functional public API re-exported from `__init__`):
+Future subpackages, each per the same auth pattern:
 
-- `mgdio.sheets`
+- `mgdio.gmail` (return on top of `mgdio.auth.google`)
 - `mgdio.calendar`
-- `mgdio.ynab`
-- `mgdio.twilio`
+- `mgdio.sheets`
+- `mgdio.auth.ynab` + `mgdio.ynab`
+- `mgdio.auth.twilio` + `mgdio.twilio`

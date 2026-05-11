@@ -1,15 +1,15 @@
-"""``mgdio`` console-script entry point."""
+"""``mgdio`` console-script entry point.
+
+Currently exposes the authentication subsystem only. Service commands
+(gmail / calendar / sheets) will land in follow-up PRs on top of
+:mod:`mgdio.auth.google`.
+"""
 
 from __future__ import annotations
 
 import click
 
-from mgdio.gmail import (
-    clear_stored_token,
-    fetch_messages,
-    get_credentials,
-    send_email,
-)
+from mgdio.auth.google import clear_stored_token, get_credentials
 
 
 @click.group()
@@ -19,55 +19,32 @@ def cli() -> None:
 
 @cli.group()
 def auth() -> None:
-    """Authentication commands."""
+    """Authentication commands.
 
+    Future providers will land as siblings:
 
-@auth.command("gmail")
-def auth_gmail() -> None:
-    """Run (or re-run) the Gmail OAuth onboarding flow.
+      mgdio auth ynab     # planned
 
-    Opens a localhost setup page in your browser with instructions, a
-    drag-and-drop slot for ``client_secret.json``, and an Authorize
-    button that triggers Google's consent screen. The resulting token
-    is saved to your OS keyring.
+      mgdio auth twilio   # planned
     """
+
+
+@auth.command("google")
+@click.option(
+    "--reset",
+    is_flag=True,
+    help="Delete the stored token before running, forcing a fresh consent flow.",
+)
+def auth_google(reset: bool) -> None:
+    """Run (or re-run) the Google OAuth onboarding flow.
+
+    Requests Gmail + Calendar + Sheets scopes in a single consent screen.
+    Token is stored in your OS keyring under ``mgdio:google``.
+    """
+    if reset:
+        clear_stored_token()
     get_credentials()
     click.echo("Authenticated.")
-
-
-@cli.command()
-def logout() -> None:
-    """Delete the cached OAuth token from the OS keyring."""
-    clear_stored_token()
-    click.echo("Token cleared.")
-
-
-@cli.group()
-def gmail() -> None:
-    """Gmail commands."""
-
-
-@gmail.command("list")
-@click.option("--query", "-q", default="", help="Gmail search query.")
-@click.option("--max", "max_results", default=5, type=int, show_default=True)
-def gmail_list(query: str, max_results: int) -> None:
-    """List recent emails (subject line + sender + date)."""
-    for message in fetch_messages(query, max_results):
-        click.echo(
-            f"{message.date:%Y-%m-%d %H:%M}  "
-            f"{message.sender:40.40}  "
-            f"{message.subject}"
-        )
-
-
-@gmail.command("send")
-@click.option("--to", required=True)
-@click.option("--subject", required=True)
-@click.option("--body", required=True)
-def gmail_send(to: str, subject: str, body: str) -> None:
-    """Send a plain-text email."""
-    message_id = send_email(to=to, subject=subject, body=body)
-    click.echo(f"Sent: {message_id}")
 
 
 if __name__ == "__main__":

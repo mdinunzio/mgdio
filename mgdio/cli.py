@@ -7,7 +7,12 @@ from pathlib import Path
 
 import click
 
-from mgdio.auth.google import clear_stored_token, get_credentials
+from mgdio.auth.google import clear_stored_token as clear_google_token
+from mgdio.auth.google import (
+    get_credentials,
+)
+from mgdio.auth.ynab import clear_stored_token as clear_ynab_token
+from mgdio.auth.ynab import get_token as get_ynab_token
 from mgdio.calendar import (
     create_event,
     delete_event,
@@ -26,6 +31,14 @@ from mgdio.sheets import (
     fetch_values,
     write_values,
 )
+from mgdio.ynab import CLEAR as YNAB_CLEAR
+from mgdio.ynab import (
+    fetch_accounts,
+    fetch_budgets,
+    fetch_categories,
+    fetch_transactions,
+    update_transaction,
+)
 
 
 @click.group()
@@ -38,8 +51,6 @@ def auth() -> None:
     """Authentication commands.
 
     Future providers will land as siblings:
-
-      mgdio auth ynab     # planned
 
       mgdio auth twilio   # planned
     """
@@ -58,8 +69,28 @@ def auth_google(reset: bool) -> None:
     Token is stored in your OS keyring under ``mgdio:google``.
     """
     if reset:
-        clear_stored_token()
+        clear_google_token()
     get_credentials()
+    click.echo("Authenticated.")
+
+
+@auth.command("ynab")
+@click.option(
+    "--reset",
+    is_flag=True,
+    help="Delete the stored token before running, forcing a fresh paste flow.",
+)
+def auth_ynab(reset: bool) -> None:
+    """Run (or re-run) the YNAB personal-access-token onboarding flow.
+
+    Opens a localhost setup page in your browser with instructions to
+    mint a token at app.ynab.com/settings/developer; paste the token
+    there and it's validated and saved to your OS keyring under
+    ``mgdio:ynab``.
+    """
+    if reset:
+        clear_ynab_token()
+    get_ynab_token()
     click.echo("Authenticated.")
 
 
@@ -465,6 +496,156 @@ def _parse_iso_aware(value: str | None, option_name: str) -> datetime | None:
             f"(e.g. ...T14:00:00-04:00 or ...T14:00:00Z)."
         )
     return parsed
+
+
+@cli.group("ynab")
+def ynab_cmd() -> None:
+    """YNAB commands (budgets, accounts, categories, transactions)."""
+
+
+@ynab_cmd.command("budgets")
+def ynab_budgets() -> None:
+    """List every budget the token can see."""
+    for budget in fetch_budgets():
+        click.echo(
+            f"{budget.id}  {budget.name[:40]:40}  "
+            f"{budget.currency_iso_code}  "
+            f"(last modified {budget.last_modified_on:%Y-%m-%d})"
+        )
+
+
+@ynab_cmd.command("accounts")
+@click.option("--budget", "budget_id", default="last-used", show_default=True)
+def ynab_accounts(budget_id: str) -> None:
+    """List accounts on a budget with balances."""
+    for account in fetch_accounts(budget_id=budget_id):
+        marker = " " if account.on_budget else "T"  # T = tracking
+        closed = " [closed]" if account.closed else ""
+        click.echo(
+            f"{marker} {account.type:12} "
+            f"{account.name[:30]:30} "
+            f"{account.balance_dollars:>12.2f}{closed}  "
+            f"[{account.id}]"
+        )
+
+
+@ynab_cmd.command("categories")
+@click.option("--budget", "budget_id", default="last-used", show_default=True)
+def ynab_categories(budget_id: str) -> None:
+    """List category groups with this month's budget/activity/balance."""
+    for group in fetch_categories(budget_id=budget_id):
+        if group.hidden or group.deleted:
+            continue
+        click.echo(f"\n# {group.name}")
+        for cat in group.categories:
+            if cat.hidden or cat.deleted:
+                continue
+            click.echo(
+                f"  {cat.name[:30]:30} "
+                f"budgeted {cat.budgeted_dollars:>10.2f}  "
+                f"activity {cat.activity_dollars:>10.2f}  "
+                f"balance {cat.balance_dollars:>10.2f}"
+            )
+
+
+@ynab_cmd.command("transactions")
+@click.option("--budget", "budget_id", default="last-used", show_default=True)
+@click.option(
+    "--since",
+    "since_date",
+    default=None,
+    help="ISO date lower bound, e.g. 2026-04-01.",
+)
+@click.option("--account", "account_id", default=None)
+@click.option("--category", "category_id", default=None)
+@click.option(
+    "--max",
+    "max_results",
+    default=20,
+    type=int,
+    show_default=True,
+    help="Limit how many to print (client-side trim).",
+)
+def ynab_transactions(
+    budget_id: str,
+    since_date: str | None,
+    account_id: str | None,
+    category_id: str | None,
+    max_results: int,
+) -> None:
+    """List transactions, optionally filtered by account/category/date."""
+    txns = fetch_transactions(
+        budget_id=budget_id,
+        since_date=since_date,
+        account_id=account_id,
+        category_id=category_id,
+    )
+    for tx in txns[:max_results]:
+        click.echo(
+            f"{tx.date}  "
+            f"{tx.amount_dollars:>10.2f}  "
+            f"{tx.payee_name[:24]:24} "
+            f"{tx.category_name[:18]:18} "
+            f"{(tx.memo or '')[:30]:30}  "
+            f"[{tx.id}]"
+        )
+
+
+@ynab_cmd.command("update-tx")
+@click.argument("transaction_id")
+@click.option("--budget", "budget_id", default="last-used", show_default=True)
+@click.option(
+    "--memo",
+    default=None,
+    help="New memo / note (use --clear-memo to clear).",
+)
+@click.option(
+    "--clear-memo",
+    is_flag=True,
+    help="Clear the memo (mutually exclusive with --memo).",
+)
+@click.option(
+    "--cleared",
+    type=click.Choice(["cleared", "uncleared", "reconciled"]),
+    default=None,
+)
+@click.option(
+    "--approved/--unapproved",
+    "approved",
+    default=None,
+)
+@click.option(
+    "--flag",
+    "flag_color",
+    type=click.Choice(["red", "orange", "yellow", "green", "blue", "purple"]),
+    default=None,
+)
+def ynab_update_tx(
+    transaction_id: str,
+    budget_id: str,
+    memo: str | None,
+    clear_memo: bool,
+    cleared: str | None,
+    approved: bool | None,
+    flag_color: str | None,
+) -> None:
+    """PATCH a transaction. Most common: ``--memo "<new note>"``."""
+    if clear_memo and memo is not None:
+        raise click.BadParameter("Use either --memo or --clear-memo, not both.")
+    memo_arg = YNAB_CLEAR if clear_memo else memo
+    tx = update_transaction(
+        transaction_id,
+        budget_id=budget_id,
+        memo=memo_arg,
+        cleared=cleared,
+        approved=approved,
+        flag_color=flag_color,
+    )
+    click.echo(f"Updated: {tx.id}")
+    click.echo(f"  date:   {tx.date}")
+    click.echo(f"  amount: {tx.amount_dollars:.2f}")
+    click.echo(f"  memo:   {tx.memo!r}")
+    click.echo(f"  cleared: {tx.cleared}")
 
 
 if __name__ == "__main__":

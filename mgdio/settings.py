@@ -41,6 +41,10 @@ GOOGLE_SCOPES: tuple[str, ...] = (
     "https://www.googleapis.com/auth/spreadsheets",
 )
 
+YNAB_KEYRING_SERVICE: str = "mgdio:ynab"
+YNAB_KEYRING_USERNAME: str = "personal_access_token"
+YNAB_API_BASE: str = "https://api.ynab.com/v1"
+
 LOG_LEVEL: str = os.getenv("MGDIO_LOG_LEVEL", "INFO")
 
 if not logging.getLogger().handlers:

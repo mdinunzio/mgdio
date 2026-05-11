@@ -14,7 +14,7 @@ class TestAuthGoogle:
         get_creds = MagicMock()
         clear = MagicMock()
         monkeypatch.setattr(cli_module, "get_credentials", get_creds)
-        monkeypatch.setattr(cli_module, "clear_stored_token", clear)
+        monkeypatch.setattr(cli_module, "clear_google_token", clear)
 
         result = CliRunner().invoke(cli_module.cli, ["auth", "google"])
 
@@ -25,10 +25,35 @@ class TestAuthGoogle:
 
     def test_reset_clears_before_get_credentials(self, monkeypatch):
         parent = MagicMock()
-        monkeypatch.setattr(cli_module, "clear_stored_token", parent.clear)
+        monkeypatch.setattr(cli_module, "clear_google_token", parent.clear)
         monkeypatch.setattr(cli_module, "get_credentials", parent.get)
 
         result = CliRunner().invoke(cli_module.cli, ["auth", "google", "--reset"])
+
+        assert result.exit_code == 0, result.output
+        assert [c[0] for c in parent.mock_calls] == ["clear", "get"]
+
+
+class TestAuthYnab:
+    def test_runs_get_token_and_prints_authenticated(self, monkeypatch):
+        get_token = MagicMock()
+        clear = MagicMock()
+        monkeypatch.setattr(cli_module, "get_ynab_token", get_token)
+        monkeypatch.setattr(cli_module, "clear_ynab_token", clear)
+
+        result = CliRunner().invoke(cli_module.cli, ["auth", "ynab"])
+
+        assert result.exit_code == 0, result.output
+        assert "Authenticated." in result.output
+        get_token.assert_called_once()
+        clear.assert_not_called()
+
+    def test_reset_clears_before_get_token(self, monkeypatch):
+        parent = MagicMock()
+        monkeypatch.setattr(cli_module, "clear_ynab_token", parent.clear)
+        monkeypatch.setattr(cli_module, "get_ynab_token", parent.get)
+
+        result = CliRunner().invoke(cli_module.cli, ["auth", "ynab", "--reset"])
 
         assert result.exit_code == 0, result.output
         assert [c[0] for c in parent.mock_calls] == ["clear", "get"]
@@ -42,11 +67,13 @@ class TestCliShape:
         assert "gmail" in result.output
         assert "sheets" in result.output
         assert "calendar" in result.output
+        assert "ynab" in result.output
 
-    def test_auth_help_lists_google_subcommand(self):
+    def test_auth_help_lists_subcommands(self):
         result = CliRunner().invoke(cli_module.cli, ["auth", "--help"])
         assert result.exit_code == 0
         assert "google" in result.output
+        assert "ynab" in result.output
 
     def test_gmail_help_lists_subcommands(self):
         result = CliRunner().invoke(cli_module.cli, ["gmail", "--help"])
@@ -323,3 +350,175 @@ class TestCalendarCommands:
         quick_mock.assert_called_once_with(
             "Lunch with Bob Tuesday 12pm", calendar_id="primary"
         )
+
+
+def _sample_budget_for_cli(**overrides):
+    from datetime import datetime, timezone
+
+    from mgdio.ynab import Budget
+
+    defaults = dict(
+        id="b-1",
+        name="Personal",
+        last_modified_on=datetime(2026, 5, 8, tzinfo=timezone.utc),
+        first_month="2024-01-01",
+        last_month="2026-12-01",
+        currency_iso_code="USD",
+        currency_symbol="$",
+        decimal_digits=2,
+    )
+    defaults.update(overrides)
+    return Budget(**defaults)
+
+
+def _sample_account_for_cli(**overrides):
+    from mgdio.ynab import Account
+
+    defaults = dict(
+        id="acct-1",
+        name="Checking",
+        type="checking",
+        on_budget=True,
+        closed=False,
+        balance_milliunits=12340,
+        cleared_balance_milliunits=12000,
+        uncleared_balance_milliunits=340,
+        deleted=False,
+    )
+    defaults.update(overrides)
+    return Account(**defaults)
+
+
+def _sample_transaction_for_cli(**overrides):
+    from mgdio.ynab import Transaction
+
+    defaults = dict(
+        id="tx-1",
+        date="2026-05-08",
+        amount_milliunits=-12340,
+        memo="lunch",
+        cleared="uncleared",
+        approved=True,
+        flag_color="",
+        account_id="acct-1",
+        account_name="Checking",
+        payee_id="payee-1",
+        payee_name="Bistro",
+        category_id="cat-1",
+        category_name="Restaurants",
+        transfer_account_id="",
+        deleted=False,
+    )
+    defaults.update(overrides)
+    return Transaction(**defaults)
+
+
+class TestYnabCommands:
+    def test_help_lists_subcommands(self):
+        result = CliRunner().invoke(cli_module.cli, ["ynab", "--help"])
+        assert result.exit_code == 0
+        for name in ("budgets", "accounts", "categories", "transactions", "update-tx"):
+            assert name in result.output
+
+    def test_budgets_prints_one_per_line(self, monkeypatch):
+        fetch_mock = MagicMock(return_value=[_sample_budget_for_cli()])
+        monkeypatch.setattr(cli_module, "fetch_budgets", fetch_mock)
+
+        result = CliRunner().invoke(cli_module.cli, ["ynab", "budgets"])
+
+        assert result.exit_code == 0, result.output
+        assert "Personal" in result.output
+        assert "b-1" in result.output
+        fetch_mock.assert_called_once_with()
+
+    def test_accounts_invokes_fetch_accounts(self, monkeypatch):
+        fetch_mock = MagicMock(return_value=[_sample_account_for_cli()])
+        monkeypatch.setattr(cli_module, "fetch_accounts", fetch_mock)
+
+        result = CliRunner().invoke(
+            cli_module.cli, ["ynab", "accounts", "--budget", "b-1"]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "Checking" in result.output
+        assert "12.34" in result.output
+        fetch_mock.assert_called_once_with(budget_id="b-1")
+
+    def test_transactions_invokes_fetch_transactions(self, monkeypatch):
+        fetch_mock = MagicMock(return_value=[_sample_transaction_for_cli()])
+        monkeypatch.setattr(cli_module, "fetch_transactions", fetch_mock)
+
+        result = CliRunner().invoke(
+            cli_module.cli,
+            [
+                "ynab",
+                "transactions",
+                "--budget",
+                "b-1",
+                "--since",
+                "2026-04-01",
+                "--account",
+                "acct-1",
+                "--max",
+                "10",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "Bistro" in result.output
+        kwargs = fetch_mock.call_args.kwargs
+        assert kwargs["budget_id"] == "b-1"
+        assert kwargs["since_date"] == "2026-04-01"
+        assert kwargs["account_id"] == "acct-1"
+
+    def test_update_tx_with_memo(self, monkeypatch):
+        update_mock = MagicMock(
+            return_value=_sample_transaction_for_cli(memo="new memo")
+        )
+        monkeypatch.setattr(cli_module, "update_transaction", update_mock)
+
+        result = CliRunner().invoke(
+            cli_module.cli,
+            ["ynab", "update-tx", "tx-1", "--memo", "new memo"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "new memo" in result.output
+        kwargs = update_mock.call_args.kwargs
+        assert kwargs["memo"] == "new memo"
+        assert kwargs["budget_id"] == "last-used"
+
+    def test_update_tx_with_clear_memo_passes_sentinel(self, monkeypatch):
+        from mgdio.ynab import CLEAR as YNAB_CLEAR
+
+        update_mock = MagicMock(return_value=_sample_transaction_for_cli(memo=""))
+        monkeypatch.setattr(cli_module, "update_transaction", update_mock)
+
+        result = CliRunner().invoke(
+            cli_module.cli,
+            ["ynab", "update-tx", "tx-1", "--clear-memo"],
+        )
+
+        assert result.exit_code == 0, result.output
+        kwargs = update_mock.call_args.kwargs
+        assert kwargs["memo"] is YNAB_CLEAR
+
+    def test_update_tx_rejects_both_memo_and_clear_memo(self, monkeypatch):
+        update_mock = MagicMock()
+        monkeypatch.setattr(cli_module, "update_transaction", update_mock)
+
+        result = CliRunner().invoke(
+            cli_module.cli,
+            [
+                "ynab",
+                "update-tx",
+                "tx-1",
+                "--memo",
+                "new",
+                "--clear-memo",
+            ],
+        )
+
+        assert result.exit_code != 0
+        assert "not both" in result.output.lower()
+        update_mock.assert_not_called()

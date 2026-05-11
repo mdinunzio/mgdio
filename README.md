@@ -5,8 +5,9 @@ so they can be `pip` / `uv add`-ed into any other project with a uniform API.
 
 > **Status** — Unified Google auth (`mgdio.auth.google`) plus Gmail
 > (read/send), Google Sheets (read/write/append/clear, spreadsheet + tab
-> management), and Google Calendar (list calendars + event CRUD + quick-add)
-> on top of it. YNAB and Twilio next.
+> management), and Google Calendar (list calendars + event CRUD + quick-add).
+> Plus YNAB (budgets, accounts, categories, transactions, memo edits) via
+> personal-access-token auth. Twilio next.
 
 ## Why a dedicated auth subsystem
 
@@ -25,12 +26,13 @@ so they can be `pip` / `uv add`-ed into any other project with a uniform API.
 ```
 mgdio/
 ├── auth/
-│   ├── google/        # Gmail + Calendar + Sheets share one token
-│   ├── ynab/          # planned
+│   ├── google/        # Gmail + Calendar + Sheets share one OAuth token
+│   ├── ynab/          # personal-access-token paste flow
 │   └── twilio/        # planned
 ├── gmail/             # read + send on top of mgdio.auth.google
 ├── sheets/            # values + spreadsheets/tabs on top of mgdio.auth.google
 ├── calendar/          # calendars + events CRUD on top of mgdio.auth.google
+├── ynab/              # budgets, accounts, categories, transactions
 ├── settings.py
 └── cli.py
 ```
@@ -296,6 +298,65 @@ uv run mgdio calendar delete <event_id>
 uv run mgdio calendar quick-add "Lunch with Alice Tuesday 12pm"
 ```
 
+## YNAB
+
+YNAB uses a personal access token (not OAuth). Run `mgdio auth ynab` once and
+a localhost setup page opens with instructions for minting a token at
+<https://app.ynab.com/settings/developer>. Paste it into the page; mgdio
+validates it against `GET /v1/user` before saving to your OS keyring under
+`mgdio:ynab`.
+
+Money is stored as integer **milliunits** on the wire (`$12.34` -> `12340`).
+All dataclasses expose both the raw milliunit field and a `..._dollars`
+convenience property, so you can stay precise or get a float for display.
+
+```python
+from datetime import date
+
+from mgdio.ynab import (
+    CLEAR,
+    fetch_accounts, fetch_budgets, fetch_categories, fetch_transactions,
+    update_transaction,
+)
+
+# Discover budgets. The "last-used" alias also works in every API below.
+for b in fetch_budgets():
+    print(b.id, b.name, b.currency_iso_code)
+
+# Accounts + balances on a budget.
+for acct in fetch_accounts(budget_id="last-used"):
+    print(acct.name, acct.balance_dollars, "on-budget" if acct.on_budget else "tracking")
+
+# This month's categories with budgeted / activity / balance.
+for group in fetch_categories():
+    for cat in group.categories:
+        if cat.hidden or cat.deleted:
+            continue
+        print(group.name, cat.name, cat.balance_dollars)
+
+# List transactions, optionally filtered.
+txns = fetch_transactions(since_date=date(2026, 4, 1), account_id="<acct-id>")
+
+# Edit a transaction's memo (the headline use case).
+update_transaction(txns[0].id, memo="grocery run")
+update_transaction(txns[0].id, memo=CLEAR)   # explicit clear
+# Other fields work the same way:
+update_transaction(txns[0].id, cleared="cleared", flag_color="blue")
+```
+
+CLI equivalents:
+
+```powershell
+uv run mgdio ynab budgets
+uv run mgdio ynab accounts --budget last-used
+uv run mgdio ynab categories --budget last-used
+uv run mgdio ynab transactions --since 2026-04-01 --max 20
+uv run mgdio ynab transactions --account <acct-id>
+uv run mgdio ynab update-tx <tx-id> --memo "new note"
+uv run mgdio ynab update-tx <tx-id> --clear-memo
+uv run mgdio ynab update-tx <tx-id> --cleared cleared --flag blue
+```
+
 ## Building your own Google API client
 
 If you need a different Google API that doesn't have a subpackage yet, the
@@ -490,6 +551,42 @@ uv run pytest tests/calendar/test_integration.py -ra
 Remove-Item Env:\MGDIO_RUN_INTEGRATION
 ```
 
+### YNAB quick-test commands
+
+YNAB doesn't share Google's auth, so it has its own one-time onboarding.
+
+```powershell
+# 1. Mint a personal access token + paste it via the setup web page
+uv run mgdio auth ynab
+# Expect: "Authenticated." printed once the page reports success.
+
+# 2. Confirm the token landed in the OS keyring
+uv run python -c "import keyring; t = keyring.get_password('mgdio:ynab', 'personal_access_token'); print('present:', bool(t), 'len:', len(t or ''))"
+
+# 3. Smoke: import the public YNAB API
+uv run python -c "from mgdio.ynab import fetch_budgets, fetch_accounts, fetch_categories, fetch_transactions, update_transaction, Budget, Account, Transaction, CLEAR; print('imports OK')"
+
+# 4. List budgets and capture the first id
+$bid = (uv run mgdio ynab budgets | Select-Object -First 1 | ForEach-Object { ($_ -split "\s+")[0] })
+Write-Output "budget: $bid"
+
+# 5. Inspect the budget
+uv run mgdio ynab accounts --budget $bid
+uv run mgdio ynab categories --budget $bid
+uv run mgdio ynab transactions --budget $bid --max 5
+
+# 6. Round-trip a memo edit on the most recent transaction (demo restores it)
+uv run python examples/ynab_demo.py
+
+# 7. Reset and re-auth (forces a fresh paste flow)
+uv run mgdio auth ynab --reset
+
+# 8. Opt-in real-API integration tests
+$env:MGDIO_RUN_INTEGRATION = "1"
+uv run pytest tests/ynab/test_integration.py -ra
+Remove-Item Env:\MGDIO_RUN_INTEGRATION
+```
+
 ## Troubleshooting
 
 - **Refresh token expired / revoked** — verify the Google Auth Platform consent
@@ -499,10 +596,12 @@ Remove-Item Env:\MGDIO_RUN_INTEGRATION
   consent screen.
 - **Test the package without Google APIs** — `uv run pytest -ra`. The unit suite
   uses an in-memory keyring fixture and never touches your real vault.
+- **YNAB token rejected** — `mgdio auth ynab --reset` to paste a new one. The
+  setup page calls `GET /v1/user` before saving so common typos surface
+  immediately instead of on first use.
 
 ## Roadmap
 
 Future subpackages, each per the same auth pattern:
 
-- `mgdio.auth.ynab` + `mgdio.ynab`
 - `mgdio.auth.twilio` + `mgdio.twilio`

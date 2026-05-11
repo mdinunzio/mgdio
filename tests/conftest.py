@@ -2,18 +2,24 @@
 
 from __future__ import annotations
 
+import base64
+from unittest.mock import MagicMock
+
 import pytest
 
 from mgdio import settings as mgdio_settings
 from mgdio.auth.google import auth as google_auth
+from mgdio.gmail import client as gmail_client
 
 
 @pytest.fixture(autouse=True)
 def reset_caches() -> None:
-    """Reset module-level credential caches between tests."""
+    """Reset module-level credential and service caches between tests."""
     google_auth.reset_credentials_cache()
+    gmail_client.reset_service_cache()
     yield
     google_auth.reset_credentials_cache()
+    gmail_client.reset_service_cache()
 
 
 @pytest.fixture
@@ -57,3 +63,52 @@ def fake_keyring(monkeypatch):
 
     monkeypatch.setattr(google_auth, "keyring", _FakeKeyring)
     return store
+
+
+@pytest.fixture
+def mock_gmail_service(monkeypatch) -> MagicMock:
+    """Patch :func:`mgdio.gmail.client.get_service` to return a MagicMock."""
+    service = MagicMock(name="GmailService")
+    monkeypatch.setattr(gmail_client, "_service", service)
+    monkeypatch.setattr("mgdio.gmail.messages.get_service", lambda: service)
+    monkeypatch.setattr("mgdio.gmail.sender.get_service", lambda: service)
+    return service
+
+
+@pytest.fixture
+def sample_message_payload() -> dict:
+    """Realistic Gmail API ``users.messages.get?format=full`` response."""
+    text_b64 = (
+        base64.urlsafe_b64encode(b"hello plain world").decode("ascii").rstrip("=")
+    )
+    html_b64 = (
+        base64.urlsafe_b64encode(b"<p>hello <b>html</b> world</p>")
+        .decode("ascii")
+        .rstrip("=")
+    )
+    return {
+        "id": "msg-1",
+        "threadId": "thread-1",
+        "labelIds": ["INBOX", "UNREAD"],
+        "snippet": "hello plain world",
+        "internalDate": "1700000000000",
+        "payload": {
+            "mimeType": "multipart/alternative",
+            "headers": [
+                {"name": "From", "value": "Alice <alice@example.com>"},
+                {"name": "To", "value": "Bob <bob@example.com>, c@example.com"},
+                {"name": "Cc", "value": "d@example.com"},
+                {"name": "Subject", "value": "Greetings"},
+            ],
+            "parts": [
+                {
+                    "mimeType": "text/plain",
+                    "body": {"data": text_b64, "size": len("hello plain world")},
+                },
+                {
+                    "mimeType": "text/html",
+                    "body": {"data": html_b64, "size": 28},
+                },
+            ],
+        },
+    }

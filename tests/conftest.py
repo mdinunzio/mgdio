@@ -9,6 +9,7 @@ import pytest
 
 from mgdio import settings as mgdio_settings
 from mgdio.auth.google import auth as google_auth
+from mgdio.calendar import client as calendar_client
 from mgdio.gmail import client as gmail_client
 from mgdio.sheets import client as sheets_client
 
@@ -19,10 +20,12 @@ def reset_caches() -> None:
     google_auth.reset_credentials_cache()
     gmail_client.reset_service_cache()
     sheets_client.reset_service_cache()
+    calendar_client.reset_service_cache()
     yield
     google_auth.reset_credentials_cache()
     gmail_client.reset_service_cache()
     sheets_client.reset_service_cache()
+    calendar_client.reset_service_cache()
 
 
 @pytest.fixture
@@ -85,6 +88,16 @@ def mock_sheets_service(monkeypatch) -> MagicMock:
     monkeypatch.setattr(sheets_client, "_service", service)
     monkeypatch.setattr("mgdio.sheets.values.get_service", lambda: service)
     monkeypatch.setattr("mgdio.sheets.spreadsheets.get_service", lambda: service)
+    return service
+
+
+@pytest.fixture
+def mock_calendar_service(monkeypatch) -> MagicMock:
+    """Patch :func:`mgdio.calendar.client.get_service` to return a MagicMock."""
+    service = MagicMock(name="CalendarService")
+    monkeypatch.setattr(calendar_client, "_service", service)
+    monkeypatch.setattr("mgdio.calendar.events.get_service", lambda: service)
+    monkeypatch.setattr("mgdio.calendar.calendars.get_service", lambda: service)
     return service
 
 

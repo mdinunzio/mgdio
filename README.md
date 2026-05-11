@@ -3,9 +3,10 @@
 Personal connectivity tools (Gmail, Calendar, Sheets, YNAB, Twilio, ...) packaged
 so they can be `pip` / `uv add`-ed into any other project with a uniform API.
 
-> **Status** — Unified Google auth (`mgdio.auth.google`) plus Gmail (read/send)
-> and Google Sheets (read/write/append/clear, spreadsheet + tab management) on
-> top of it. Calendar lands in a follow-up PR.
+> **Status** — Unified Google auth (`mgdio.auth.google`) plus Gmail
+> (read/send), Google Sheets (read/write/append/clear, spreadsheet + tab
+> management), and Google Calendar (list calendars + event CRUD + quick-add)
+> on top of it. YNAB and Twilio next.
 
 ## Why a dedicated auth subsystem
 
@@ -29,6 +30,7 @@ mgdio/
 │   └── twilio/        # planned
 ├── gmail/             # read + send on top of mgdio.auth.google
 ├── sheets/            # values + spreadsheets/tabs on top of mgdio.auth.google
+├── calendar/          # calendars + events CRUD on top of mgdio.auth.google
 ├── settings.py
 └── cli.py
 ```
@@ -214,6 +216,86 @@ uv run mgdio sheets clear <spreadsheet_id> "Sheet1!A2:B100"
 uv run mgdio sheets create --title "Q1 plan" --tab Tasks --tab Budget
 ```
 
+## Calendar
+
+After `mgdio auth google`, Calendar is ready too. Public API covers listing
+calendars, listing events, full event CRUD, and Google's natural-language
+"quick add".
+
+```python
+from datetime import datetime, timedelta, timezone
+
+from mgdio.calendar import (
+    CLEAR,
+    create_event, delete_event, fetch_event, fetch_events,
+    fetch_calendars, quick_add, update_event,
+)
+
+# List every calendar you can access (primary + secondary + shared).
+for cal in fetch_calendars():
+    print(cal.id, cal.summary, "primary" if cal.primary else cal.access_role)
+
+# List events in a time window. Datetimes must be tz-aware; naive
+# datetimes raise ValueError on purpose (boundary validation).
+now = datetime.now(timezone.utc)
+events = fetch_events(
+    time_min=now,
+    time_max=now + timedelta(days=7),
+    query="lunch",
+    max_results=20,
+)
+for ev in events:
+    when = f"{ev.start:%Y-%m-%d}" if ev.all_day else f"{ev.start:%Y-%m-%d %H:%M}"
+    print(when, ev.summary, ev.id)
+
+# Create a timed event.
+created = create_event(
+    summary="Coffee with Bob",
+    start=now + timedelta(days=2, hours=10),
+    end=now + timedelta(days=2, hours=11),
+    description="check in on Q2 plans",
+    location="The Spot",
+    attendees=["bob@example.com"],
+)
+
+# Create an all-day event. Calendar's end-date is exclusive.
+create_event(
+    summary="Holiday",
+    start=datetime(2026, 7, 4, tzinfo=timezone.utc),
+    end=datetime(2026, 7, 5, tzinfo=timezone.utc),
+    all_day=True,
+)
+
+# Update with tri-state PATCH semantics:
+#   None (default) -> field is left alone
+#   CLEAR sentinel -> field is nulled on the server
+#   any value      -> field is set
+update_event(created.id, summary="Coffee with Bob (rescheduled)")
+update_event(created.id, description=CLEAR, location=CLEAR)
+
+# Natural-language event creation; Google parses the text.
+quick_add("Lunch with Alice Tuesday 12pm")
+
+# Delete when done.
+delete_event(created.id)
+```
+
+CLI equivalents:
+
+```powershell
+uv run mgdio calendar list-cals
+uv run mgdio calendar list-events --max 10
+uv run mgdio calendar list-events --time-min "2026-05-09T00:00:00-04:00" `
+  --time-max "2026-05-16T00:00:00-04:00" --query lunch
+uv run mgdio calendar get <event_id>
+uv run mgdio calendar create --summary "Coffee with Bob" `
+  --start "2026-05-12T10:00:00-04:00" --end "2026-05-12T11:00:00-04:00" `
+  --attendee bob@example.com --location "The Spot"
+uv run mgdio calendar update <event_id> --summary "renamed"
+uv run mgdio calendar delete <event_id>
+uv run mgdio calendar quick-add "Lunch with Alice Tuesday 12pm"
+```
+
 ## Building your own Google API client
 
 If you need a different Google API that doesn't have a subpackage yet, the
@@ -224,7 +306,7 @@ from googleapiclient.discovery import build
 
 from mgdio.auth.google import get_credentials
 
-service = build("calendar", "v3", credentials=get_credentials(),
+service = build("drive", "v3", credentials=get_credentials(),
                 cache_discovery=False)
 ```
 
@@ -354,6 +436,60 @@ uv run pytest tests/sheets/test_integration.py -ra
 Remove-Item Env:\MGDIO_RUN_INTEGRATION
 ```
 
+### Calendar quick-test commands
+
+After step 4 above, exercise the Calendar surface. The create commands make
+real events on your calendar; delete them when done (or run the demo script,
+which cleans up after itself).
+
+```powershell
+# Smoke: import the public Calendar API
+uv run python -c "from mgdio.calendar import fetch_events, create_event, CalendarEvent, CLEAR; print('imports OK')"
+
+# List every calendar you can access
+uv run mgdio calendar list-cals
+
+# Show the next 10 events on your primary calendar
+uv run mgdio calendar list-events --max 10
+
+# Search by free-text query
+uv run mgdio calendar list-events --query "standup" --max 5
+
+# Bounded list (must be tz-aware ISO datetimes)
+uv run mgdio calendar list-events `
+  --time-min "2026-05-09T00:00:00-04:00" `
+  --time-max "2026-05-16T00:00:00-04:00"
+
+# Create a throwaway event and capture its id
+$eid = (uv run mgdio calendar create --summary "mgdio smoke" `
+  --start "2026-05-15T14:00:00-04:00" --end "2026-05-15T15:00:00-04:00" `
+  --location "Localhost" | Select-String "Created:" | ForEach-Object { ($_ -split " ")[-1] })
+Write-Output "event id: $eid"
+
+# Get it back
+uv run mgdio calendar get $eid
+
+# Update it (only --summary changes; other fields untouched)
+uv run mgdio calendar update $eid --summary "mgdio smoke (renamed)"
+
+# Delete it
+uv run mgdio calendar delete $eid
+
+# Natural-language create (Google parses the string)
+uv run mgdio calendar quick-add "mgdio quickadd smoke tomorrow 3pm for 30 minutes"
+
+# End-to-end demo (creates + updates + quick-adds + deletes its own events).
+# Note: the file is named calendar_demo.py, NOT calendar.py -- a script
+# literally named "calendar.py" would shadow the stdlib `calendar` module
+# that google-auth imports transitively.
+uv run python examples/calendar_demo.py
+
+# Opt-in real-API integration tests
+$env:MGDIO_RUN_INTEGRATION = "1"
+uv run pytest tests/calendar/test_integration.py -ra
+Remove-Item Env:\MGDIO_RUN_INTEGRATION
+```
+
 ## Troubleshooting
 
 - **Refresh token expired / revoked** — verify the Google Auth Platform consent
@@ -368,6 +504,5 @@ Remove-Item Env:\MGDIO_RUN_INTEGRATION
 
 Future subpackages, each per the same auth pattern:
 
-- `mgdio.calendar` (next, on top of `mgdio.auth.google`)
 - `mgdio.auth.ynab` + `mgdio.ynab`
 - `mgdio.auth.twilio` + `mgdio.twilio`

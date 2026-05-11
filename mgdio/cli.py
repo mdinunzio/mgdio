@@ -2,11 +2,21 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 import click
 
 from mgdio.auth.google import clear_stored_token, get_credentials
+from mgdio.calendar import (
+    create_event,
+    delete_event,
+    fetch_calendars,
+    fetch_event,
+    fetch_events,
+    quick_add,
+    update_event,
+)
 from mgdio.gmail import fetch_message, fetch_messages, send_email
 from mgdio.sheets import (
     append_values,
@@ -238,6 +248,223 @@ def sheets_create(title: str, tabs: tuple[str, ...]) -> None:
     spreadsheet = create_spreadsheet(title, sheet_names=list(tabs) or None)
     click.echo(f"Created: {spreadsheet.id}")
     click.echo(f"Url:     {spreadsheet.url}")
+
+
+@cli.group("calendar")
+def calendar_cmd() -> None:
+    """Google Calendar commands."""
+
+
+@calendar_cmd.command("list-cals")
+def calendar_list_cals() -> None:
+    """List every calendar the authenticated user has access to."""
+    for cal in fetch_calendars():
+        marker = "*" if cal.primary else " "
+        click.echo(f"{marker} {cal.access_role:18} " f"{cal.summary[:40]:40} {cal.id}")
+
+
+@calendar_cmd.command("list-events")
+@click.option(
+    "--calendar",
+    "calendar_id",
+    default="primary",
+    show_default=True,
+    help="Calendar id (use list-cals to find non-primary ids).",
+)
+@click.option(
+    "--max",
+    "max_results",
+    default=10,
+    type=int,
+    show_default=True,
+)
+@click.option("--query", "-q", default="", help="Free-text search.")
+@click.option(
+    "--time-min",
+    "time_min",
+    default=None,
+    help="ISO datetime lower bound, e.g. 2026-05-09T00:00:00-04:00.",
+)
+@click.option(
+    "--time-max",
+    "time_max",
+    default=None,
+    help="ISO datetime upper bound, e.g. 2026-05-16T00:00:00-04:00.",
+)
+def calendar_list_events(
+    calendar_id: str,
+    max_results: int,
+    query: str,
+    time_min: str | None,
+    time_max: str | None,
+) -> None:
+    """List upcoming events on a calendar."""
+    events = fetch_events(
+        calendar_id=calendar_id,
+        max_results=max_results,
+        query=query,
+        time_min=_parse_iso_aware(time_min, "--time-min"),
+        time_max=_parse_iso_aware(time_max, "--time-max"),
+    )
+    for ev in events:
+        when = f"{ev.start:%Y-%m-%d}" if ev.all_day else f"{ev.start:%Y-%m-%d %H:%M}"
+        click.echo(f"{when}  {ev.summary[:50]:50}  [{ev.id}]")
+
+
+@calendar_cmd.command("get")
+@click.argument("event_id")
+@click.option("--calendar", "calendar_id", default="primary", show_default=True)
+def calendar_get(event_id: str, calendar_id: str) -> None:
+    """Print a single event's details."""
+    ev = fetch_event(event_id, calendar_id=calendar_id)
+    click.echo(f"Id:       {ev.id}")
+    click.echo(f"Calendar: {ev.calendar_id}")
+    click.echo(f"Summary:  {ev.summary}")
+    click.echo(f"Status:   {ev.status}")
+    click.echo(f"All-day:  {ev.all_day}")
+    click.echo(f"Start:    {ev.start.isoformat()}")
+    click.echo(f"End:      {ev.end.isoformat()}")
+    if ev.location:
+        click.echo(f"Location: {ev.location}")
+    if ev.attendees:
+        click.echo(f"Attendees: {', '.join(ev.attendees)}")
+    click.echo(f"Url:      {ev.html_link}")
+    if ev.description:
+        click.echo("---")
+        click.echo(ev.description)
+
+
+@calendar_cmd.command("create")
+@click.option("--summary", required=True)
+@click.option(
+    "--start",
+    "start_str",
+    required=True,
+    help="ISO datetime, e.g. 2026-05-12T14:00:00-04:00.",
+)
+@click.option(
+    "--end",
+    "end_str",
+    required=True,
+    help="ISO datetime, e.g. 2026-05-12T15:00:00-04:00.",
+)
+@click.option("--description", default=None)
+@click.option("--location", default=None)
+@click.option(
+    "--attendee",
+    "attendees",
+    multiple=True,
+    help="Attendee email. Repeatable.",
+)
+@click.option(
+    "--all-day",
+    is_flag=True,
+    help="Treat start/end as date-only (time-of-day ignored).",
+)
+@click.option("--calendar", "calendar_id", default="primary", show_default=True)
+def calendar_create(
+    summary: str,
+    start_str: str,
+    end_str: str,
+    description: str | None,
+    location: str | None,
+    attendees: tuple[str, ...],
+    all_day: bool,
+    calendar_id: str,
+) -> None:
+    """Create a new event."""
+    start = _parse_iso_aware(start_str, "--start")
+    end = _parse_iso_aware(end_str, "--end")
+    assert start is not None and end is not None  # required options
+    ev = create_event(
+        summary=summary,
+        start=start,
+        end=end,
+        description=description,
+        location=location,
+        attendees=list(attendees) or None,
+        calendar_id=calendar_id,
+        all_day=all_day,
+    )
+    click.echo(f"Created: {ev.id}")
+    click.echo(f"Url:     {ev.html_link}")
+
+
+@calendar_cmd.command("update")
+@click.argument("event_id")
+@click.option("--calendar", "calendar_id", default="primary", show_default=True)
+@click.option("--summary", default=None)
+@click.option("--start", "start_str", default=None)
+@click.option("--end", "end_str", default=None)
+@click.option("--description", default=None)
+@click.option("--location", default=None)
+@click.option(
+    "--all-day",
+    is_flag=True,
+    help=(
+        "Mark new start/end as all-day. Required when updating times of an "
+        "existing all-day event."
+    ),
+)
+def calendar_update(
+    event_id: str,
+    calendar_id: str,
+    summary: str | None,
+    start_str: str | None,
+    end_str: str | None,
+    description: str | None,
+    location: str | None,
+    all_day: bool,
+) -> None:
+    """PATCH an event. Only options you pass are changed."""
+    ev = update_event(
+        event_id,
+        calendar_id=calendar_id,
+        summary=summary,
+        start=_parse_iso_aware(start_str, "--start"),
+        end=_parse_iso_aware(end_str, "--end"),
+        description=description,
+        location=location,
+        all_day=all_day or None,
+    )
+    click.echo(f"Updated: {ev.id}")
+    click.echo(f"Url:     {ev.html_link}")
+
+
+@calendar_cmd.command("delete")
+@click.argument("event_id")
+@click.option("--calendar", "calendar_id", default="primary", show_default=True)
+def calendar_delete(event_id: str, calendar_id: str) -> None:
+    """Delete an event."""
+    delete_event(event_id, calendar_id=calendar_id)
+    click.echo("Deleted.")
+
+
+@calendar_cmd.command("quick-add")
+@click.argument("text")
+@click.option("--calendar", "calendar_id", default="primary", show_default=True)
+def calendar_quick_add(text: str, calendar_id: str) -> None:
+    """Create an event from a natural-language string (Google parses it)."""
+    ev = quick_add(text, calendar_id=calendar_id)
+    click.echo(f"Created: {ev.id}")
+    click.echo(f"Summary: {ev.summary}")
+    click.echo(f"Url:     {ev.html_link}")
+
+
+def _parse_iso_aware(value: str | None, option_name: str) -> datetime | None:
+    """Parse an ISO datetime; raise click.BadParameter if naive."""
+    if value is None:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise click.BadParameter(f"{option_name}: {exc}") from exc
+    if parsed.tzinfo is None:
+        raise click.BadParameter(
+            f"{option_name} must include a timezone offset "
+            f"(e.g. ...T14:00:00-04:00 or ...T14:00:00Z)."
+        )
+    return parsed
 
 
 if __name__ == "__main__":

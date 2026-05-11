@@ -41,6 +41,7 @@ class TestCliShape:
         assert "auth" in result.output
         assert "gmail" in result.output
         assert "sheets" in result.output
+        assert "calendar" in result.output
 
     def test_auth_help_lists_google_subcommand(self):
         result = CliRunner().invoke(cli_module.cli, ["auth", "--help"])
@@ -179,3 +180,146 @@ class TestSheetsCommands:
         assert "new-sid" in result.output
         assert "new-sid/edit" in result.output
         create_mock.assert_called_once_with("Demo", sheet_names=["Alpha", "Beta"])
+
+
+def _sample_event_for_cli(**overrides):
+    from datetime import datetime, timezone
+
+    from mgdio.calendar import CalendarEvent
+
+    defaults = dict(
+        id="evt-1",
+        calendar_id="primary",
+        summary="Lunch",
+        description="",
+        location="",
+        start=datetime(2026, 5, 12, 12, tzinfo=timezone.utc),
+        end=datetime(2026, 5, 12, 13, tzinfo=timezone.utc),
+        all_day=False,
+        attendees=(),
+        creator="me@example.com",
+        organizer="me@example.com",
+        html_link="https://www.google.com/calendar/event?eid=abc",
+        status="confirmed",
+        created=datetime(2026, 5, 9, tzinfo=timezone.utc),
+        updated=datetime(2026, 5, 9, tzinfo=timezone.utc),
+    )
+    defaults.update(overrides)
+    return CalendarEvent(**defaults)
+
+
+class TestCalendarCommands:
+    def test_help_lists_subcommands(self):
+        result = CliRunner().invoke(cli_module.cli, ["calendar", "--help"])
+        assert result.exit_code == 0
+        for name in (
+            "list-cals",
+            "list-events",
+            "get",
+            "create",
+            "update",
+            "delete",
+            "quick-add",
+        ):
+            assert name in result.output
+
+    def test_list_events_invokes_fetch_events(self, monkeypatch):
+        fetch_mock = MagicMock(return_value=[_sample_event_for_cli()])
+        monkeypatch.setattr(cli_module, "fetch_events", fetch_mock)
+
+        result = CliRunner().invoke(
+            cli_module.cli, ["calendar", "list-events", "--max", "3"]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "Lunch" in result.output
+        assert "evt-1" in result.output
+        kwargs = fetch_mock.call_args.kwargs
+        assert kwargs["calendar_id"] == "primary"
+        assert kwargs["max_results"] == 3
+        assert kwargs["time_min"] is None
+        assert kwargs["time_max"] is None
+
+    def test_list_events_passes_aware_time_bounds(self, monkeypatch):
+        fetch_mock = MagicMock(return_value=[])
+        monkeypatch.setattr(cli_module, "fetch_events", fetch_mock)
+
+        result = CliRunner().invoke(
+            cli_module.cli,
+            [
+                "calendar",
+                "list-events",
+                "--time-min",
+                "2026-05-09T00:00:00-04:00",
+                "--time-max",
+                "2026-05-16T00:00:00-04:00",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        kwargs = fetch_mock.call_args.kwargs
+        assert kwargs["time_min"] is not None
+        assert kwargs["time_min"].tzinfo is not None
+        assert kwargs["time_max"] is not None
+
+    def test_list_events_rejects_naive_time_bound(self):
+        result = CliRunner().invoke(
+            cli_module.cli,
+            ["calendar", "list-events", "--time-min", "2026-05-09T00:00:00"],
+        )
+        assert result.exit_code != 0
+        assert "timezone offset" in result.output.lower()
+
+    def test_create_invokes_create_event(self, monkeypatch):
+        create_mock = MagicMock(return_value=_sample_event_for_cli())
+        monkeypatch.setattr(cli_module, "create_event", create_mock)
+
+        result = CliRunner().invoke(
+            cli_module.cli,
+            [
+                "calendar",
+                "create",
+                "--summary",
+                "Lunch",
+                "--start",
+                "2026-05-12T12:00:00-04:00",
+                "--end",
+                "2026-05-12T13:00:00-04:00",
+                "--attendee",
+                "bob@example.com",
+                "--attendee",
+                "alice@example.com",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "Created:" in result.output
+        kwargs = create_mock.call_args.kwargs
+        assert kwargs["summary"] == "Lunch"
+        assert kwargs["attendees"] == ["bob@example.com", "alice@example.com"]
+        assert kwargs["start"].tzinfo is not None
+        assert kwargs["all_day"] is False
+
+    def test_delete_invokes_delete_event(self, monkeypatch):
+        delete_mock = MagicMock()
+        monkeypatch.setattr(cli_module, "delete_event", delete_mock)
+
+        result = CliRunner().invoke(cli_module.cli, ["calendar", "delete", "evt-1"])
+
+        assert result.exit_code == 0, result.output
+        assert "Deleted." in result.output
+        delete_mock.assert_called_once_with("evt-1", calendar_id="primary")
+
+    def test_quick_add_invokes_quick_add(self, monkeypatch):
+        quick_mock = MagicMock(return_value=_sample_event_for_cli())
+        monkeypatch.setattr(cli_module, "quick_add", quick_mock)
+
+        result = CliRunner().invoke(
+            cli_module.cli,
+            ["calendar", "quick-add", "Lunch with Bob Tuesday 12pm"],
+        )
+
+        assert result.exit_code == 0, result.output
+        quick_mock.assert_called_once_with(
+            "Lunch with Bob Tuesday 12pm", calendar_id="primary"
+        )

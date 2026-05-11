@@ -56,3 +56,8 @@ addopts = "-ra --strict-markers"
 markers = [
     "integration: hits real Google APIs; requires MGDIO_RUN_INTEGRATION=1",
 ]
+
+[dependency-groups]
+dev = [
+    "jupyterlab>=4.5.7",
+]

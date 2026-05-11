@@ -3,8 +3,9 @@
 Personal connectivity tools (Gmail, Calendar, Sheets, YNAB, Twilio, ...) packaged
 so they can be `pip` / `uv add`-ed into any other project with a uniform API.
 
-> **Status** — Unified Google auth subsystem (`mgdio.auth.google`) plus Gmail
-> read/send on top of it. Calendar and Sheets land in follow-up PRs.
+> **Status** — Unified Google auth (`mgdio.auth.google`) plus Gmail (read/send)
+> and Google Sheets (read/write/append/clear, spreadsheet + tab management) on
+> top of it. Calendar lands in a follow-up PR.
 
 ## Why a dedicated auth subsystem
 
@@ -27,6 +28,7 @@ mgdio/
 │   ├── ynab/          # planned
 │   └── twilio/        # planned
 ├── gmail/             # read + send on top of mgdio.auth.google
+├── sheets/            # values + spreadsheets/tabs on top of mgdio.auth.google
 ├── settings.py
 └── cli.py
 ```
@@ -142,8 +144,80 @@ uv run mgdio gmail send --to me@example.com --subject report `
   --body "see attached" --attach report.pdf --attach summary.csv
 ```
 
-Programmatic use of the shared auth (for the service modules that haven't
-landed yet, or for building your own Google API client directly):
+## Sheets
+
+After `mgdio auth google`, Sheets is ready too. Public API covers reading,
+writing, appending, clearing, creating spreadsheets, and managing tabs.
+
+```python
+from mgdio.sheets import (
+    fetch_values, write_values, append_values, clear_values,
+    create_spreadsheet, fetch_spreadsheet,
+    add_sheet, rename_sheet, delete_sheet,
+)
+
+# Read -- default is list of lists.
+rows = fetch_values("<spreadsheet_id>", "Sheet1!A1:C10")
+
+# Read as pandas (requires the sheets-pandas extra).
+df = fetch_values("<spreadsheet_id>", "Sheet1!A1:C10", as_="pandas")
+
+# Read as polars (requires the sheets-polars extra).
+pdf = fetch_values("<spreadsheet_id>", "Sheet1!A1:C10", as_="polars")
+# Both DataFrame backends treat the first row as the header.
+
+# Overwrite a range. USER_ENTERED by default ('=SUM(...)' becomes a formula).
+write_values(
+    "<spreadsheet_id>",
+    "Sheet1!A1:B3",
+    [["name", "age"], ["alice", 30], ["bob", 25]],
+)
+# Pass raw=True to store strings literally (no formula/date/number parsing).
+write_values("<spreadsheet_id>", "Sheet1!A1", [["=NOT A FORMULA"]], raw=True)
+
+# Append rows to the end of an existing table.
+append_values("<spreadsheet_id>", "Sheet1", [["carol", 28]])
+
+# Clear values in a range (formatting preserved).
+clear_values("<spreadsheet_id>", "Sheet1!A2:B100")
+
+# Create a new spreadsheet with named tabs.
+new = create_spreadsheet("Q1 plan", sheet_names=["Tasks", "Budget"])
+print(new.id, new.url)
+
+# Inspect metadata: title, tabs, locale, time_zone.
+meta = fetch_spreadsheet(new.id)
+for tab in meta.tabs:
+    print(tab.id, tab.title, tab.index, tab.row_count, tab.column_count)
+
+# Manage tabs (use tab.id from above, not the title).
+scratch = add_sheet(new.id, "Scratch")
+rename_sheet(new.id, scratch.id, "Scratch2")
+delete_sheet(new.id, scratch.id)
+```
+
+DataFrame backends are optional. Install with one of:
+
+```powershell
+uv pip install -e ".[sheets-pandas]"
+uv pip install -e ".[sheets-polars]"
+```
+
+CLI equivalents:
+
+```powershell
+uv run mgdio sheets info <spreadsheet_id>
+uv run mgdio sheets read <spreadsheet_id> "Sheet1!A1:C10"
+uv run mgdio sheets write <spreadsheet_id> "Sheet1!A1:B2" --row "name,age" --row "alice,30"
+uv run mgdio sheets append <spreadsheet_id> Sheet1 --row "bob,25"
+uv run mgdio sheets clear <spreadsheet_id> "Sheet1!A2:B100"
+uv run mgdio sheets create --title "Q1 plan" --tab Tasks --tab Budget
+```
+
+## Building your own Google API client
+
+If you need a different Google API that doesn't have a subpackage yet, the
+shared auth is one call away:
 
 ```python
 from googleapiclient.discovery import build
@@ -152,7 +226,6 @@ from mgdio.auth.google import get_credentials
 
 service = build("calendar", "v3", credentials=get_credentials(),
                 cache_discovery=False)
-# ...or "sheets" v4 -- same credentials object.
 ```
 
 No scopes argument, no per-service auth dance.
@@ -240,6 +313,47 @@ uv run pytest tests/gmail/test_integration.py -ra
 Remove-Item Env:\MGDIO_RUN_INTEGRATION
 ```
 
+### Sheets quick-test commands
+
+After step 4 above, exercise the Sheets surface. The first command creates a
+throwaway spreadsheet you can delete from Drive afterwards.
+
+```powershell
+# Smoke: import the public Sheets API
+uv run python -c "from mgdio.sheets import fetch_values, write_values, create_spreadsheet, Spreadsheet; print('imports OK')"
+
+# Create a throwaway spreadsheet and capture its id
+$sid = (uv run mgdio sheets create --title "mgdio smoke" --tab Data | Select-String "Created:" | ForEach-Object { ($_ -split " ")[-1] })
+Write-Output "spreadsheet id: $sid"
+
+# Inspect metadata
+uv run mgdio sheets info $sid
+
+# Write a header + 2 rows
+uv run mgdio sheets write $sid "Data!A1:B3" --row "name,age" --row "alice,30" --row "bob,25"
+
+# Read it back (default list-of-lists)
+uv run mgdio sheets read $sid "Data!A1:B3"
+
+# Read back as a DataFrame from Python
+uv run python -c "from mgdio.sheets import fetch_values; df = fetch_values('$sid', 'Data!A1:B3', as_='pandas'); print(df)"
+uv run python -c "from mgdio.sheets import fetch_values; df = fetch_values('$sid', 'Data!A1:B3', as_='polars'); print(df)"
+
+# Append a row
+uv run mgdio sheets append $sid Data --row "carol,28"
+
+# Clear data rows (header stays)
+uv run mgdio sheets clear $sid "Data!A2:B100"
+
+# End-to-end demo (creates its own throwaway spreadsheet)
+uv run python examples/sheets.py
+
+# Opt-in real-API integration tests
+$env:MGDIO_RUN_INTEGRATION = "1"
+uv run pytest tests/sheets/test_integration.py -ra
+Remove-Item Env:\MGDIO_RUN_INTEGRATION
+```
+
 ## Troubleshooting
 
 - **Refresh token expired / revoked** — verify the Google Auth Platform consent
@@ -255,6 +369,5 @@ Remove-Item Env:\MGDIO_RUN_INTEGRATION
 Future subpackages, each per the same auth pattern:
 
 - `mgdio.calendar` (next, on top of `mgdio.auth.google`)
-- `mgdio.sheets`
 - `mgdio.auth.ynab` + `mgdio.ynab`
 - `mgdio.auth.twilio` + `mgdio.twilio`

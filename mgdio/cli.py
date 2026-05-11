@@ -8,6 +8,14 @@ import click
 
 from mgdio.auth.google import clear_stored_token, get_credentials
 from mgdio.gmail import fetch_message, fetch_messages, send_email
+from mgdio.sheets import (
+    append_values,
+    clear_values,
+    create_spreadsheet,
+    fetch_spreadsheet,
+    fetch_values,
+    write_values,
+)
 
 
 @click.group()
@@ -127,6 +135,109 @@ def gmail_send(
         attachments=list(attachments) or None,
     )
     click.echo(f"Sent: {message_id}")
+
+
+@cli.group()
+def sheets() -> None:
+    """Google Sheets commands."""
+
+
+@sheets.command("info")
+@click.argument("spreadsheet_id")
+def sheets_info(spreadsheet_id: str) -> None:
+    """Print metadata about a spreadsheet (title, tabs, url)."""
+    sheet = fetch_spreadsheet(spreadsheet_id)
+    click.echo(f"Title:  {sheet.title}")
+    click.echo(f"Url:    {sheet.url}")
+    click.echo(f"Locale: {sheet.locale}  ({sheet.time_zone})")
+    click.echo("Tabs:")
+    for tab in sheet.tabs:
+        click.echo(
+            f"  [{tab.index}] {tab.title}  "
+            f"({tab.row_count}x{tab.column_count})  "
+            f"sheetId={tab.id}"
+        )
+
+
+@sheets.command("read")
+@click.argument("spreadsheet_id")
+@click.argument("range_")
+def sheets_read(spreadsheet_id: str, range_: str) -> None:
+    """Print a tab-separated dump of a range."""
+    for row in fetch_values(spreadsheet_id, range_):
+        click.echo("\t".join("" if cell is None else str(cell) for cell in row))
+
+
+@sheets.command("write")
+@click.argument("spreadsheet_id")
+@click.argument("range_")
+@click.option(
+    "--row",
+    "rows",
+    multiple=True,
+    help="One row of comma-separated cells. Repeatable.",
+)
+@click.option(
+    "--raw",
+    is_flag=True,
+    help="Use valueInputOption=RAW (no formula/date/number parsing).",
+)
+def sheets_write(
+    spreadsheet_id: str,
+    range_: str,
+    rows: tuple[str, ...],
+    raw: bool,
+) -> None:
+    """Overwrite a range with --row values (comma-separated cells)."""
+    values = [row.split(",") for row in rows]
+    updated = write_values(spreadsheet_id, range_, values, raw=raw)
+    click.echo(f"Updated cells: {updated}")
+
+
+@sheets.command("append")
+@click.argument("spreadsheet_id")
+@click.argument("range_")
+@click.option(
+    "--row",
+    "rows",
+    multiple=True,
+    help="One row of comma-separated cells. Repeatable.",
+)
+@click.option("--raw", is_flag=True)
+def sheets_append(
+    spreadsheet_id: str,
+    range_: str,
+    rows: tuple[str, ...],
+    raw: bool,
+) -> None:
+    """Append --row values to the end of the table at range_."""
+    values = [row.split(",") for row in rows]
+    updated = append_values(spreadsheet_id, range_, values, raw=raw)
+    click.echo(f"Appended cells: {updated}")
+
+
+@sheets.command("clear")
+@click.argument("spreadsheet_id")
+@click.argument("range_")
+def sheets_clear(spreadsheet_id: str, range_: str) -> None:
+    """Clear all values in range_ (formatting preserved)."""
+    clear_values(spreadsheet_id, range_)
+    click.echo("Cleared.")
+
+
+@sheets.command("create")
+@click.option("--title", required=True, help="New spreadsheet title.")
+@click.option(
+    "--tab",
+    "tabs",
+    multiple=True,
+    help="Initial tab name. Repeatable.",
+)
+def sheets_create(title: str, tabs: tuple[str, ...]) -> None:
+    """Create a new spreadsheet."""
+    spreadsheet = create_spreadsheet(title, sheet_names=list(tabs) or None)
+    click.echo(f"Created: {spreadsheet.id}")
+    click.echo(f"Url:     {spreadsheet.url}")
 
 
 if __name__ == "__main__":

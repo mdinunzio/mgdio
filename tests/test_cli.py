@@ -35,11 +35,12 @@ class TestAuthGoogle:
 
 
 class TestCliShape:
-    def test_top_level_help_lists_auth_group(self):
+    def test_top_level_help_lists_groups(self):
         result = CliRunner().invoke(cli_module.cli, ["--help"])
         assert result.exit_code == 0
         assert "auth" in result.output
         assert "gmail" in result.output
+        assert "sheets" in result.output
 
     def test_auth_help_lists_google_subcommand(self):
         result = CliRunner().invoke(cli_module.cli, ["auth", "--help"])
@@ -109,3 +110,72 @@ class TestGmailCommands:
         assert kwargs["subject"] == "hi"
         assert kwargs["body"] == "hello"
         assert kwargs["attachments"] is None
+
+
+class TestSheetsCommands:
+    def test_sheets_help_lists_subcommands(self):
+        result = CliRunner().invoke(cli_module.cli, ["sheets", "--help"])
+        assert result.exit_code == 0
+        for name in ("info", "read", "write", "append", "clear", "create"):
+            assert name in result.output
+
+    def test_sheets_read_prints_tab_separated(self, monkeypatch):
+        fetch_mock = MagicMock(return_value=[["a", "b"], ["1", "2"]])
+        monkeypatch.setattr(cli_module, "fetch_values", fetch_mock)
+
+        result = CliRunner().invoke(
+            cli_module.cli, ["sheets", "read", "sid", "Sheet1!A1:B2"]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "a\tb" in result.output
+        assert "1\t2" in result.output
+        fetch_mock.assert_called_once_with("sid", "Sheet1!A1:B2")
+
+    def test_sheets_write_passes_rows(self, monkeypatch):
+        write_mock = MagicMock(return_value=4)
+        monkeypatch.setattr(cli_module, "write_values", write_mock)
+
+        result = CliRunner().invoke(
+            cli_module.cli,
+            [
+                "sheets",
+                "write",
+                "sid",
+                "Sheet1!A1:B2",
+                "--row",
+                "a,b",
+                "--row",
+                "1,2",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "Updated cells: 4" in result.output
+        write_mock.assert_called_once_with(
+            "sid", "Sheet1!A1:B2", [["a", "b"], ["1", "2"]], raw=False
+        )
+
+    def test_sheets_create_prints_id_and_url(self, monkeypatch):
+        from mgdio.sheets.spreadsheets import Spreadsheet
+
+        new_sheet = Spreadsheet(
+            id="new-sid",
+            title="Demo",
+            url="https://docs.google.com/spreadsheets/d/new-sid/edit",
+            tabs=(),
+            time_zone="UTC",
+            locale="en_US",
+        )
+        create_mock = MagicMock(return_value=new_sheet)
+        monkeypatch.setattr(cli_module, "create_spreadsheet", create_mock)
+
+        result = CliRunner().invoke(
+            cli_module.cli,
+            ["sheets", "create", "--title", "Demo", "--tab", "Alpha", "--tab", "Beta"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "new-sid" in result.output
+        assert "new-sid/edit" in result.output
+        create_mock.assert_called_once_with("Demo", sheet_names=["Alpha", "Beta"])

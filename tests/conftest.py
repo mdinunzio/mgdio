@@ -10,6 +10,7 @@ import pytest
 from mgdio import settings as mgdio_settings
 from mgdio.auth.google import auth as google_auth
 from mgdio.gmail import client as gmail_client
+from mgdio.sheets import client as sheets_client
 
 
 @pytest.fixture(autouse=True)
@@ -17,9 +18,11 @@ def reset_caches() -> None:
     """Reset module-level credential and service caches between tests."""
     google_auth.reset_credentials_cache()
     gmail_client.reset_service_cache()
+    sheets_client.reset_service_cache()
     yield
     google_auth.reset_credentials_cache()
     gmail_client.reset_service_cache()
+    sheets_client.reset_service_cache()
 
 
 @pytest.fixture
@@ -72,6 +75,16 @@ def mock_gmail_service(monkeypatch) -> MagicMock:
     monkeypatch.setattr(gmail_client, "_service", service)
     monkeypatch.setattr("mgdio.gmail.messages.get_service", lambda: service)
     monkeypatch.setattr("mgdio.gmail.sender.get_service", lambda: service)
+    return service
+
+
+@pytest.fixture
+def mock_sheets_service(monkeypatch) -> MagicMock:
+    """Patch :func:`mgdio.sheets.client.get_service` to return a MagicMock."""
+    service = MagicMock(name="SheetsService")
+    monkeypatch.setattr(sheets_client, "_service", service)
+    monkeypatch.setattr("mgdio.sheets.values.get_service", lambda: service)
+    monkeypatch.setattr("mgdio.sheets.spreadsheets.get_service", lambda: service)
     return service
 
 

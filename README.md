@@ -66,12 +66,71 @@ You only do this once per Google account.
 
 ## Install
 
-For development on this repo:
+### Install into another project (from GitHub)
+
+`mgdio` isn't on PyPI yet; install directly from this repo.
+
+**With `uv` (recommended)** — from inside your target project:
 
 ```powershell
+# HTTPS (works without an SSH key)
+uv add "git+https://github.com/mdinunzio/mgdio.git"
+
+# SSH (if your GitHub SSH key is set up)
+uv add "git+ssh://git@github.com/mdinunzio/mgdio.git"
+
+# Pin to a specific branch, tag, or commit
+uv add "git+https://github.com/mdinunzio/mgdio.git@main"
+uv add "git+https://github.com/mdinunzio/mgdio.git@v0.1.0"
+uv add "git+https://github.com/mdinunzio/mgdio.git@<commit-sha>"
+
+# Include an optional DataFrame backend for Sheets
+uv add "mgdio[sheets-pandas] @ git+https://github.com/mdinunzio/mgdio.git"
+uv add "mgdio[sheets-polars] @ git+https://github.com/mdinunzio/mgdio.git"
+```
+
+**With plain `pip`**:
+
+```powershell
+pip install "git+https://github.com/mdinunzio/mgdio.git"
+pip install "git+ssh://git@github.com/mdinunzio/mgdio.git"
+
+# Pin to a branch / tag / sha
+pip install "git+https://github.com/mdinunzio/mgdio.git@main"
+
+# With an extra
+pip install "mgdio[sheets-pandas] @ git+https://github.com/mdinunzio/mgdio.git"
+```
+
+After install, `mgdio` is importable and the `mgdio` console script is on
+your PATH:
+
+```powershell
+python -c "from mgdio.auth.google import get_credentials; print('OK')"
+mgdio --help
+```
+
+Upgrading later (re-fetches the latest commit on the requested ref):
+
+```powershell
+uv add --upgrade "git+https://github.com/mdinunzio/mgdio.git"
+# or
+pip install --upgrade --force-reinstall "git+https://github.com/mdinunzio/mgdio.git"
+```
+
+### Develop on this repo
+
+Clone first, then editable-install with the dev extra:
+
+```powershell
+git clone git@github.com:mdinunzio/mgdio.git
+cd mgdio
 uv sync --extra dev
 uv pip install -e .
 ```
+
+`uv pip install -e .` registers the `mgdio` console script so
+`uv run mgdio ...` works during development.
 
 ## First-run auth
 

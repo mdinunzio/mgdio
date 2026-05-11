@@ -114,6 +114,53 @@ service = build("gmail", "v1", credentials=get_credentials(),
 
 No scopes argument, no per-service auth dance.
 
+## Quick test commands
+
+End-to-end walkthrough of the new auth flow (PowerShell). Run these from the
+project root after completing the one-time Cloud Console setup above.
+
+```powershell
+# 1. Install deps + editable mgdio
+uv sync --extra dev
+uv pip install -e .
+
+# 2. Confirm the CLI surface
+uv run mgdio --help                # shows the `auth` group
+uv run mgdio auth --help           # shows the `google` subcommand
+uv run mgdio auth google --help    # shows the --reset flag
+
+# 3. Run the unit suite (no real APIs touched)
+uv run pytest -ra
+
+# 4. First-time setup: drag-and-drop client_secret.json, then Authorize
+uv run mgdio auth google           # opens browser, completes consent
+# Expect: "Authenticated." printed when consent finishes
+
+# 5. Verify the on-disk + vault state landed where expected
+Get-ChildItem $env:LOCALAPPDATA\mgdio\google\
+# Expect: client_secret.json present
+
+# Inspect the OS keyring entry from Python
+uv run python -c "import keyring; t = keyring.get_password('mgdio:google', 'oauth_token'); print('present:', bool(t), 'len:', len(t or ''))"
+# Expect: present: True, len: 500+ (a JSON blob)
+
+# 6. Confirm the cached token actually carries all three scopes
+uv run python -c "from mgdio.auth.google import get_credentials; c = get_credentials(); print('valid:', c.valid); [print(' -', s) for s in sorted(c.scopes)]"
+# Expect three URLs: gmail.modify, calendar, spreadsheets
+
+# 7. Second call is cheap: no browser, no prompt -- hits in-process cache
+uv run python -c "from mgdio.auth.google import get_credentials; get_credentials(); print('OK')"
+
+# 8. Verify cross-process persistence: new Python, still no prompt
+uv run python -c "from mgdio.auth.google import get_credentials; c = get_credentials(); print('valid (from keyring):', c.valid)"
+
+# 9. Reset and re-auth (forces a fresh consent flow)
+uv run mgdio auth google --reset   # opens browser again
+
+# 10. Inspect Credential Manager visually (optional)
+#     Start -> "Credential Manager" -> Windows Credentials -> search "mgdio:google"
+```
+
 ## Troubleshooting
 
 - **Refresh token expired / revoked** — verify the Google Auth Platform consent

@@ -16,6 +16,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+sheets-pandas = ["pandas>=2.1"]
+sheets-polars = ["polars>=0.20"]
 dev = [
     "pytest>=8.2",
     "pytest-cov>=5.0",
@@ -24,6 +26,8 @@ dev = [
     "isort>=5.13",
     "flake8>=7.0",
     "flake8-docstrings>=1.7",
+    "pandas>=2.1",
+    "polars>=0.20",
 ]
 
 [project.scripts]

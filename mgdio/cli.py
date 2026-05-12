@@ -62,15 +62,27 @@ def auth() -> None:
     is_flag=True,
     help="Delete the stored token before running, forcing a fresh consent flow.",
 )
-def auth_google(reset: bool) -> None:
+@click.option(
+    "--headless",
+    is_flag=True,
+    help=(
+        "Use the copy-paste flow instead of the localhost setup page. "
+        "For machines without a browser (e.g. a Linux VPS)."
+    ),
+)
+def auth_google(reset: bool, headless: bool) -> None:
     """Run (or re-run) the Google OAuth onboarding flow.
 
     Requests Gmail + Calendar + Sheets scopes in a single consent screen.
     Token is stored in your OS keyring under ``mgdio:google``.
+
+    Pass ``--headless`` on machines without a browser (e.g. a Linux VPS):
+    mgdio will print the auth URL and prompt for the resulting redirect
+    URL to be pasted back, instead of opening a localhost setup page.
     """
     if reset:
         clear_google_token()
-    get_credentials()
+    get_credentials(headless=headless)
     click.echo("Authenticated.")
 
 

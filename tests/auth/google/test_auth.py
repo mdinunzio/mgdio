@@ -107,6 +107,39 @@ class TestGetCredentials:
             == new_creds.to_json.return_value
         )
 
+    def test_dispatches_to_run_headless_flow_when_headless_true(
+        self, tmp_appdata, fake_keyring, monkeypatch
+    ):
+        new_creds = _make_creds(valid=True)
+        run_setup = MagicMock()
+        run_headless = MagicMock(return_value=new_creds)
+        monkeypatch.setattr(google_auth, "run_setup_flow", run_setup)
+        monkeypatch.setattr(google_auth, "run_headless_flow", run_headless)
+
+        result = google_auth.get_credentials(headless=True)
+
+        assert result is new_creds
+        run_headless.assert_called_once()
+        run_setup.assert_not_called()
+        # Same args as the non-headless path: (client_secret_path, scopes).
+        called_path, called_scopes = run_headless.call_args.args
+        assert called_path.name == "client_secret.json"
+        assert called_scopes == list(GOOGLE_SCOPES)
+
+    def test_default_uses_run_setup_flow_not_headless(
+        self, tmp_appdata, fake_keyring, monkeypatch
+    ):
+        new_creds = _make_creds(valid=True)
+        run_setup = MagicMock(return_value=new_creds)
+        run_headless = MagicMock()
+        monkeypatch.setattr(google_auth, "run_setup_flow", run_setup)
+        monkeypatch.setattr(google_auth, "run_headless_flow", run_headless)
+
+        google_auth.get_credentials()  # default: headless=False
+
+        run_setup.assert_called_once()
+        run_headless.assert_not_called()
+
 
 class TestClearStoredToken:
     def test_removes_keyring_entry_and_resets_cache(self, fake_keyring, monkeypatch):

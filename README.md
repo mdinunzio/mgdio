@@ -151,6 +151,50 @@ scopes):
 uv run mgdio auth google --reset
 ```
 
+### Headless install (Linux VPS, SSH-only machines)
+
+On a machine without a browser — a Linux VPS, a container, or any
+environment where `webbrowser.open()` is a no-op — pass `--headless`:
+
+```bash
+mgdio auth google --headless
+```
+
+mgdio prints the Google authorization URL on the terminal. You open it
+on **any** device that has a browser (your laptop, your phone), grant
+consent, and Google redirects to `http://localhost:8765/?state=...&code=...`.
+That redirect **will fail to load** in your browser because nothing's
+listening on `localhost:8765` over there — **this is expected**. Copy
+the entire failed-redirect URL out of the address bar, paste it back
+into the VPS terminal, and press Enter. mgdio extracts the auth code,
+exchanges it for credentials, and stores them in the keyring as usual.
+
+If `client_secret.json` isn't on the VPS yet, mgdio prompts you to
+paste the JSON contents on stdin (end with a blank line). Or, if you
+prefer, `scp` it ahead of time to:
+
+- Linux: `~/.local/share/mgdio/google/client_secret.json`
+- macOS: `~/Library/Application Support/mgdio/google/client_secret.json`
+
+Once authenticated, every subsequent `mgdio gmail / sheets / calendar`
+call reads the cached token from the keyring — no further interaction.
+
+> **Linux keyring caveat.** A minimal VPS image often doesn't have a
+> Secret Service daemon running (`gnome-keyring`, `kwallet`, or
+> `dbus-secret-service`), so the `keyring` library can't write to a
+> vault and falls back to a no-op or fails. The fix is the encrypted
+> file backend:
+>
+> ```bash
+> pip install keyrings.alt
+> python -c "import keyring; from keyrings.alt.file import EncryptedKeyring; keyring.set_keyring(EncryptedKeyring())"
+> ```
+>
+> Or set `PYTHON_KEYRING_BACKEND=keyrings.alt.file.EncryptedKeyring` as
+> a persistent env var. The first read prompts for an encryption
+> password which is required on every subsequent run — fine for a
+> persistent service, awkward for one-shot cron jobs.
+
 ## Where credentials live
 
 - **OAuth token**: OS credential vault under service `mgdio:google`, username

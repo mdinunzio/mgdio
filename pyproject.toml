@@ -3,7 +3,7 @@ name = "mgdio"
 version = "0.1.0"
 description = "Personal connectivity tools: Gmail, Calendar, Sheets, YNAB."
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.10"
 authors = [{ name = "Michael DiNunzio", email = "mdinunzio@gmail.com" }]
 keywords = ["gmail", "calendar", "sheets", "ynab", "google-api", "personal"]
 classifiers = [

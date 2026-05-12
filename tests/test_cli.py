@@ -20,7 +20,7 @@ class TestAuthGoogle:
 
         assert result.exit_code == 0, result.output
         assert "Authenticated." in result.output
-        get_creds.assert_called_once()
+        get_creds.assert_called_once_with(headless=False)
         clear.assert_not_called()
 
     def test_reset_clears_before_get_credentials(self, monkeypatch):
@@ -32,6 +32,37 @@ class TestAuthGoogle:
 
         assert result.exit_code == 0, result.output
         assert [c[0] for c in parent.mock_calls] == ["clear", "get"]
+
+    def test_headless_flag_passes_through_to_get_credentials(self, monkeypatch):
+        get_creds = MagicMock()
+        clear = MagicMock()
+        monkeypatch.setattr(cli_module, "get_credentials", get_creds)
+        monkeypatch.setattr(cli_module, "clear_google_token", clear)
+
+        result = CliRunner().invoke(cli_module.cli, ["auth", "google", "--headless"])
+
+        assert result.exit_code == 0, result.output
+        get_creds.assert_called_once_with(headless=True)
+        clear.assert_not_called()
+
+    def test_reset_and_headless_combined(self, monkeypatch):
+        clear = MagicMock()
+        get_creds = MagicMock()
+        monkeypatch.setattr(cli_module, "clear_google_token", clear)
+        monkeypatch.setattr(cli_module, "get_credentials", get_creds)
+
+        result = CliRunner().invoke(
+            cli_module.cli, ["auth", "google", "--reset", "--headless"]
+        )
+
+        assert result.exit_code == 0, result.output
+        clear.assert_called_once()
+        get_creds.assert_called_once_with(headless=True)
+
+    def test_help_lists_headless_flag(self):
+        result = CliRunner().invoke(cli_module.cli, ["auth", "google", "--help"])
+        assert result.exit_code == 0
+        assert "--headless" in result.output
 
 
 class TestAuthYnab:

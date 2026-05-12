@@ -20,6 +20,7 @@ import keyring
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 
+from mgdio.auth.google._headless_flow import run_headless_flow
 from mgdio.auth.google._setup_server import run_setup_flow
 from mgdio.settings import (
     GOOGLE_CLIENT_SECRET_PATH,
@@ -33,13 +34,19 @@ logger = logging.getLogger(__name__)
 _credentials: Credentials | None = None
 
 
-def get_credentials() -> Credentials:
+def get_credentials(headless: bool = False) -> Credentials:
     """Return valid Google OAuth credentials, running setup flow on first use.
 
     The returned credentials are valid for every API listed in
     :data:`mgdio.settings.GOOGLE_SCOPES` (Gmail, Calendar, Sheets).
     Cached in-process for the lifetime of the program; persisted across
     runs in the OS keyring.
+
+    Args:
+        headless: If True, use the copy-paste OAuth flow
+            (:func:`mgdio.auth.google._headless_flow.run_headless_flow`)
+            instead of the browser-based localhost setup page. For
+            machines without a GUI/browser, e.g. a Linux VPS.
 
     Returns:
         A valid ``google.oauth2.credentials.Credentials`` instance.
@@ -54,7 +61,8 @@ def get_credentials() -> Credentials:
         creds.refresh(Request())
         _save_token_to_keyring(creds)
     if creds is None or not creds.valid:
-        creds = run_setup_flow(GOOGLE_CLIENT_SECRET_PATH, list(GOOGLE_SCOPES))
+        flow_fn = run_headless_flow if headless else run_setup_flow
+        creds = flow_fn(GOOGLE_CLIENT_SECRET_PATH, list(GOOGLE_SCOPES))
         _save_token_to_keyring(creds)
 
     _credentials = creds

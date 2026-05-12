@@ -7,7 +7,8 @@ so they can be `pip` / `uv add`-ed into any other project with a uniform API.
 > (read/send), Google Sheets (read/write/append/clear, spreadsheet + tab
 > management), and Google Calendar (list calendars + event CRUD + quick-add).
 > Plus YNAB (budgets, accounts, categories, transactions, memo edits) via
-> personal-access-token auth. Twilio next.
+> personal-access-token auth. Both browser-based and headless (VPS-friendly)
+> OAuth flows supported. Twilio next.
 
 ## Why a dedicated auth subsystem
 
@@ -20,6 +21,10 @@ so they can be `pip` / `uv add`-ed into any other project with a uniform API.
 - **One consent for all Google services** — Gmail, Calendar, and Sheets share a
   single OAuth client and a single token under `mgdio:google`. Consent once;
   every service subpackage just calls `get_credentials()`.
+- **Headless-friendly** — `mgdio auth google --headless` runs a copy-paste
+  OAuth flow for machines without a browser (Linux VPS, containers, SSH-only
+  hosts). See [Headless install](#headless-install-linux-vps-ssh-only-machines)
+  below.
 
 ## Layout
 
@@ -702,9 +707,15 @@ Remove-Item Env:\MGDIO_RUN_INTEGRATION
 - **YNAB token rejected** — `mgdio auth ynab --reset` to paste a new one. The
   setup page calls `GET /v1/user` before saving so common typos surface
   immediately instead of on first use.
+- **`mismatching_state` in `--headless` mode** — you pasted a redirect URL
+  from a *different* mgdio session. State is rotated every run; finish the
+  paste in the same terminal session that printed the auth URL. Re-run
+  `mgdio auth google --headless` and try again.
+- **`keyring.errors.NoKeyringError` on a Linux VPS** — no Secret Service
+  daemon is running. Install `keyrings.alt` and switch to the encrypted-file
+  backend (see the keyring callout in [Headless install](#headless-install-linux-vps-ssh-only-machines)).
 
 ## Roadmap
 
-Future subpackages, each per the same auth pattern:
-
-- `mgdio.auth.twilio` + `mgdio.twilio`
+See [ROADMAP.md](ROADMAP.md) for the current backlog. Next up: Twilio (SMS +
+voice) following the YNAB paste-token UX.

@@ -7,7 +7,8 @@ so they can be `pip` / `uv add`-ed into any other project with a uniform API.
 > (read/send), Google Sheets (read/write/append/clear, spreadsheet + tab
 > management), and Google Calendar (list calendars + event CRUD + quick-add).
 > Plus YNAB (budgets, accounts, categories, transactions, memo edits) via
-> personal-access-token auth. Twilio next.
+> personal-access-token auth. Both browser-based and headless (VPS-friendly)
+> OAuth flows supported. Twilio next.
 
 ## Why a dedicated auth subsystem
 
@@ -20,6 +21,10 @@ so they can be `pip` / `uv add`-ed into any other project with a uniform API.
 - **One consent for all Google services** — Gmail, Calendar, and Sheets share a
   single OAuth client and a single token under `mgdio:google`. Consent once;
   every service subpackage just calls `get_credentials()`.
+- **Headless-friendly** — `mgdio auth google --headless` runs a copy-paste
+  OAuth flow for machines without a browser (Linux VPS, containers, SSH-only
+  hosts). See [Headless install](#headless-install-linux-vps-ssh-only-machines)
+  below.
 
 ## Layout
 
@@ -150,6 +155,50 @@ scopes):
 ```powershell
 uv run mgdio auth google --reset
 ```
+
+### Headless install (Linux VPS, SSH-only machines)
+
+On a machine without a browser — a Linux VPS, a container, or any
+environment where `webbrowser.open()` is a no-op — pass `--headless`:
+
+```bash
+mgdio auth google --headless
+```
+
+mgdio prints the Google authorization URL on the terminal. You open it
+on **any** device that has a browser (your laptop, your phone), grant
+consent, and Google redirects to `http://localhost:8765/?state=...&code=...`.
+That redirect **will fail to load** in your browser because nothing's
+listening on `localhost:8765` over there — **this is expected**. Copy
+the entire failed-redirect URL out of the address bar, paste it back
+into the VPS terminal, and press Enter. mgdio extracts the auth code,
+exchanges it for credentials, and stores them in the keyring as usual.
+
+If `client_secret.json` isn't on the VPS yet, mgdio prompts you to
+paste the JSON contents on stdin (end with a blank line). Or, if you
+prefer, `scp` it ahead of time to:
+
+- Linux: `~/.local/share/mgdio/google/client_secret.json`
+- macOS: `~/Library/Application Support/mgdio/google/client_secret.json`
+
+Once authenticated, every subsequent `mgdio gmail / sheets / calendar`
+call reads the cached token from the keyring — no further interaction.
+
+> **Linux keyring caveat.** A minimal VPS image often doesn't have a
+> Secret Service daemon running (`gnome-keyring`, `kwallet`, or
+> `dbus-secret-service`), so the `keyring` library can't write to a
+> vault and falls back to a no-op or fails. The fix is the encrypted
+> file backend:
+>
+> ```bash
+> pip install keyrings.alt
+> python -c "import keyring; from keyrings.alt.file import EncryptedKeyring; keyring.set_keyring(EncryptedKeyring())"
+> ```
+>
+> Or set `PYTHON_KEYRING_BACKEND=keyrings.alt.file.EncryptedKeyring` as
+> a persistent env var. The first read prompts for an encryption
+> password which is required on every subsequent run — fine for a
+> persistent service, awkward for one-shot cron jobs.
 
 ## Where credentials live
 
@@ -658,9 +707,15 @@ Remove-Item Env:\MGDIO_RUN_INTEGRATION
 - **YNAB token rejected** — `mgdio auth ynab --reset` to paste a new one. The
   setup page calls `GET /v1/user` before saving so common typos surface
   immediately instead of on first use.
+- **`mismatching_state` in `--headless` mode** — you pasted a redirect URL
+  from a *different* mgdio session. State is rotated every run; finish the
+  paste in the same terminal session that printed the auth URL. Re-run
+  `mgdio auth google --headless` and try again.
+- **`keyring.errors.NoKeyringError` on a Linux VPS** — no Secret Service
+  daemon is running. Install `keyrings.alt` and switch to the encrypted-file
+  backend (see the keyring callout in [Headless install](#headless-install-linux-vps-ssh-only-machines)).
 
 ## Roadmap
 
-Future subpackages, each per the same auth pattern:
-
-- `mgdio.auth.twilio` + `mgdio.twilio`
+See [ROADMAP.md](ROADMAP.md) for the current backlog. Next up: Twilio (SMS +
+voice) following the YNAB paste-token UX.

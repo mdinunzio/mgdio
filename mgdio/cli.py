@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+import shutil
 from datetime import datetime
 from pathlib import Path
 
@@ -31,6 +33,7 @@ from mgdio.sheets import (
     fetch_values,
     write_values,
 )
+from mgdio.skills import iter_skill_dirs
 from mgdio.ynab import CLEAR as YNAB_CLEAR
 from mgdio.ynab import (
     fetch_accounts,
@@ -658,6 +661,103 @@ def ynab_update_tx(
     click.echo(f"  amount: {tx.amount_dollars:.2f}")
     click.echo(f"  memo:   {tx.memo!r}")
     click.echo(f"  cleared: {tx.cleared}")
+
+
+@cli.group()
+def skills() -> None:
+    """Manage bundled Claude Code skills."""
+
+
+@skills.command("list")
+def skills_list() -> None:
+    """List the Claude Code skills bundled with this mgdio version."""
+    with iter_skill_dirs() as skill_dirs:
+        if not skill_dirs:
+            click.echo("(no skills bundled in this build)")
+            return
+        for src in skill_dirs:
+            description = _read_skill_description(src / "SKILL.md")
+            click.echo(f"{src.name}")
+            if description:
+                # Indent the description; wrap to ~75 chars for readability.
+                first = description.splitlines()[0]
+                click.echo(f"  {first}")
+
+
+@skills.command("deploy")
+@click.option(
+    "--global",
+    "global_install",
+    is_flag=True,
+    help=(
+        "Install to ~/.claude/skills/ (cross-project). "
+        "Default: current project's .claude/skills/."
+    ),
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Overwrite existing skill directories instead of skipping.",
+)
+def skills_deploy(global_install: bool, force: bool) -> None:
+    """Copy bundled mgdio skills into a Claude Code skills directory.
+
+    Default target: ``./.claude/skills/`` (the current project).
+    With ``--global``: ``~/.claude/skills/`` (every project).
+
+    Existing skill directories are skipped unless ``--force`` is passed.
+    """
+    if global_install:
+        target_root = Path.home() / ".claude" / "skills"
+    else:
+        target_root = Path.cwd() / ".claude" / "skills"
+    target_root.mkdir(parents=True, exist_ok=True)
+
+    deployed = 0
+    skipped = 0
+    with iter_skill_dirs() as skill_dirs:
+        for src in skill_dirs:
+            dest = target_root / src.name
+            if dest.exists() and not force:
+                click.echo(f"skip   {dest}  (exists; pass --force to overwrite)")
+                skipped += 1
+                continue
+            if dest.exists():
+                shutil.rmtree(dest)
+            shutil.copytree(src, dest)
+            click.echo(f"deploy {dest}")
+            deployed += 1
+
+    click.echo(
+        f"\n{deployed} deployed, {skipped} skipped to {target_root}.\n"
+        "Restart Claude Code (or /clear) for the skills to load."
+    )
+
+
+_FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
+_DESCRIPTION_RE = re.compile(
+    r"^description:\s*(.+?)(?=\n[a-zA-Z_-]+:|\Z)", re.DOTALL | re.MULTILINE
+)
+
+
+def _read_skill_description(skill_md_path: Path) -> str:
+    """Return the ``description`` field from a SKILL.md's YAML frontmatter.
+
+    Best-effort: returns an empty string if the file is malformed.
+    """
+    try:
+        text = skill_md_path.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    front = _FRONTMATTER_RE.match(text)
+    if not front:
+        return ""
+    body = front.group(1)
+    match = _DESCRIPTION_RE.search(body)
+    if not match:
+        return ""
+    # Collapse the multi-line description into a single line.
+    return " ".join(match.group(1).split())
 
 
 if __name__ == "__main__":

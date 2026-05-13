@@ -99,6 +99,21 @@ class TestCliShape:
         assert "sheets" in result.output
         assert "calendar" in result.output
         assert "ynab" in result.output
+        assert "skills" in result.output
+
+    def test_python_m_mgdio_help_runs(self):
+        """Sanity: ``python -m mgdio --help`` exits 0 (covers __main__.py)."""
+        import subprocess
+        import sys
+
+        result = subprocess.run(
+            [sys.executable, "-m", "mgdio", "--help"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "mgdio: personal connectivity tools." in result.stdout
 
     def test_auth_help_lists_subcommands(self):
         result = CliRunner().invoke(cli_module.cli, ["auth", "--help"])

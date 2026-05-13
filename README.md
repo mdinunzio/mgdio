@@ -123,6 +123,37 @@ uv add --upgrade "git+https://github.com/mdinunzio/mgdio.git"
 pip install --upgrade --force-reinstall "git+https://github.com/mdinunzio/mgdio.git"
 ```
 
+### Making `mgdio` callable from anywhere
+
+If you want to type `mgdio gmail list --max 5` directly — without `uv run` or
+activating a venv — install mgdio as a **tool** rather than a project
+dependency:
+
+```powershell
+# Recommended (uv): isolated, on PATH, upgradable
+uv tool install "git+https://github.com/mdinunzio/mgdio.git"
+
+# Or pipx (same idea, different tool)
+pipx install "git+https://github.com/mdinunzio/mgdio.git"
+```
+
+Both place `mgdio` on your global PATH inside an isolated environment.
+Upgrade with `uv tool upgrade mgdio` (or `pipx upgrade mgdio`).
+
+**Other invocations**:
+
+```powershell
+# Inside a uv project that depends on mgdio:
+uv run mgdio gmail list --max 5
+
+# Inside an activated venv (also works without uv):
+python -m mgdio gmail list --max 5
+mgdio gmail list --max 5            # if the venv's Scripts/bin is on PATH
+```
+
+`python -m mgdio ...` is provided by [mgdio/__main__.py](mgdio/__main__.py)
+and is equivalent to the `mgdio` console script.
+
 ### Develop on this repo
 
 Clone first, then editable-install with the dev extra:
@@ -480,6 +511,48 @@ service = build("drive", "v3", credentials=get_credentials(),
 ```
 
 No scopes argument, no per-service auth dance.
+
+## Claude Code skills
+
+`mgdio` ships with four [Claude Code](https://claude.com/claude-code) skills
+— one per service — that teach Claude how to drive the CLI for you. Once
+deployed, you can ask Claude things like *"list my 5 most recent emails,"
+"what's on my calendar this week," "edit transaction abc-123's memo to
+'grocery run,'"* or *"write this data to row 2 of my budget sheet,"* and
+it'll reach for `mgdio` instead of inventing API calls from scratch.
+
+```powershell
+# Preview what's bundled
+mgdio skills list
+
+# Deploy to the CURRENT project (./.claude/skills/)
+mgdio skills deploy
+
+# Deploy GLOBALLY (~/.claude/skills/), so every project sees the skills
+mgdio skills deploy --global
+
+# Re-deploy after a mgdio upgrade
+mgdio skills deploy --force
+```
+
+After deploying, restart Claude Code or run `/clear` to load the skills.
+
+The bundled skills are:
+
+- **`mgdio-gmail`** — list / search / read / send email.
+- **`mgdio-sheets`** — read / write / append / clear values, manage tabs,
+  create spreadsheets.
+- **`mgdio-calendar`** — list calendars, list / fetch / create / update /
+  delete events, natural-language quick-add.
+- **`mgdio-ynab`** — list budgets / accounts / categories / transactions,
+  edit a transaction's memo, cleared status, flag, or category.
+
+**Safety contract**: every skill instructs Claude that reads are
+auto-fine but writes (sending email, creating/updating/deleting events,
+writing to sheets, editing YNAB transactions) **must be confirmed with
+you before invocation**. Claude paraphrases the action and waits for
+your explicit approval — even if the conversation sounded like
+permission was implicit. Writes are never chained without re-confirming.
 
 ## Quick test commands
 

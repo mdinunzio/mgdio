@@ -12,6 +12,11 @@
 - Personal-access-token auth flow for YNAB (paste into a localhost web page).
 - Headless Google auth (`mgdio auth google --headless`) for Linux VPS / SSH-only
   hosts — copy-paste flow, no browser required on the host machine.
+- Claude Code skills bundled with the package (one per service: Gmail, Sheets,
+  Calendar, YNAB) plus a `mgdio skills deploy [--global]` CLI to copy them into
+  `./.claude/skills/` or `~/.claude/skills/`. Skills auto-trigger on natural
+  intent; writes require explicit user confirmation.
+- `python -m mgdio` entry point as an alternative to the `mgdio` console script.
 
 ## Next
 

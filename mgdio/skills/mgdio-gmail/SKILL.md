@@ -77,11 +77,29 @@ failure.
 from mgdio.gmail import fetch_messages, fetch_message, send_email, GmailMessage
 ```
 
-`fetch_messages(query: str = "", max_results: int = 50) -> list[GmailMessage]`
+`fetch_messages(query: str = "", max_results: int = 50, *, batch_size: int = 100,
+max_retries: int = 5, initial_backoff: float = 1.0) -> list[GmailMessage]`
 returns newest-first. `fetch_message(message_id: str) -> GmailMessage`
 fetches one. `send_email(to, subject, body, *, cc=None, bcc=None,
 attachments=None, html=None, sender=None) -> str` returns the new
 message id. Recipients accept `str` or `Sequence[str]`.
+
+**Rate-limit knob**: `fetch_messages` bundles `messages.get` calls into
+a `BatchHttpRequest` and dispatches them concurrently. Workspace
+accounts handle the default `batch_size=100` fine; **personal /
+consumer Gmail accounts have a lower concurrency cap** and may return
+`rateLimitExceeded` (HTTP 429) on a wide batch. If a call to
+`fetch_messages(max_results=100)` fails with
+`MgdioAPIError: ... rateLimitExceeded`, drop the batch size:
+
+```python
+receipts = fetch_messages(query="newer_than:30d", max_results=100,
+                          batch_size=10)
+```
+
+The function also retries any 429-tagged ids automatically with
+exponential backoff (1s, 2s, 4s, ..., capped at 30s; default 5
+retries). Tune via `max_retries` and `initial_backoff` if needed.
 
 `GmailMessage` (frozen dataclass) fields:
 

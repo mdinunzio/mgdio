@@ -3,12 +3,30 @@
 The Gmail API's ``users.messages.list`` returns only ``{id, threadId}`` per
 result; full content requires a per-id GET. We use ``BatchHttpRequest`` to
 collapse the N follow-up GETs into a single HTTP round trip.
+
+Rate-limit handling
+===================
+
+Free / consumer Gmail accounts have a much lower per-user concurrency cap
+than Workspace accounts. A 100-wide ``BatchHttpRequest`` of
+``users.messages.get`` calls reliably trips ``rateLimitExceeded`` (HTTP
+429) on personal accounts even though each individual call is cheap.
+
+``fetch_messages`` exposes a ``batch_size`` parameter for that reason.
+For personal accounts a value around 10-25 is usually safe; the default
+of 100 is kept for backwards-compatibility and works fine for Workspace
+accounts.
+
+On top of that, the batch loop retries any 429 / quota responses with
+exponential backoff (only the failed ids are re-issued, not the whole
+batch). Tunable via ``max_retries`` and ``initial_backoff``.
 """
 
 from __future__ import annotations
 
 import base64
 import logging
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.utils import getaddresses
@@ -21,7 +39,9 @@ from mgdio.gmail.client import get_service
 
 logger = logging.getLogger(__name__)
 
-_BATCH_CHUNK_SIZE = 100
+DEFAULT_BATCH_SIZE: int = 100
+DEFAULT_MAX_RETRIES: int = 5
+DEFAULT_INITIAL_BACKOFF: float = 1.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,6 +78,10 @@ class GmailMessage:
 def fetch_messages(
     query: str = "",
     max_results: int = 50,
+    *,
+    batch_size: int = DEFAULT_BATCH_SIZE,
+    max_retries: int = DEFAULT_MAX_RETRIES,
+    initial_backoff: float = DEFAULT_INITIAL_BACKOFF,
 ) -> list[GmailMessage]:
     """List messages matching ``query`` and fetch their full content.
 
@@ -71,13 +95,31 @@ def fetch_messages(
             ``"from:foo@bar.com after:2026/01/01"``. Empty string returns
             the most recent inbox messages.
         max_results: Maximum number of messages to return.
+        batch_size: How many ``messages.get`` calls to bundle into a single
+            ``BatchHttpRequest``. Each request inside a batch dispatches
+            concurrently from Google's side; free/consumer Gmail accounts
+            cap concurrent requests-per-user lower than Workspace
+            accounts, so a wide batch can trip ``rateLimitExceeded``
+            (HTTP 429). If you see that error, drop this to ``10`` or
+            ``25``. Default ``100`` works for Workspace.
+        max_retries: How many times to retry ids that came back with a
+            429 / quota error before giving up. Only the failed ids are
+            re-issued, not the whole batch.
+        initial_backoff: Seconds to wait before the first retry. Doubles
+            on each subsequent retry (capped at 30s).
 
     Returns:
         List of populated :class:`GmailMessage` objects, possibly empty.
 
     Raises:
-        MgdioAPIError: On any Gmail API HTTP error.
+        MgdioAPIError: On any Gmail API HTTP error that survives the
+            retry budget.
     """
+    if batch_size < 1:
+        raise ValueError("batch_size must be >= 1")
+    if max_retries < 0:
+        raise ValueError("max_retries must be >= 0")
+
     service = get_service()
     try:
         listing = (
@@ -94,18 +136,53 @@ def fetch_messages(
         return []
 
     raws_by_id: dict[str, dict] = {}
-    errors: list[Exception] = []
 
-    def _on_response(request_id: str, response: dict, exception: Exception | None):
-        if exception is not None:
-            errors.append(exception)
-            return
-        raws_by_id[request_id] = response
+    for chunk_start in range(0, len(ids), batch_size):
+        chunk = ids[chunk_start : chunk_start + batch_size]
+        _fetch_chunk_with_retry(
+            service,
+            chunk,
+            raws_by_id,
+            max_retries=max_retries,
+            initial_backoff=initial_backoff,
+        )
 
-    for chunk_start in range(0, len(ids), _BATCH_CHUNK_SIZE):
-        chunk = ids[chunk_start : chunk_start + _BATCH_CHUNK_SIZE]
+    return [_to_dataclass(raws_by_id[mid]) for mid in ids if mid in raws_by_id]
+
+
+def _fetch_chunk_with_retry(
+    service,
+    ids: list[str],
+    raws_by_id: dict[str, dict],
+    *,
+    max_retries: int,
+    initial_backoff: float,
+) -> None:
+    """Execute a single batch.get; retry any 429-tagged ids with backoff."""
+    pending = list(ids)
+    backoff = initial_backoff
+    attempts_remaining = max_retries + 1
+
+    while pending and attempts_remaining > 0:
+        attempts_remaining -= 1
+        fatal: list[Exception] = []
+        retryable: list[str] = []
+
+        def _on_response(
+            request_id: str,
+            response: dict,
+            exception: Exception | None,
+        ) -> None:
+            if exception is None:
+                raws_by_id[request_id] = response
+                return
+            if _is_rate_limit(exception):
+                retryable.append(request_id)
+            else:
+                fatal.append(exception)
+
         batch: BatchHttpRequest = service.new_batch_http_request(callback=_on_response)
-        for message_id in chunk:
+        for message_id in pending:
             batch.add(
                 service.users()
                 .messages()
@@ -117,10 +194,36 @@ def fetch_messages(
         except HttpError as exc:
             raise MgdioAPIError(f"Gmail batch get failed: {exc}") from exc
 
-    if errors:
-        raise MgdioAPIError(f"Gmail batch get returned errors: {errors[0]}")
+        if fatal:
+            raise MgdioAPIError(f"Gmail batch get returned errors: {fatal[0]}")
 
-    return [_to_dataclass(raws_by_id[mid]) for mid in ids if mid in raws_by_id]
+        if not retryable:
+            return
+
+        if attempts_remaining <= 0:
+            raise MgdioAPIError(
+                f"Gmail batch get returned errors: "
+                f"rate-limited after {max_retries} retries on "
+                f"{len(retryable)} id(s). Try a smaller batch_size."
+            )
+
+        logger.warning(
+            "Gmail rate-limited on %d/%d ids; sleeping %.1fs before retry",
+            len(retryable),
+            len(pending),
+            backoff,
+        )
+        time.sleep(backoff)
+        backoff = min(backoff * 2, 30.0)
+        pending = retryable
+
+
+def _is_rate_limit(exception: Exception) -> bool:
+    """Return True if `exception` is a Gmail 429 / quota error worth retrying."""
+    if not isinstance(exception, HttpError):
+        return False
+    status = getattr(getattr(exception, "resp", None), "status", None)
+    return status == 429
 
 
 def fetch_message(message_id: str) -> GmailMessage:

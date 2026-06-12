@@ -39,6 +39,7 @@ GOOGLE_SCOPES: tuple[str, ...] = (
     "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/calendar",
     "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive",
 )
 
 YNAB_KEYRING_SERVICE: str = "mgdio:ynab"

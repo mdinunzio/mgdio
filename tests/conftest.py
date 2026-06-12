@@ -12,6 +12,7 @@ from mgdio.auth.google import auth as google_auth
 from mgdio.auth.whoop import auth as whoop_auth
 from mgdio.auth.ynab import auth as ynab_auth
 from mgdio.calendar import client as calendar_client
+from mgdio.drive import client as drive_client
 from mgdio.gmail import client as gmail_client
 from mgdio.sheets import client as sheets_client
 from mgdio.whoop import client as whoop_client
@@ -27,6 +28,7 @@ def reset_caches() -> None:
     gmail_client.reset_service_cache()
     sheets_client.reset_service_cache()
     calendar_client.reset_service_cache()
+    drive_client.reset_service_cache()
     ynab_client.reset_session_cache()
     whoop_client.reset_session_cache()
     yield
@@ -36,6 +38,7 @@ def reset_caches() -> None:
     gmail_client.reset_service_cache()
     sheets_client.reset_service_cache()
     calendar_client.reset_service_cache()
+    drive_client.reset_service_cache()
     ynab_client.reset_session_cache()
     whoop_client.reset_session_cache()
 
@@ -112,6 +115,16 @@ def mock_calendar_service(monkeypatch) -> MagicMock:
     monkeypatch.setattr(calendar_client, "_service", service)
     monkeypatch.setattr("mgdio.calendar.events.get_service", lambda: service)
     monkeypatch.setattr("mgdio.calendar.calendars.get_service", lambda: service)
+    return service
+
+
+@pytest.fixture
+def mock_drive_service(monkeypatch) -> MagicMock:
+    """Patch :func:`mgdio.drive.client.get_service` to return a MagicMock."""
+    service = MagicMock(name="DriveService")
+    monkeypatch.setattr(drive_client, "_service", service)
+    monkeypatch.setattr("mgdio.drive.files.get_service", lambda: service)
+    monkeypatch.setattr("mgdio.drive.permissions.get_service", lambda: service)
     return service
 
 

@@ -320,7 +320,8 @@ _PAGE_TEMPLATE = """\
 <p>
   One-time setup to authorize <strong>mgdio</strong> against your Google
   account. A single consent covers <strong>Gmail</strong>,
-  <strong>Calendar</strong>, and <strong>Sheets</strong>.
+  <strong>Calendar</strong>, <strong>Sheets</strong>, and
+  <strong>Drive</strong>.
   This page is served from your own machine; nothing leaves localhost.
 </p>
 
@@ -328,10 +329,11 @@ _PAGE_TEMPLATE = """\
 <ol>
   <li>Open <a href="https://console.cloud.google.com/" target="_blank">
       console.cloud.google.com</a> and create or pick a project.</li>
-  <li>Under <em>APIs &amp; Services -&gt; Library</em>, enable all three
+  <li>Under <em>APIs &amp; Services -&gt; Library</em>, enable all four
       APIs: <strong>Gmail API</strong>,
-      <strong>Google Calendar API</strong>, and
-      <strong>Google Sheets API</strong>.</li>
+      <strong>Google Calendar API</strong>,
+      <strong>Google Sheets API</strong>, and
+      <strong>Google Drive API</strong>.</li>
 </ol>
 
 <h2>2. Configure the app under Google Auth Platform</h2>
@@ -343,11 +345,12 @@ _PAGE_TEMPLATE = """\
       <em>Testing</em> mode have their refresh tokens revoked every
       7 days.)</li>
   <li><em>Data Access</em>: click <em>Add or remove scopes</em> and add
-      all three of:
+      all four of:
       <ul>
         <li><code>https://www.googleapis.com/auth/gmail.modify</code></li>
         <li><code>https://www.googleapis.com/auth/calendar</code></li>
         <li><code>https://www.googleapis.com/auth/spreadsheets</code></li>
+        <li><code>https://www.googleapis.com/auth/drive</code></li>
       </ul>
   </li>
 </ol>

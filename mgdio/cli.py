@@ -26,6 +26,21 @@ from mgdio.calendar import (
     quick_add,
     update_event,
 )
+from mgdio.drive import (
+    copy_file,
+    create_folder,
+    delete_file,
+    download_file,
+    export_file,
+    fetch_file,
+    list_files,
+    list_permissions,
+    move_file,
+    share_file,
+    trash_file,
+    unshare_file,
+    upload_file,
+)
 from mgdio.gmail import fetch_message, fetch_messages, send_email
 from mgdio.sheets import (
     append_values,
@@ -816,6 +831,225 @@ def whoop_body() -> None:
     click.echo(f"Height:         {b.height_meter} m")
     click.echo(f"Weight:         {b.weight_kilogram} kg")
     click.echo(f"Max heart rate: {b.max_heart_rate} bpm")
+
+
+@cli.group()
+def drive() -> None:
+    """Google Drive commands (files, folders, sharing)."""
+
+
+def _fmt_size(size_bytes: int | None) -> str:
+    if size_bytes is None:
+        return "        -"
+    units = ["B", "K", "M", "G", "T"]
+    value = float(size_bytes)
+    for unit in units:
+        if value < 1024 or unit == units[-1]:
+            return f"{value:7.1f}{unit}"
+        value /= 1024
+    return f"{size_bytes}B"
+
+
+@drive.command("list")
+@click.option("--query", "-q", default="", help="Drive query (the `q` param).")
+@click.option("--parent", "parent_id", default=None, help="Restrict to a folder id.")
+@click.option(
+    "--order", "order_by", default=None, help="Sort, e.g. 'modifiedTime desc'."
+)
+@click.option(
+    "--trashed", is_flag=True, help="Include trashed files (default excludes them)."
+)
+@click.option("--max", "max_results", default=25, type=int, show_default=True)
+def drive_list(
+    query: str,
+    parent_id: str | None,
+    order_by: str | None,
+    trashed: bool,
+    max_results: int,
+) -> None:
+    """List / search files and folders."""
+    files = list_files(
+        query=query,
+        parent_id=parent_id,
+        include_trashed=trashed,
+        order_by=order_by,
+        max_results=max_results,
+    )
+    for f in files:
+        kind = "DIR " if f.is_folder else "FILE"
+        flag = "*" if f.starred else " "
+        click.echo(
+            f"{kind}{flag} {_fmt_size(f.size_bytes)}  {f.name[:50]:50}  [{f.id}]"
+        )
+
+
+@drive.command("get")
+@click.argument("file_id")
+def drive_get(file_id: str) -> None:
+    """Print a file's metadata."""
+    f = fetch_file(file_id)
+    click.echo(f"Id:        {f.id}")
+    click.echo(f"Name:      {f.name}")
+    click.echo(f"MIME:      {f.mime_type}")
+    click.echo(f"Folder:    {f.is_folder}")
+    click.echo(f"Size:      {f.size_bytes if f.size_bytes is not None else '-'}")
+    click.echo(f"Parents:   {', '.join(f.parents)}")
+    click.echo(f"Modified:  {f.modified_time.isoformat() if f.modified_time else '-'}")
+    click.echo(f"Owners:    {', '.join(f.owner_emails)}")
+    click.echo(f"Shared:    {f.shared}")
+    click.echo(f"Trashed:   {f.trashed}")
+    click.echo(f"Url:       {f.web_view_link}")
+
+
+@drive.command("mkdir")
+@click.argument("name")
+@click.option("--parent", "parent_id", default=None, help="Parent folder id.")
+def drive_mkdir(name: str, parent_id: str | None) -> None:
+    """Create a folder."""
+    folder = create_folder(name, parent_id=parent_id)
+    click.echo(f"Created folder: {folder.id}")
+    click.echo(f"Url:            {folder.web_view_link}")
+
+
+@drive.command("upload")
+@click.argument(
+    "local_path", type=click.Path(exists=True, dir_okay=False, path_type=Path)
+)
+@click.option("--name", default=None, help="Name in Drive (default: local name).")
+@click.option("--parent", "parent_id", default=None, help="Parent folder id.")
+def drive_upload(local_path: Path, name: str | None, parent_id: str | None) -> None:
+    """Upload a local file to Drive."""
+    f = upload_file(local_path, name=name, parent_id=parent_id)
+    click.echo(f"Uploaded: {f.id}")
+    click.echo(f"Url:      {f.web_view_link}")
+
+
+@drive.command("download")
+@click.argument("file_id")
+@click.argument("local_path", type=click.Path(dir_okay=False, path_type=Path))
+def drive_download(file_id: str, local_path: Path) -> None:
+    """Download a binary file's content to LOCAL_PATH."""
+    dest = download_file(file_id, local_path)
+    click.echo(f"Downloaded to: {dest}")
+
+
+@drive.command("export")
+@click.argument("file_id")
+@click.argument("local_path", type=click.Path(dir_okay=False, path_type=Path))
+@click.option(
+    "--mime",
+    "mime_type",
+    required=True,
+    help="Export MIME type, e.g. application/pdf or text/csv.",
+)
+def drive_export(file_id: str, local_path: Path, mime_type: str) -> None:
+    """Export a Google-native doc (Docs/Sheets/Slides) to LOCAL_PATH."""
+    dest = export_file(file_id, local_path, mime_type=mime_type)
+    click.echo(f"Exported to: {dest}")
+
+
+@drive.command("rename")
+@click.argument("file_id")
+@click.argument("new_name")
+def drive_rename(file_id: str, new_name: str) -> None:
+    """Rename a file or folder."""
+    from mgdio.drive import update_file
+
+    f = update_file(file_id, name=new_name)
+    click.echo(f"Renamed: {f.name}  [{f.id}]")
+
+
+@drive.command("move")
+@click.argument("file_id")
+@click.argument("new_parent_id")
+def drive_move(file_id: str, new_parent_id: str) -> None:
+    """Move a file into a different folder."""
+    f = move_file(file_id, new_parent_id)
+    click.echo(f"Moved: {f.name}  -> parents {', '.join(f.parents)}")
+
+
+@drive.command("copy")
+@click.argument("file_id")
+@click.option("--name", default=None, help="Name for the copy.")
+@click.option("--parent", "parent_id", default=None, help="Destination folder id.")
+def drive_copy(file_id: str, name: str | None, parent_id: str | None) -> None:
+    """Copy a file."""
+    f = copy_file(file_id, name=name, parent_id=parent_id)
+    click.echo(f"Copied to: {f.id}")
+    click.echo(f"Url:       {f.web_view_link}")
+
+
+@drive.command("trash")
+@click.argument("file_id")
+@click.option("--restore", is_flag=True, help="Restore from trash instead.")
+def drive_trash(file_id: str, restore: bool) -> None:
+    """Move a file to the trash (or --restore it)."""
+    f = trash_file(file_id, trashed=not restore)
+    state = "restored" if restore else "trashed"
+    click.echo(f"{state.capitalize()}: {f.name}  [{f.id}]")
+
+
+@drive.command("delete")
+@click.argument("file_id")
+def drive_delete(file_id: str) -> None:
+    """Permanently delete a file (skips the trash -- irreversible)."""
+    delete_file(file_id)
+    click.echo("Deleted.")
+
+
+@drive.command("empty-trash")
+def drive_empty_trash() -> None:
+    """Permanently delete every trashed file (irreversible)."""
+    from mgdio.drive import empty_trash
+
+    empty_trash()
+    click.echo("Trash emptied.")
+
+
+@drive.command("perms")
+@click.argument("file_id")
+def drive_perms(file_id: str) -> None:
+    """List a file's sharing permissions."""
+    for p in list_permissions(file_id):
+        who = p.email_address or p.domain or p.type
+        click.echo(f"{p.role:12} {p.type:8} {who[:40]:40}  [{p.id}]")
+
+
+@drive.command("share")
+@click.argument("file_id")
+@click.option("--role", default="reader", show_default=True)
+@click.option("--email", default=None, help="Share with a person/group email.")
+@click.option("--domain", default=None, help="Share with a Workspace domain.")
+@click.option("--anyone", is_flag=True, help="Share with anyone who has the link.")
+@click.option("--notify", is_flag=True, help="Email the grantee (user/group only).")
+def drive_share(
+    file_id: str,
+    role: str,
+    email: str | None,
+    domain: str | None,
+    anyone: bool,
+    notify: bool,
+) -> None:
+    """Grant a sharing permission on a file."""
+    p = share_file(
+        file_id,
+        role=role,
+        email=email,
+        domain=domain,
+        anyone=anyone,
+        send_notification=notify,
+    )
+    click.echo(f"Granted {p.role} to {p.email_address or p.domain or p.type}")
+    click.echo(f"Permission id: {p.id}")
+
+
+@drive.command("unshare")
+@click.argument("file_id")
+@click.argument("permission_id")
+def drive_unshare(file_id: str, permission_id: str) -> None:
+    """Revoke a sharing permission (id from `drive perms`)."""
+    unshare_file(file_id, permission_id)
+    click.echo("Revoked.")
 
 
 @cli.group()

@@ -98,10 +98,11 @@ class TestGetCredentials:
         called_path, called_scopes = run_setup.call_args.args
         assert called_path.name == "client_secret.json"
         assert called_scopes == list(GOOGLE_SCOPES)
-        assert len(called_scopes) == 3
+        assert len(called_scopes) == 4
         assert "https://www.googleapis.com/auth/gmail.modify" in called_scopes
         assert "https://www.googleapis.com/auth/calendar" in called_scopes
         assert "https://www.googleapis.com/auth/spreadsheets" in called_scopes
+        assert "https://www.googleapis.com/auth/drive" in called_scopes
         assert (
             fake_keyring[(GOOGLE_KEYRING_SERVICE, GOOGLE_KEYRING_USERNAME)]
             == new_creds.to_json.return_value

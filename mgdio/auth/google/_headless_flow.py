@@ -3,9 +3,10 @@
 The browser-based flow in :mod:`mgdio.auth.google._setup_server` assumes
 a GUI is available on the host. When that's not true (a Linux VPS, a
 Docker container, an SSH session into a server), we use the lower-level
-``google_auth_oauthlib.flow.Flow`` with ``redirect_uri="http://localhost:
-<port>"``, print the authorization URL on the terminal, and read the
-resulting failed-redirect URL back from stdin.
+``google_auth_oauthlib.flow.Flow`` with ``redirect_uri="http://localhost"``
+(the bare loopback redirect registered on Desktop OAuth clients), print
+the authorization URL on the terminal, and read the resulting
+failed-redirect URL back from stdin.
 
 Why this works (and why the obvious alternatives don't):
 
@@ -23,7 +24,7 @@ What the user sees:
 1. We print the authorization URL.
 2. They open it on a device that *does* have a browser (laptop, phone).
 3. After granting consent, Google redirects to
-   ``http://localhost:<port>/?state=...&code=...`` -- which fails to
+   ``http://localhost/?state=...&code=...`` -- which fails to
    load on the user's laptop (nothing's listening there). That's
    expected.
 4. They copy the *whole failed-redirect URL* from the address bar and
@@ -48,12 +49,16 @@ from mgdio.exceptions import MissingClientSecretError
 
 logger = logging.getLogger(__name__)
 
-# Any port works -- the VPS does NOT listen on it. The browser on the
-# user's laptop is the only thing that tries to load this URL, and
-# "connection refused" is the expected outcome: by then we've already
-# read the URL from the address bar.
-HEADLESS_REDIRECT_PORT: int = 8765
-HEADLESS_REDIRECT_URI: str = f"http://localhost:{HEADLESS_REDIRECT_PORT}/"
+# Must EXACTLY match a redirect URI registered on the Desktop OAuth
+# client. Google's Desktop clients register the bare loopback
+# ``http://localhost`` (no port, no trailing slash); requesting anything
+# else (e.g. ``http://localhost:8765/``) makes Google refuse to redirect
+# after consent -- the browser hangs on the consent-summary page and no
+# localhost URL is ever produced to paste back. The VPS does NOT listen
+# on this address; the browser on the user's laptop is the only thing
+# that tries to load it, and "connection refused" is the expected
+# outcome -- by then we've already read the URL from the address bar.
+HEADLESS_REDIRECT_URI: str = "http://localhost"
 
 
 def run_headless_flow(

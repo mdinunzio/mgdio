@@ -13,6 +13,8 @@ from mgdio.auth.google import clear_stored_token as clear_google_token
 from mgdio.auth.google import (
     get_credentials,
 )
+from mgdio.auth.whoop import clear_stored_token as clear_whoop_token
+from mgdio.auth.whoop import get_access_token as get_whoop_token
 from mgdio.auth.ynab import clear_stored_token as clear_ynab_token
 from mgdio.auth.ynab import get_token as get_ynab_token
 from mgdio.calendar import (
@@ -34,6 +36,14 @@ from mgdio.sheets import (
     write_values,
 )
 from mgdio.skills import iter_skill_dirs
+from mgdio.whoop import (
+    fetch_body_measurement,
+    fetch_cycles,
+    fetch_profile,
+    fetch_recoveries,
+    fetch_sleeps,
+    fetch_workouts,
+)
 from mgdio.ynab import CLEAR as YNAB_CLEAR
 from mgdio.ynab import (
     fetch_accounts,
@@ -106,6 +116,30 @@ def auth_ynab(reset: bool) -> None:
     if reset:
         clear_ynab_token()
     get_ynab_token()
+    click.echo("Authenticated.")
+
+
+@auth.command("whoop")
+@click.option(
+    "--reset",
+    is_flag=True,
+    help="Delete the stored token before running, forcing re-authorization.",
+)
+def auth_whoop(reset: bool) -> None:
+    """Run (or re-run) the Whoop OAuth onboarding flow.
+
+    Opens a localhost setup page in your browser: paste your Whoop app's
+    Client ID + Secret, click "Authorize with Whoop", and approve. The
+    resulting token bundle is saved to your OS keyring under
+    ``mgdio:whoop`` and refreshed automatically on expiry.
+
+    The redirect URI defaults to ``http://localhost:8765/callback`` and
+    can be overridden with the ``MGDIO_WHOOP_REDIRECT_URI`` env var (must
+    match what's registered in your Whoop app).
+    """
+    if reset:
+        clear_whoop_token()
+    get_whoop_token()
     click.echo("Authenticated.")
 
 
@@ -661,6 +695,127 @@ def ynab_update_tx(
     click.echo(f"  amount: {tx.amount_dollars:.2f}")
     click.echo(f"  memo:   {tx.memo!r}")
     click.echo(f"  cleared: {tx.cleared}")
+
+
+@cli.group()
+def whoop() -> None:
+    """Whoop commands (recovery, sleep, workouts, cycles, profile)."""
+
+
+def _whoop_range_opts(func):
+    """Shared --start / --end / --max options for paginated whoop commands."""
+    func = click.option(
+        "--end",
+        "end_str",
+        default=None,
+        help="ISO upper bound, e.g. 2026-05-12T00:00:00-04:00.",
+    )(func)
+    func = click.option(
+        "--start",
+        "start_str",
+        default=None,
+        help="ISO lower bound, e.g. 2026-05-01T00:00:00-04:00.",
+    )(func)
+    func = click.option(
+        "--max",
+        "max_records",
+        default=10,
+        type=int,
+        show_default=True,
+        help="Max records to fetch.",
+    )(func)
+    return func
+
+
+@whoop.command("recoveries")
+@_whoop_range_opts
+def whoop_recoveries(
+    max_records: int, start_str: str | None, end_str: str | None
+) -> None:
+    """List recovery records (recovery score, HRV, resting HR)."""
+    recoveries = fetch_recoveries(
+        start=_parse_iso_aware(start_str, "--start"),
+        end=_parse_iso_aware(end_str, "--end"),
+        max_records=max_records,
+    )
+    for r in recoveries:
+        when = f"{r.created_at:%Y-%m-%d}" if r.created_at else "?"
+        score = "--" if r.recovery_score is None else f"{r.recovery_score:g}%"
+        hrv = "--" if r.hrv_rmssd_milli is None else f"{r.hrv_rmssd_milli:.1f}ms"
+        rhr = "--" if r.resting_heart_rate is None else f"{r.resting_heart_rate:g}bpm"
+        click.echo(f"{when}  recovery {score:>5}  hrv {hrv:>8}  rhr {rhr:>7}")
+
+
+@whoop.command("sleeps")
+@_whoop_range_opts
+def whoop_sleeps(max_records: int, start_str: str | None, end_str: str | None) -> None:
+    """List sleep records (performance %, respiratory rate)."""
+    sleeps = fetch_sleeps(
+        start=_parse_iso_aware(start_str, "--start"),
+        end=_parse_iso_aware(end_str, "--end"),
+        max_records=max_records,
+    )
+    for s in sleeps:
+        when = f"{s.start:%Y-%m-%d %H:%M}" if s.start else "?"
+        perf = (
+            "--"
+            if s.sleep_performance_percentage is None
+            else f"{s.sleep_performance_percentage:g}%"
+        )
+        nap = " (nap)" if s.nap else ""
+        click.echo(f"{when}  performance {perf:>5}{nap}  [{s.id}]")
+
+
+@whoop.command("workouts")
+@_whoop_range_opts
+def whoop_workouts(
+    max_records: int, start_str: str | None, end_str: str | None
+) -> None:
+    """List workout records (strain, avg HR, calories)."""
+    workouts = fetch_workouts(
+        start=_parse_iso_aware(start_str, "--start"),
+        end=_parse_iso_aware(end_str, "--end"),
+        max_records=max_records,
+    )
+    for w in workouts:
+        when = f"{w.start:%Y-%m-%d %H:%M}" if w.start else "?"
+        strain = "--" if w.strain is None else f"{w.strain:.1f}"
+        cals = "--" if w.calories is None else f"{w.calories:.0f}"
+        sport = w.sport_name or "workout"
+        click.echo(f"{when}  {sport[:20]:20}  strain {strain:>5}  {cals:>6} kcal")
+
+
+@whoop.command("cycles")
+@_whoop_range_opts
+def whoop_cycles(max_records: int, start_str: str | None, end_str: str | None) -> None:
+    """List physiological cycles (day strain)."""
+    cycles = fetch_cycles(
+        start=_parse_iso_aware(start_str, "--start"),
+        end=_parse_iso_aware(end_str, "--end"),
+        max_records=max_records,
+    )
+    for c in cycles:
+        when = f"{c.start:%Y-%m-%d}" if c.start else "?"
+        strain = "--" if c.strain is None else f"{c.strain:.1f}"
+        click.echo(f"{when}  day strain {strain:>5}  [{c.id}]")
+
+
+@whoop.command("profile")
+def whoop_profile() -> None:
+    """Print the authenticated user's basic profile."""
+    p = fetch_profile()
+    click.echo(f"User id: {p.user_id}")
+    click.echo(f"Name:    {p.first_name} {p.last_name}")
+    click.echo(f"Email:   {p.email}")
+
+
+@whoop.command("body")
+def whoop_body() -> None:
+    """Print the authenticated user's body measurements."""
+    b = fetch_body_measurement()
+    click.echo(f"Height:         {b.height_meter} m")
+    click.echo(f"Weight:         {b.weight_kilogram} kg")
+    click.echo(f"Max heart rate: {b.max_heart_rate} bpm")
 
 
 @cli.group()

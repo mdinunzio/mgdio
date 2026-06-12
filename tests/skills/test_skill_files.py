@@ -99,11 +99,12 @@ class TestSafetyContract:
 
 
 class TestBundledSkillNames:
-    def test_exactly_four_bundled_skills(self, skills):
+    def test_all_expected_skills_bundled(self, skills):
         names = {name for name, _, _ in skills}
         assert names == {
             "mgdio-gmail",
             "mgdio-sheets",
             "mgdio-calendar",
             "mgdio-ynab",
+            "mgdio-whoop",
         }

@@ -337,6 +337,13 @@ _PAGE_TEMPLATE = """\
 </ol>
 
 <h2>2. Configure the app under Google Auth Platform</h2>
+<p>
+  The <em>Branding</em> / <em>Audience</em> / <em>Data Access</em> sidebar
+  doesn't appear until your project has an OAuth client. If you don't see it
+  yet, open <em>APIs &amp; Services -&gt; Credentials</em> and click any entry
+  under <em>OAuth 2.0 Client IDs</em> (create one first via step 3 below if the
+  list is empty) - that opens <em>Google Auth Platform</em> with the sidebar.
+</p>
 <ol>
   <li><em>Branding</em>: fill in app name and support email.</li>
   <li><em>Audience</em>: User type
@@ -362,6 +369,16 @@ _PAGE_TEMPLATE = """\
       OAuth callback use any localhost port.)</li>
   <li>Click <em>Download JSON</em>.</li>
 </ol>
+<p class="note">
+  <strong>Already have a client but lost the JSON?</strong> Google won't
+  re-download the <em>original</em> secret, but you can mint a fresh one. Open
+  the existing client under <em>APIs &amp; Services -&gt; Credentials -&gt;
+  OAuth 2.0 Client IDs</em>, then under <em>Client secrets</em> click
+  <strong>Add secret</strong>. The new secret row has a
+  <strong>download (&#11015;) button</strong> - click it to grab a ready-made
+  <code>client_secret.json</code> and drop that file below. You do <em>not</em>
+  need to create a brand-new client or hand-build any JSON.
+</p>
 
 <h2>4. Drop the file below</h2>
 <p>The file is saved to <span class="path">{client_secret_path}</span>

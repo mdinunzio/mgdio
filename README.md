@@ -61,7 +61,11 @@ You only do this once per Google account.
    - Google Calendar API
    - Google Sheets API
    - Google Drive API
-3. **Configure the app** under *Google Auth Platform* in the left nav:
+3. **Configure the app** under *Google Auth Platform* in the left nav.
+   The *Branding / Audience / Data Access* sidebar only appears once your
+   project has an OAuth client — if you don't see it, open *APIs & Services →
+   Credentials* and click any entry under *OAuth 2.0 Client IDs* (create one
+   via step 4 first if the list is empty) to land on *Google Auth Platform*.
    - **Branding** — fill in app name and support email.
    - **Audience** — set User type to **External**, add yourself under
      *Test users*, then click **Publish app**. *Critical:* apps left in
@@ -76,6 +80,14 @@ You only do this once per Google account.
    - Application type: **Desktop app**.
    - Click *Download JSON*. (You'll drop this into the mgdio setup page in a moment;
      no manual filesystem work.)
+
+> **Already have a client but lost the JSON?** Google won't re-download the
+> *original* secret, but you can mint a fresh one. Open the existing client
+> under *APIs & Services → Credentials → OAuth 2.0 Client IDs*, then under
+> *Client secrets* click **Add secret**. The new secret row has a **download
+> (⬇) button** — click it to get a ready-made `client_secret.json` and drop
+> that into the mgdio setup page. No need to create a new client or hand-build
+> any JSON.
 
 ## Install
 

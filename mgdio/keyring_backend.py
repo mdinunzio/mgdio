@@ -34,6 +34,8 @@ from __future__ import annotations
 import logging
 import os
 import sys
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import keyring
@@ -41,40 +43,98 @@ import platformdirs
 
 logger = logging.getLogger(__name__)
 
+
+@contextmanager
+def _no_interactive_stdin() -> Iterator[None]:
+    """Temporarily point stdin at os.devnull so prompts can't block.
+
+    Some keyring backends (notably ``keyrings.alt``'s ``EncryptedKeyring``)
+    call ``getpass`` on first access. During our probe we never want that
+    to hang waiting for a human -- redirecting stdin to ``/dev/null`` makes
+    ``getpass`` hit EOF and raise instead, which we treat as "unusable".
+    """
+    try:
+        devnull = open(os.devnull, "r")
+    except OSError:  # pragma: no cover - no /dev/null is exotic
+        yield
+        return
+    saved = sys.stdin
+    sys.stdin = devnull
+    try:
+        yield
+    finally:
+        sys.stdin = saved
+        try:
+            devnull.close()
+        except OSError:  # pragma: no cover
+            pass
+
+
 # Set once we've run, so repeated settings imports don't re-select or
 # re-warn. Idempotent by design.
 _backend_selected: bool = False
 
 
-def _native_backend_works() -> bool:
-    """Return True if the currently-resolved keyring backend is usable.
+def _iter_candidate_backends(backend: object) -> list[object]:
+    """Flatten a backend, expanding a ChainerBackend into its children.
 
-    A round-trip set/delete is the only reliable probe: on a headless
-    Linux box the Secret Service backend imports fine but raises on first
-    access. We use a throwaway service/username and clean up after.
+    ``keyring``'s default resolver is a ``ChainerBackend`` that delegates
+    to the highest-priority viable backend. Once ``keyrings.alt`` is
+    installed, that chain can include the interactive ``EncryptedKeyring``
+    -- which we must NOT treat as a usable "native" vault. Flattening lets
+    us inspect what the chain would actually use.
+    """
+    children = getattr(backend, "backends", None)
+    if children:
+        out: list[object] = []
+        for child in children:
+            out.extend(_iter_candidate_backends(child))
+        return out
+    return [backend]
+
+
+def _is_secret_service(backend: object) -> bool:
+    """True only for the genuine OS Secret Service backend on Linux."""
+    name = type(backend).__module__ + "." + type(backend).__name__
+    return "secretservice" in name.lower()
+
+
+def _native_backend_works() -> bool:
+    """Return True only if a genuine Secret Service vault is usable.
+
+    We deliberately do NOT accept file backends from ``keyrings.alt`` here
+    (plaintext or encrypted): the encrypted one prompts for a password and
+    the plaintext one we want to manage ourselves with locked-down paths.
+    So this returns True only when the resolved chain contains a working
+    Secret Service backend.
+
+    The probe is guarded against blocking on input: if any backend tries
+    to read a password interactively (``getpass``), stdin is pointed at
+    ``/dev/null`` so it raises EOF instead of hanging, and we report the
+    backend as unusable.
     """
     try:
-        backend = keyring.get_keyring()
+        resolved = keyring.get_keyring()
     except Exception:  # pragma: no cover - defensive
         return False
 
-    # The inert backends report a priority <= 0 and never persist data.
-    name = type(backend).__module__ + "." + type(backend).__name__
-    if "fail" in name.lower() or "null" in name.lower():
+    candidates = _iter_candidate_backends(resolved)
+    if not any(_is_secret_service(b) for b in candidates):
         return False
 
     probe_service = "mgdio:__backend_probe__"
     probe_user = "probe"
-    try:
-        keyring.set_password(probe_service, probe_user, "1")
-        ok = keyring.get_password(probe_service, probe_user) == "1"
-    except Exception:
-        return False
-    finally:
+    with _no_interactive_stdin():
         try:
-            keyring.delete_password(probe_service, probe_user)
+            keyring.set_password(probe_service, probe_user, "1")
+            ok = keyring.get_password(probe_service, probe_user) == "1"
         except Exception:
-            pass
+            return False
+        finally:
+            try:
+                keyring.delete_password(probe_service, probe_user)
+            except Exception:
+                pass
     return ok
 
 

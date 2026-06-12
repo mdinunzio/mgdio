@@ -13,10 +13,15 @@
 - Headless Google auth (`mgdio auth google --headless`) for Linux VPS / SSH-only
   hosts — copy-paste flow, no browser required on the host machine.
 - Claude Code skills bundled with the package (one per service: Gmail, Sheets,
-  Calendar, YNAB) plus a `mgdio skills deploy [--global]` CLI to copy them into
-  `./.claude/skills/` or `~/.claude/skills/`. Skills auto-trigger on natural
+  Calendar, YNAB, Whoop) plus a `mgdio skills deploy [--global]` CLI to copy them
+  into `./.claude/skills/` or `~/.claude/skills/`. Skills auto-trigger on natural
   intent; writes require explicit user confirmation.
 - `python -m mgdio` entry point as an alternative to the `mgdio` console script.
+- Whoop: OAuth 2.0 authorization-code flow (paste Client ID/Secret into a
+  localhost setup page, browser consent, auto-refreshing token bundle in the
+  keyring). Read-only v2 API: recovery, sleep, workouts, cycles, profile, body
+  measurements, with auto-pagination. Redirect URI is env-overridable via
+  `MGDIO_WHOOP_REDIRECT_URI`.
 
 ## Next
 

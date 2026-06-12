@@ -90,6 +90,31 @@ class TestAuthYnab:
         assert [c[0] for c in parent.mock_calls] == ["clear", "get"]
 
 
+class TestAuthWhoop:
+    def test_runs_get_token_and_prints_authenticated(self, monkeypatch):
+        get_token = MagicMock()
+        clear = MagicMock()
+        monkeypatch.setattr(cli_module, "get_whoop_token", get_token)
+        monkeypatch.setattr(cli_module, "clear_whoop_token", clear)
+
+        result = CliRunner().invoke(cli_module.cli, ["auth", "whoop"])
+
+        assert result.exit_code == 0, result.output
+        assert "Authenticated." in result.output
+        get_token.assert_called_once()
+        clear.assert_not_called()
+
+    def test_reset_clears_before_get_token(self, monkeypatch):
+        parent = MagicMock()
+        monkeypatch.setattr(cli_module, "clear_whoop_token", parent.clear)
+        monkeypatch.setattr(cli_module, "get_whoop_token", parent.get)
+
+        result = CliRunner().invoke(cli_module.cli, ["auth", "whoop", "--reset"])
+
+        assert result.exit_code == 0, result.output
+        assert [c[0] for c in parent.mock_calls] == ["clear", "get"]
+
+
 class TestCliShape:
     def test_top_level_help_lists_groups(self):
         result = CliRunner().invoke(cli_module.cli, ["--help"])
@@ -100,6 +125,7 @@ class TestCliShape:
         assert "calendar" in result.output
         assert "ynab" in result.output
         assert "skills" in result.output
+        assert "whoop" in result.output
 
     def test_python_m_mgdio_help_runs(self):
         """Sanity: ``python -m mgdio --help`` exits 0 (covers __main__.py)."""
@@ -120,6 +146,7 @@ class TestCliShape:
         assert result.exit_code == 0
         assert "google" in result.output
         assert "ynab" in result.output
+        assert "whoop" in result.output
 
     def test_gmail_help_lists_subcommands(self):
         result = CliRunner().invoke(cli_module.cli, ["gmail", "--help"])
@@ -568,3 +595,67 @@ class TestYnabCommands:
         assert result.exit_code != 0
         assert "not both" in result.output.lower()
         update_mock.assert_not_called()
+
+
+class TestWhoopCommands:
+    def test_help_lists_subcommands(self):
+        result = CliRunner().invoke(cli_module.cli, ["whoop", "--help"])
+        assert result.exit_code == 0
+        for name in ("recoveries", "sleeps", "workouts", "cycles", "profile", "body"):
+            assert name in result.output
+
+    def test_recoveries_invokes_fetch(self, monkeypatch):
+        from datetime import datetime, timezone
+
+        from mgdio.whoop import Recovery
+
+        sample = Recovery(
+            cycle_id=1,
+            sleep_id="s",
+            user_id=2,
+            created_at=datetime(2026, 5, 12, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 5, 12, tzinfo=timezone.utc),
+            score_state="SCORED",
+            recovery_score=67,
+            resting_heart_rate=52,
+            hrv_rmssd_milli=48.5,
+            spo2_percentage=96.0,
+            skin_temp_celsius=33.2,
+            user_calibrating=False,
+        )
+        fetch = MagicMock(return_value=[sample])
+        monkeypatch.setattr(cli_module, "fetch_recoveries", fetch)
+
+        result = CliRunner().invoke(
+            cli_module.cli, ["whoop", "recoveries", "--max", "3"]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "67%" in result.output
+        kwargs = fetch.call_args.kwargs
+        assert kwargs["max_records"] == 3
+        assert kwargs["start"] is None
+
+    def test_recoveries_rejects_naive_start(self, monkeypatch):
+        monkeypatch.setattr(cli_module, "fetch_recoveries", MagicMock(return_value=[]))
+        result = CliRunner().invoke(
+            cli_module.cli, ["whoop", "recoveries", "--start", "2026-05-01T00:00:00"]
+        )
+        assert result.exit_code != 0
+        assert "timezone offset" in result.output.lower()
+
+    def test_profile_invokes_fetch(self, monkeypatch):
+        from mgdio.whoop import Profile
+
+        fetch = MagicMock(
+            return_value=Profile(
+                user_id=10, email="a@b.c", first_name="A", last_name="B"
+            )
+        )
+        monkeypatch.setattr(cli_module, "fetch_profile", fetch)
+
+        result = CliRunner().invoke(cli_module.cli, ["whoop", "profile"])
+
+        assert result.exit_code == 0, result.output
+        assert "a@b.c" in result.output
+        fetch.assert_called_once()

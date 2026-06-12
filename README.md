@@ -7,8 +7,9 @@ so they can be `pip` / `uv add`-ed into any other project with a uniform API.
 > (read/send), Google Sheets (read/write/append/clear, spreadsheet + tab
 > management), and Google Calendar (list calendars + event CRUD + quick-add).
 > Plus YNAB (budgets, accounts, categories, transactions, memo edits) via
-> personal-access-token auth. Both browser-based and headless (VPS-friendly)
-> OAuth flows supported. Twilio next.
+> personal-access-token auth, and Whoop (recovery, sleep, workouts, cycles,
+> profile, body) via OAuth 2.0. Both browser-based and headless (VPS-friendly)
+> Google OAuth flows supported. Twilio next.
 
 ## Why a dedicated auth subsystem
 
@@ -33,11 +34,13 @@ mgdio/
 ├── auth/
 │   ├── google/        # Gmail + Calendar + Sheets share one OAuth token
 │   ├── ynab/          # personal-access-token paste flow
+│   ├── whoop/         # OAuth 2.0 code flow (paste Client ID/Secret + authorize)
 │   └── twilio/        # planned
 ├── gmail/             # read + send on top of mgdio.auth.google
 ├── sheets/            # values + spreadsheets/tabs on top of mgdio.auth.google
 ├── calendar/          # calendars + events CRUD on top of mgdio.auth.google
 ├── ynab/              # budgets, accounts, categories, transactions
+├── whoop/             # recovery, sleep, workouts, cycles, profile, body
 ├── settings.py
 └── cli.py
 ```
@@ -496,6 +499,76 @@ uv run mgdio ynab update-tx <tx-id> --clear-memo
 uv run mgdio ynab update-tx <tx-id> --cleared cleared --flag blue
 ```
 
+## Whoop
+
+Whoop uses OAuth 2.0 (authorization-code flow). Run `mgdio auth whoop` once
+and a localhost setup page walks you through it.
+
+**One-time Whoop developer-app setup:**
+
+1. Open <https://developer.whoop.com> and sign in with your Whoop account.
+2. Create a **Team**, then create an **App**.
+3. Set the app's **Redirect URI** to exactly
+   `http://localhost:8765/callback` (the default — see the override note
+   below if you want a different port).
+4. Select the scopes: `offline read:recovery read:sleep read:workout
+   read:cycles read:profile read:body_measurement` (the `offline` scope is
+   required so mgdio gets a refresh token).
+5. Copy the **Client ID** and **Client Secret**.
+
+Then `mgdio auth whoop` opens a page where you paste the Client ID +
+Secret (saved to the keyring under `mgdio:whoop`), click **Authorize with
+Whoop**, and approve. The resulting access+refresh token bundle is stored
+and **refreshed automatically** on expiry — no further interaction.
+
+> **Redirect URI override.** The callback defaults to
+> `http://localhost:8765/callback`. To use a different port/path, set
+> `MGDIO_WHOOP_REDIRECT_URI` in your environment or `.env` **and** register
+> the same value in your Whoop app. The setup page always shows the
+> effective value.
+
+The data API is **read-only**. Money-free, SI units; HRV in milliseconds,
+energy in kilojoules (`Workout.calories` converts to kcal), distance in
+meters. All collection fetches auto-paginate up to `max_records`.
+
+```python
+from datetime import datetime, timedelta, timezone
+
+from mgdio.whoop import (
+    fetch_recoveries, fetch_sleeps, fetch_workouts, fetch_cycles,
+    fetch_profile, fetch_body_measurement,
+)
+
+# Profile + body
+me = fetch_profile()
+body = fetch_body_measurement()
+
+# Recovery is a MORNING metric -- a record appears after the night's
+# sleep cycle closes, so "today" may be empty before you wake up.
+for r in fetch_recoveries(max_records=7):
+    print(r.created_at, r.recovery_score, r.hrv_rmssd_milli, r.resting_heart_rate)
+
+# Sleep, workouts, cycles -- same signature; start/end must be tz-aware.
+now = datetime.now(timezone.utc)
+recent_sleep = fetch_sleeps(start=now - timedelta(days=7), max_records=25)
+for w in fetch_workouts(max_records=10):
+    print(w.sport_name, w.strain, w.calories)   # calories = kJ / 4.184
+```
+
+CLI equivalents:
+
+```powershell
+uv run mgdio whoop profile
+uv run mgdio whoop body
+uv run mgdio whoop recoveries --max 7
+uv run mgdio whoop sleeps --max 7
+uv run mgdio whoop workouts --max 7
+uv run mgdio whoop cycles --max 7
+# Bounded (tz-aware ISO datetimes):
+uv run mgdio whoop sleeps --start "2026-05-01T00:00:00-04:00" `
+  --end "2026-05-12T00:00:00-04:00" --max 25
+```
+
 ## Building your own Google API client
 
 If you need a different Google API that doesn't have a subpackage yet, the
@@ -546,6 +619,8 @@ The bundled skills are:
   delete events, natural-language quick-add.
 - **`mgdio-ynab`** — list budgets / accounts / categories / transactions,
   edit a transaction's memo, cleared status, flag, or category.
+- **`mgdio-whoop`** — read recovery, sleep, workouts, cycles, profile, and
+  body measurements (read-only).
 
 **Safety contract**: every skill instructs Claude that reads are
 auto-fine but writes (sending email, creating/updating/deleting events,

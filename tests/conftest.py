@@ -9,10 +9,12 @@ import pytest
 
 from mgdio import settings as mgdio_settings
 from mgdio.auth.google import auth as google_auth
+from mgdio.auth.whoop import auth as whoop_auth
 from mgdio.auth.ynab import auth as ynab_auth
 from mgdio.calendar import client as calendar_client
 from mgdio.gmail import client as gmail_client
 from mgdio.sheets import client as sheets_client
+from mgdio.whoop import client as whoop_client
 from mgdio.ynab import client as ynab_client
 
 
@@ -21,17 +23,21 @@ def reset_caches() -> None:
     """Reset module-level credential and service caches between tests."""
     google_auth.reset_credentials_cache()
     ynab_auth.reset_token_cache()
+    whoop_auth.reset_token_cache()
     gmail_client.reset_service_cache()
     sheets_client.reset_service_cache()
     calendar_client.reset_service_cache()
     ynab_client.reset_session_cache()
+    whoop_client.reset_session_cache()
     yield
     google_auth.reset_credentials_cache()
     ynab_auth.reset_token_cache()
+    whoop_auth.reset_token_cache()
     gmail_client.reset_service_cache()
     sheets_client.reset_service_cache()
     calendar_client.reset_service_cache()
     ynab_client.reset_session_cache()
+    whoop_client.reset_session_cache()
 
 
 @pytest.fixture
@@ -75,6 +81,7 @@ def fake_keyring(monkeypatch):
 
     monkeypatch.setattr(google_auth, "keyring", _FakeKeyring)
     monkeypatch.setattr(ynab_auth, "keyring", _FakeKeyring)
+    monkeypatch.setattr(whoop_auth, "keyring", _FakeKeyring)
     return store
 
 
@@ -129,6 +136,30 @@ def mock_ynab_raw_request(monkeypatch) -> MagicMock:
     """Patch ``mgdio.ynab.client.raw_request`` (used by update_transaction)."""
     mock = MagicMock(name="ynab_client.raw_request")
     monkeypatch.setattr("mgdio.ynab.transactions.raw_request", mock)
+    return mock
+
+
+@pytest.fixture
+def mock_whoop_paginate(monkeypatch) -> MagicMock:
+    """Patch ``mgdio.whoop.client._paginate`` in every paginated resource module.
+
+    Returns the ``MagicMock`` -- set ``return_value`` to a list of raw
+    record dicts. Inspect ``call_args`` to assert path / params /
+    max_records.
+    """
+    mock = MagicMock(name="whoop_client._paginate")
+    monkeypatch.setattr("mgdio.whoop.recovery._paginate", mock)
+    monkeypatch.setattr("mgdio.whoop.sleep._paginate", mock)
+    monkeypatch.setattr("mgdio.whoop.workouts._paginate", mock)
+    monkeypatch.setattr("mgdio.whoop.cycles._paginate", mock)
+    return mock
+
+
+@pytest.fixture
+def mock_whoop_request(monkeypatch) -> MagicMock:
+    """Patch ``mgdio.whoop.client.request`` for the single-object endpoints."""
+    mock = MagicMock(name="whoop_client.request")
+    monkeypatch.setattr("mgdio.whoop.user.request", mock)
     return mock
 
 

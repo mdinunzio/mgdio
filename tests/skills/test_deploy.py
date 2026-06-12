@@ -14,11 +14,12 @@ EXPECTED_SKILLS = {
     "mgdio-sheets",
     "mgdio-calendar",
     "mgdio-ynab",
+    "mgdio-whoop",
 }
 
 
 class TestIterSkillDirs:
-    def test_yields_all_four_bundled_skills(self):
+    def test_yields_all_bundled_skills(self):
         with iter_skill_dirs() as skill_dirs:
             names = {p.name for p in skill_dirs}
         assert names == EXPECTED_SKILLS
@@ -32,7 +33,7 @@ class TestIterSkillDirs:
 
 
 class TestSkillsList:
-    def test_lists_all_four_skill_names(self):
+    def test_lists_all_skill_names(self):
         result = CliRunner().invoke(cli_module.cli, ["skills", "list"])
         assert result.exit_code == 0, result.output
         for name in EXPECTED_SKILLS:
@@ -106,7 +107,7 @@ class TestSkillsDeployLocal:
     def test_output_summary_counts(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         result = CliRunner().invoke(cli_module.cli, ["skills", "deploy"])
-        assert "4 deployed" in result.output
+        assert f"{len(EXPECTED_SKILLS)} deployed" in result.output
         assert "0 skipped" in result.output
 
 

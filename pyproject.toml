@@ -1,6 +1,6 @@
 [project]
 name = "mgdio"
-version = "0.1.2"
+version = "0.1.3"
 description = "Personal connectivity tools: Gmail, Calendar, Sheets, YNAB."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -24,6 +24,14 @@ dependencies = [
     "click>=8.1",
     "python-dotenv>=1.0",
     "requests>=2.31",
+    # On Linux the OS often has no Secret Service daemon (headless VPS,
+    # container, SSH-only host), so the default `keyring` backend fails.
+    # Ship the file-based fallback backends + their crypto dependency so
+    # mgdio can auto-select one at import time without manual installs.
+    # Marker-scoped to Linux: Windows/macOS use the native vault and
+    # don't pull these.
+    "keyrings.alt>=5.0 ; sys_platform == 'linux'",
+    "pycryptodomex>=3.20 ; sys_platform == 'linux'",
 ]
 
 [project.urls]
@@ -44,6 +52,10 @@ dev = [
     "flake8-docstrings>=1.7",
     "pandas>=2.1",
     "polars>=0.20",
+    # Needed to exercise the headless-Linux file-keyring fallback in tests
+    # on any platform (the runtime dep is Linux-marker-scoped).
+    "keyrings.alt>=5.0",
+    "pycryptodomex>=3.20",
 ]
 
 [project.scripts]

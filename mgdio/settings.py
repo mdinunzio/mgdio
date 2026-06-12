@@ -3,9 +3,12 @@
 Importing this module is idempotent and has these side effects:
 
 * loads ``.env`` (silent if absent),
-* ensures :data:`APP_DATA_DIR` and :data:`GOOGLE_DATA_DIR` exist, and
+* ensures :data:`APP_DATA_DIR` and :data:`GOOGLE_DATA_DIR` exist,
 * configures root logging once, only if no handlers are present yet
-  (so library users keep control of their root logger).
+  (so library users keep control of their root logger), and
+* selects a usable :mod:`keyring` backend, falling back to a file-based
+  store on headless Linux where no OS vault exists
+  (see :mod:`mgdio.keyring_backend`).
 
 All paths use :mod:`platformdirs` so the package works without env vars
 on Windows, macOS, and Linux.
@@ -80,3 +83,12 @@ if not logging.getLogger().handlers:
         level=LOG_LEVEL,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+
+# Select a usable keyring backend now, before any auth subpackage reads
+# or writes a token. On Windows/macOS this is a no-op; on headless Linux
+# it installs a file-based fallback so credential storage works without
+# a Secret Service daemon. Import locally to keep settings' top-level
+# import list focused on configuration.
+from mgdio.keyring_backend import ensure_keyring_backend  # noqa: E402
+
+ensure_keyring_backend()

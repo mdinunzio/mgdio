@@ -235,26 +235,39 @@ prefer, `scp` it ahead of time to:
 Once authenticated, every subsequent `mgdio gmail / sheets / calendar / drive`
 call reads the cached token from the keyring — no further interaction.
 
-> **Linux keyring caveat.** A minimal VPS image often doesn't have a
-> Secret Service daemon running (`gnome-keyring`, `kwallet`, or
-> `dbus-secret-service`), so the `keyring` library can't write to a
-> vault and falls back to a no-op or fails. The fix is the encrypted
-> file backend:
+> **Linux keyring — handled automatically.** A minimal VPS image often
+> has no Secret Service daemon (`gnome-keyring`, `kwallet`,
+> `dbus-secret-service`), so the OS `keyring` can't store a token. mgdio
+> detects this at startup and **falls back to a file-based store on its
+> own** — no manual backend setup, no `PYTHON_KEYRING_BACKEND`, no
+> `.bashrc` edits. The fallback backends (`keyrings.alt`) install
+> automatically on Linux as a dependency.
 >
-> ```bash
-> pip install keyrings.alt
-> python -c "import keyring; from keyrings.alt.file import EncryptedKeyring; keyring.set_keyring(EncryptedKeyring())"
-> ```
+> By default the fallback store is **unencrypted** (a file at
+> `~/.local/share/mgdio/keyring/mgdio_plaintext.cfg`, locked to your user
+> with `chmod 600`). This is deliberate: it never prompts for a password,
+> so **cron and other unattended jobs work without hanging**. mgdio logs a
+> one-time `WARNING` that the token is stored unencrypted.
 >
-> Or set `PYTHON_KEYRING_BACKEND=keyrings.alt.file.EncryptedKeyring` as
-> a persistent env var. The first read prompts for an encryption
-> password which is required on every subsequent run — fine for a
-> persistent service, awkward for one-shot cron jobs.
+> If you'd rather encrypt it, set `MGDIO_KEYRING_PLAINTEXT=0`. mgdio then
+> uses an encrypted file backend — but note it prompts for the encryption
+> password on **every** process, so it's unsuitable for cron. To force a
+> specific backend yourself, set `PYTHON_KEYRING_BACKEND` (or
+> `MGDIO_KEYRING_BACKEND`) and mgdio won't override your choice.
+>
+> **Cron tip:** because the default needs no password and no shell-rc
+> setup, a cron entry is just the absolute path to the `mgdio` binary —
+> e.g. `*/15 * * * * /path/to/venv/bin/mgdio drive list --max 5`. No
+> environment wiring required.
 
 ## Where credentials live
 
 - **OAuth token**: OS credential vault under service `mgdio:google`, username
-  `oauth_token`. On Windows: *Credential Manager → Windows Credentials*.
+  `oauth_token`. On Windows: *Credential Manager → Windows Credentials*; macOS:
+  *Keychain*; Linux: *Secret Service*. On a headless Linux box with no Secret
+  Service, mgdio falls back to a `chmod 600` file at
+  `~/.local/share/mgdio/keyring/mgdio_plaintext.cfg` (see the
+  [Linux keyring callout](#headless-install-linux-vps-ssh-only-machines)).
 - **`client_secret.json`**: plain file at the platform-appropriate path:
   - Windows: `%LOCALAPPDATA%\mgdio\google\client_secret.json`
   - macOS: `~/Library/Application Support/mgdio/google/client_secret.json`
@@ -1031,9 +1044,16 @@ Remove-Item Env:\MGDIO_RUN_INTEGRATION
   from a *different* mgdio session. State is rotated every run; finish the
   paste in the same terminal session that printed the auth URL. Re-run
   `mgdio auth google --headless` and try again.
-- **`keyring.errors.NoKeyringError` on a Linux VPS** — no Secret Service
-  daemon is running. Install `keyrings.alt` and switch to the encrypted-file
-  backend (see the keyring callout in [Headless install](#headless-install-linux-vps-ssh-only-machines)).
+- **`keyring.errors.NoKeyringError` on a Linux VPS** — mgdio normally
+  handles this automatically by falling back to a file-based store (see
+  the keyring callout in [Headless install](#headless-install-linux-vps-ssh-only-machines)).
+  If you still hit it, the `keyrings.alt` dependency may be missing
+  (`pip install keyrings.alt`) or a stale `PYTHON_KEYRING_BACKEND` env var
+  is forcing an unusable backend — unset it and let mgdio choose.
+- **Headless auth hangs on a keyring password prompt** — you have
+  `MGDIO_KEYRING_PLAINTEXT=0` (or an `EncryptedKeyring` env var) set, which
+  prompts for a password every run and blocks cron. Unset it to use the
+  default no-prompt plaintext fallback.
 
 ## Roadmap
 

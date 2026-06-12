@@ -247,9 +247,10 @@ call reads the cached token from the keyring — no further interaction.
 > `~/.local/share/mgdio/keyring/mgdio_plaintext.cfg`, `chmod 600` and
 > re-locked after every write, inside a `chmod 700` dir). This is
 > deliberate: it never prompts for a password, so **cron and other
-> unattended jobs work without hanging**. mgdio logs a one-time `INFO`
-> notice that the token is stored unencrypted (quiet enough not to flood
-> cron logs).
+> unattended jobs work without hanging**. mgdio logs a one-time `WARNING`
+> **only when it writes a credential** (i.e. during `mgdio auth ...`) —
+> read-only commands like `mgdio drive list` stay silent, so your normal
+> functionality and cron logs aren't cluttered.
 >
 > If you'd rather encrypt it, set `MGDIO_KEYRING_PLAINTEXT=0`. mgdio then
 > uses an encrypted file backend — but note it prompts for the encryption

@@ -68,10 +68,20 @@ class TestNativeBackendWorks:
 
         assert called == []
 
+    def _secret_service_backend(self):
+        """A stand-in object whose type looks like the SecretService backend."""
+
+        class SecretServiceKeyring:
+            pass
+
+        SecretServiceKeyring.__module__ = "keyring.backends.SecretService"
+        return SecretServiceKeyring()
+
     def test_probe_roundtrips_and_cleans_up(self, monkeypatch):
         store = {}
+        ss = self._secret_service_backend()
         fake = types.SimpleNamespace(
-            get_keyring=lambda: types.SimpleNamespace(),
+            get_keyring=lambda: ss,
             set_password=lambda s, u, p: store.__setitem__((s, u), p),
             get_password=lambda s, u: store.get((s, u)),
             delete_password=lambda s, u: store.pop((s, u), None),
@@ -82,22 +92,39 @@ class TestNativeBackendWorks:
         # Probe key cleaned up.
         assert store == {}
 
-    def test_probe_false_for_fail_backend(self, monkeypatch):
-        class FailKeyring:
+    def test_probe_false_for_non_secret_service_backend(self, monkeypatch):
+        """A plaintext/encrypted file backend is NOT accepted as native."""
+
+        class PlaintextKeyring:
             pass
 
-        FailKeyring.__module__ = "keyring.backends.fail"
-        fake = types.SimpleNamespace(get_keyring=lambda: FailKeyring())
+        PlaintextKeyring.__module__ = "keyrings.alt.file"
+        fake = types.SimpleNamespace(get_keyring=lambda: PlaintextKeyring())
         monkeypatch.setattr(keyring_backend, "keyring", fake)
 
         assert keyring_backend._native_backend_works() is False
+
+    def test_probe_unwraps_chainer_and_finds_secret_service(self, monkeypatch):
+        store = {}
+        ss = self._secret_service_backend()
+        chainer = types.SimpleNamespace(backends=[ss])
+        fake = types.SimpleNamespace(
+            get_keyring=lambda: chainer,
+            set_password=lambda s, u, p: store.__setitem__((s, u), p),
+            get_password=lambda s, u: store.get((s, u)),
+            delete_password=lambda s, u: store.pop((s, u), None),
+        )
+        monkeypatch.setattr(keyring_backend, "keyring", fake)
+
+        assert keyring_backend._native_backend_works() is True
 
     def test_probe_false_when_set_raises(self, monkeypatch):
         def boom(*_a, **_k):
             raise RuntimeError("no secret service")
 
+        ss = self._secret_service_backend()
         fake = types.SimpleNamespace(
-            get_keyring=lambda: types.SimpleNamespace(),
+            get_keyring=lambda: ss,
             set_password=boom,
             get_password=lambda s, u: None,
             delete_password=lambda s, u: None,
@@ -105,6 +132,42 @@ class TestNativeBackendWorks:
         monkeypatch.setattr(keyring_backend, "keyring", fake)
 
         assert keyring_backend._native_backend_works() is False
+
+    def test_chainer_with_only_encrypted_is_not_native(self, monkeypatch):
+        """An EncryptedKeyring in the chain must not be accepted as native.
+
+        Regression for the headless VPS hang: keyrings.alt's
+        EncryptedKeyring prompts for a password, so it must never be
+        treated as a usable native vault.
+        """
+
+        class EncryptedKeyring:
+            pass
+
+        EncryptedKeyring.__module__ = "keyrings.alt.file"
+        chainer = types.SimpleNamespace(backends=[EncryptedKeyring()])
+        fake = types.SimpleNamespace(get_keyring=lambda: chainer)
+        monkeypatch.setattr(keyring_backend, "keyring", fake)
+
+        # No SecretService in the chain -> not native, and we never call
+        # set_password (so no getpass prompt could fire).
+        assert keyring_backend._native_backend_works() is False
+
+
+class TestNoInteractiveStdin:
+    def test_getpass_gets_eof_instead_of_hanging(self):
+        import getpass
+
+        with keyring_backend._no_interactive_stdin():
+            with pytest.raises(EOFError):
+                # With stdin redirected to /dev/null, getpass hits EOF.
+                getpass.getpass("prompt: ")
+
+    def test_stdin_restored_after(self):
+        before = sys.stdin
+        with keyring_backend._no_interactive_stdin():
+            assert sys.stdin is not before
+        assert sys.stdin is before
 
 
 class TestLinuxFallback:

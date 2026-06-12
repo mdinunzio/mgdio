@@ -244,10 +244,12 @@ call reads the cached token from the keyring — no further interaction.
 > automatically on Linux as a dependency.
 >
 > By default the fallback store is **unencrypted** (a file at
-> `~/.local/share/mgdio/keyring/mgdio_plaintext.cfg`, locked to your user
-> with `chmod 600`). This is deliberate: it never prompts for a password,
-> so **cron and other unattended jobs work without hanging**. mgdio logs a
-> one-time `WARNING` that the token is stored unencrypted.
+> `~/.local/share/mgdio/keyring/mgdio_plaintext.cfg`, `chmod 600` and
+> re-locked after every write, inside a `chmod 700` dir). This is
+> deliberate: it never prompts for a password, so **cron and other
+> unattended jobs work without hanging**. mgdio logs a one-time `INFO`
+> notice that the token is stored unencrypted (quiet enough not to flood
+> cron logs).
 >
 > If you'd rather encrypt it, set `MGDIO_KEYRING_PLAINTEXT=0`. mgdio then
 > uses an encrypted file backend — but note it prompts for the encryption

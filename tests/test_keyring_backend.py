@@ -14,6 +14,7 @@ from mgdio import keyring_backend
 def _reset_selection_flag(monkeypatch):
     """Each test starts with backend selection un-run."""
     monkeypatch.setattr(keyring_backend, "_backend_selected", False)
+    monkeypatch.setattr(keyring_backend, "_unencrypted_notice_logged", False)
     # Clear env vars that influence selection so tests are hermetic.
     for var in (
         "MGDIO_KEYRING_BACKEND",
@@ -182,9 +183,30 @@ class TestLinuxFallback:
 
         assert len(installed) == 1
         backend = installed[0]
-        assert type(backend).__name__ == "PlaintextKeyring"
+        # A PlaintextKeyring subclass that locks the file after writes.
+        from keyrings.alt.file import PlaintextKeyring
+
+        assert isinstance(backend, PlaintextKeyring)
         # Stored under our locked-down dir.
         assert str(tmp_path) in backend.file_path
+
+    def test_plaintext_chmods_file_after_write(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(keyring_backend.sys, "platform", "linux")
+        monkeypatch.setattr(keyring_backend, "_native_backend_works", lambda: False)
+        monkeypatch.setattr(keyring_backend, "_fallback_dir", lambda: tmp_path)
+        installed = []
+        _patch_keyring(monkeypatch, set_keyring=lambda b: installed.append(b))
+
+        locked = []
+        monkeypatch.setattr(keyring_backend, "_lock_down", lambda p: locked.append(p))
+
+        keyring_backend.ensure_keyring_backend()
+        backend = installed[0]
+        # Writing a password re-locks the file.
+        backend.set_password("svc", "user", "secret")
+
+        # set_password triggered a _lock_down on the store path.
+        assert any("mgdio_plaintext.cfg" in str(p) for p in locked)
 
     def test_selects_encrypted_when_opted_in(self, monkeypatch, tmp_path):
         monkeypatch.setenv("MGDIO_KEYRING_PLAINTEXT", "0")
@@ -199,16 +221,21 @@ class TestLinuxFallback:
         assert len(installed) == 1
         assert type(installed[0]).__name__ == "EncryptedKeyring"
 
-    def test_warns_about_plaintext(self, monkeypatch, tmp_path, caplog):
+    def test_notifies_about_plaintext_once_at_info(self, monkeypatch, tmp_path, caplog):
         monkeypatch.setattr(keyring_backend.sys, "platform", "linux")
         monkeypatch.setattr(keyring_backend, "_native_backend_works", lambda: False)
         monkeypatch.setattr(keyring_backend, "_fallback_dir", lambda: tmp_path)
         _patch_keyring(monkeypatch, set_keyring=lambda b: None)
 
-        with caplog.at_level("WARNING"):
+        with caplog.at_level("INFO"):
+            keyring_backend.ensure_keyring_backend()
+            # A second selection pass must NOT re-log (once per process).
+            monkeypatch.setattr(keyring_backend, "_backend_selected", False)
             keyring_backend.ensure_keyring_backend()
 
-        assert any("UNENCRYPTED" in r.message for r in caplog.records)
+        notices = [r for r in caplog.records if "UNENCRYPTED" in r.message]
+        assert len(notices) == 1
+        assert notices[0].levelname == "INFO"
 
 
 class TestNonLinux:

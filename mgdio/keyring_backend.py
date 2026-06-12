@@ -161,17 +161,25 @@ def _lock_down(file_path: Path) -> None:
         pass
 
 
-def _warn_once(message: str, *args: object) -> None:
-    """Log ``message`` at INFO, but only once per process.
+def _warn_unencrypted_write_once(file_path: str) -> None:
+    """Warn (once per process) that a credential was stored unencrypted.
 
-    The unencrypted-storage notice would otherwise fire on every CLI
-    invocation and flood cron logs; surface it once and quietly.
+    Fired only when a credential is actually *written* (i.e. during an
+    auth/setup flow), not on every read. Normal functionality that only
+    reads tokens stays silent. WARNING level because it is a real,
+    setup-time security notice the user should see.
     """
     global _unencrypted_notice_logged
     if _unencrypted_notice_logged:
         return
     _unencrypted_notice_logged = True
-    logger.info(message, *args)
+    logger.warning(
+        "No OS keyring available; storing credentials UNENCRYPTED at %s "
+        "(chmod 600, dir chmod 700). Set MGDIO_KEYRING_PLAINTEXT=0 for an "
+        "encrypted store (prompts for a password every run, so it is "
+        "unsuitable for cron).",
+        file_path,
+    )
 
 
 def _make_locked_plaintext_keyring(base_cls: type) -> object:
@@ -182,12 +190,17 @@ def _make_locked_plaintext_keyring(base_cls: type) -> object:
     exist yet. Subclass ``set_password`` to re-apply ``0o600`` right after
     each write, guaranteeing the unencrypted token file is owner-only even
     if it is later copied out of the (``0o700``) parent directory.
+
+    Writing is also the only moment the unencrypted-storage warning is
+    relevant -- it fires here (once per process), so commands that merely
+    *read* a token never emit it.
     """
 
     class _LockedPlaintextKeyring(base_cls):  # type: ignore[valid-type,misc]
         def set_password(self, service: str, username: str, password: str):
             result = super().set_password(service, username, password)
             _lock_down(Path(self.file_path))
+            _warn_unencrypted_write_once(str(self.file_path))
             return result
 
     return _LockedPlaintextKeyring()
@@ -218,15 +231,10 @@ def _select_file_backend() -> bool:
         backend.file_path = str(fallback_dir / "mgdio_plaintext.cfg")
         keyring.set_keyring(backend)
         _lock_down(Path(backend.file_path))
-        # INFO, once per process: the token IS stored unencrypted, but
-        # spamming this at WARNING on every CLI call floods cron logs.
-        _warn_once(
-            "No OS keyring available; storing credentials UNENCRYPTED at "
-            "%s (chmod 600, dir chmod 700). Set MGDIO_KEYRING_PLAINTEXT=0 "
-            "for an encrypted store (prompts for a password every run, so "
-            "it is unsuitable for cron).",
-            backend.file_path,
-        )
+        # Note: selecting the backend is SILENT. The unencrypted-storage
+        # warning fires only when a credential is actually written (see
+        # _LockedPlaintextKeyring.set_password), so read-only commands
+        # never emit it.
         return True
 
     # Encrypted fallback (opt-in).

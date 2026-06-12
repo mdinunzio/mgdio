@@ -221,21 +221,40 @@ class TestLinuxFallback:
         assert len(installed) == 1
         assert type(installed[0]).__name__ == "EncryptedKeyring"
 
-    def test_notifies_about_plaintext_once_at_info(self, monkeypatch, tmp_path, caplog):
+    def test_selection_is_silent(self, monkeypatch, tmp_path, caplog):
+        """Selecting the plaintext backend must NOT log anything.
+
+        The warning belongs to the write path, not import-time selection,
+        so read-only commands never emit it.
+        """
         monkeypatch.setattr(keyring_backend.sys, "platform", "linux")
         monkeypatch.setattr(keyring_backend, "_native_backend_works", lambda: False)
         monkeypatch.setattr(keyring_backend, "_fallback_dir", lambda: tmp_path)
         _patch_keyring(monkeypatch, set_keyring=lambda b: None)
 
-        with caplog.at_level("INFO"):
-            keyring_backend.ensure_keyring_backend()
-            # A second selection pass must NOT re-log (once per process).
-            monkeypatch.setattr(keyring_backend, "_backend_selected", False)
+        with caplog.at_level("DEBUG"):
             keyring_backend.ensure_keyring_backend()
 
+        assert not any("UNENCRYPTED" in r.message for r in caplog.records)
+
+    def test_warns_once_at_warning_on_write(self, monkeypatch, tmp_path, caplog):
+        """The unencrypted notice fires on set_password, once, at WARNING."""
+        monkeypatch.setattr(keyring_backend.sys, "platform", "linux")
+        monkeypatch.setattr(keyring_backend, "_native_backend_works", lambda: False)
+        monkeypatch.setattr(keyring_backend, "_fallback_dir", lambda: tmp_path)
+        installed = []
+        _patch_keyring(monkeypatch, set_keyring=lambda b: installed.append(b))
+
+        keyring_backend.ensure_keyring_backend()
+        backend = installed[0]
+
+        with caplog.at_level("WARNING"):
+            backend.set_password("svc", "user", "secret")
+            backend.set_password("svc", "user2", "secret2")  # second write
+
         notices = [r for r in caplog.records if "UNENCRYPTED" in r.message]
-        assert len(notices) == 1
-        assert notices[0].levelname == "INFO"
+        assert len(notices) == 1  # once per process, not per write
+        assert notices[0].levelname == "WARNING"
 
 
 class TestNonLinux:

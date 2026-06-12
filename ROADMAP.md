@@ -22,6 +22,11 @@
   keyring). Read-only v2 API: recovery, sleep, workouts, cycles, profile, body
   measurements, with auto-pagination. Redirect URI is env-overridable via
   `MGDIO_WHOOP_REDIRECT_URI`.
+- Google Drive: full v3 surface on the shared Google token — list/search,
+  metadata, create folders, upload, download (binary) / export (Google-native
+  docs), rename/update, move, copy, trash/restore, permanent delete,
+  empty-trash, and sharing (list/grant/update/revoke permissions). Typed
+  `DriveFile` / `Permission` dataclasses, auto-paginated listing.
 
 ## Next
 

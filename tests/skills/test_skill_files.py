@@ -107,4 +107,5 @@ class TestBundledSkillNames:
             "mgdio-calendar",
             "mgdio-ynab",
             "mgdio-whoop",
+            "mgdio-drive",
         }

@@ -1,4 +1,4 @@
-"""Google OAuth: shared identity for Gmail, Calendar, and Sheets.
+"""Google OAuth: shared identity for Gmail, Calendar, Sheets, and Drive.
 
 A single OAuth client requests the union of all Google scopes mgdio uses
 (see :data:`mgdio.settings.GOOGLE_SCOPES`); the resulting refresh-token

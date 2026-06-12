@@ -320,7 +320,8 @@ _PAGE_TEMPLATE = """\
 <p>
   One-time setup to authorize <strong>mgdio</strong> against your Google
   account. A single consent covers <strong>Gmail</strong>,
-  <strong>Calendar</strong>, and <strong>Sheets</strong>.
+  <strong>Calendar</strong>, <strong>Sheets</strong>, and
+  <strong>Drive</strong>.
   This page is served from your own machine; nothing leaves localhost.
 </p>
 
@@ -328,13 +329,21 @@ _PAGE_TEMPLATE = """\
 <ol>
   <li>Open <a href="https://console.cloud.google.com/" target="_blank">
       console.cloud.google.com</a> and create or pick a project.</li>
-  <li>Under <em>APIs &amp; Services -&gt; Library</em>, enable all three
+  <li>Under <em>APIs &amp; Services -&gt; Library</em>, enable all four
       APIs: <strong>Gmail API</strong>,
-      <strong>Google Calendar API</strong>, and
-      <strong>Google Sheets API</strong>.</li>
+      <strong>Google Calendar API</strong>,
+      <strong>Google Sheets API</strong>, and
+      <strong>Google Drive API</strong>.</li>
 </ol>
 
 <h2>2. Configure the app under Google Auth Platform</h2>
+<p>
+  The <em>Branding</em> / <em>Audience</em> / <em>Data Access</em> sidebar
+  doesn't appear until your project has an OAuth client. If you don't see it
+  yet, open <em>APIs &amp; Services -&gt; Credentials</em> and click any entry
+  under <em>OAuth 2.0 Client IDs</em> (create one first via step 3 below if the
+  list is empty) - that opens <em>Google Auth Platform</em> with the sidebar.
+</p>
 <ol>
   <li><em>Branding</em>: fill in app name and support email.</li>
   <li><em>Audience</em>: User type
@@ -343,11 +352,12 @@ _PAGE_TEMPLATE = """\
       <em>Testing</em> mode have their refresh tokens revoked every
       7 days.)</li>
   <li><em>Data Access</em>: click <em>Add or remove scopes</em> and add
-      all three of:
+      all four of:
       <ul>
         <li><code>https://www.googleapis.com/auth/gmail.modify</code></li>
         <li><code>https://www.googleapis.com/auth/calendar</code></li>
         <li><code>https://www.googleapis.com/auth/spreadsheets</code></li>
+        <li><code>https://www.googleapis.com/auth/drive</code></li>
       </ul>
   </li>
 </ol>
@@ -359,6 +369,16 @@ _PAGE_TEMPLATE = """\
       OAuth callback use any localhost port.)</li>
   <li>Click <em>Download JSON</em>.</li>
 </ol>
+<p class="note">
+  <strong>Already have a client but lost the JSON?</strong> Google won't
+  re-download the <em>original</em> secret, but you can mint a fresh one. Open
+  the existing client under <em>APIs &amp; Services -&gt; Credentials -&gt;
+  OAuth 2.0 Client IDs</em>, then under <em>Client secrets</em> click
+  <strong>Add secret</strong>. The new secret row has a
+  <strong>download (&#11015;) button</strong> - click it to grab a ready-made
+  <code>client_secret.json</code> and drop that file below. You do <em>not</em>
+  need to create a brand-new client or hand-build any JSON.
+</p>
 
 <h2>4. Drop the file below</h2>
 <p>The file is saved to <span class="path">{client_secret_path}</span>

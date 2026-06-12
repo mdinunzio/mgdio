@@ -5,11 +5,13 @@ so they can be `pip` / `uv add`-ed into any other project with a uniform API.
 
 > **Status** — Unified Google auth (`mgdio.auth.google`) plus Gmail
 > (read/send), Google Sheets (read/write/append/clear, spreadsheet + tab
-> management), and Google Calendar (list calendars + event CRUD + quick-add).
-> Plus YNAB (budgets, accounts, categories, transactions, memo edits) via
-> personal-access-token auth, and Whoop (recovery, sleep, workouts, cycles,
-> profile, body) via OAuth 2.0. Both browser-based and headless (VPS-friendly)
-> Google OAuth flows supported. Twilio next.
+> management), Google Calendar (list calendars + event CRUD + quick-add), and
+> Google Drive (list/search, upload/download/export, folders, move/copy,
+> trash/delete, sharing). Plus YNAB (budgets, accounts, categories,
+> transactions, memo edits) via personal-access-token auth, and Whoop
+> (recovery, sleep, workouts, cycles, profile, body) via OAuth 2.0. Both
+> browser-based and headless (VPS-friendly) Google OAuth flows supported.
+> Twilio next.
 
 ## Why a dedicated auth subsystem
 
@@ -19,9 +21,9 @@ so they can be `pip` / `uv add`-ed into any other project with a uniform API.
 - **Free** — works against a personal `@gmail.com`.
 - **Vault-backed** — tokens live in the OS credential vault: Windows Credential
   Manager, macOS Keychain, or Linux Secret Service. No plaintext token files.
-- **One consent for all Google services** — Gmail, Calendar, and Sheets share a
-  single OAuth client and a single token under `mgdio:google`. Consent once;
-  every service subpackage just calls `get_credentials()`.
+- **One consent for all Google services** — Gmail, Calendar, Sheets, and Drive
+  share a single OAuth client and a single token under `mgdio:google`. Consent
+  once; every service subpackage just calls `get_credentials()`.
 - **Headless-friendly** — `mgdio auth google --headless` runs a copy-paste
   OAuth flow for machines without a browser (Linux VPS, containers, SSH-only
   hosts). See [Headless install](#headless-install-linux-vps-ssh-only-machines)
@@ -32,13 +34,14 @@ so they can be `pip` / `uv add`-ed into any other project with a uniform API.
 ```
 mgdio/
 ├── auth/
-│   ├── google/        # Gmail + Calendar + Sheets share one OAuth token
+│   ├── google/        # Gmail + Calendar + Sheets + Drive share one OAuth token
 │   ├── ynab/          # personal-access-token paste flow
 │   ├── whoop/         # OAuth 2.0 code flow (paste Client ID/Secret + authorize)
 │   └── twilio/        # planned
 ├── gmail/             # read + send on top of mgdio.auth.google
 ├── sheets/            # values + spreadsheets/tabs on top of mgdio.auth.google
 ├── calendar/          # calendars + events CRUD on top of mgdio.auth.google
+├── drive/             # files/folders, upload/download, sharing on mgdio.auth.google
 ├── ynab/              # budgets, accounts, categories, transactions
 ├── whoop/             # recovery, sleep, workouts, cycles, profile, body
 ├── settings.py
@@ -57,20 +60,34 @@ You only do this once per Google account.
    - Gmail API
    - Google Calendar API
    - Google Sheets API
-3. **Configure the app** under *Google Auth Platform* in the left nav:
+   - Google Drive API
+3. **Configure the app** under *Google Auth Platform* in the left nav.
+   The *Branding / Audience / Data Access* sidebar only appears once your
+   project has an OAuth client — if you don't see it, open *APIs & Services →
+   Credentials* and click any entry under *OAuth 2.0 Client IDs* (create one
+   via step 4 first if the list is empty) to land on *Google Auth Platform*.
    - **Branding** — fill in app name and support email.
    - **Audience** — set User type to **External**, add yourself under
      *Test users*, then click **Publish app**. *Critical:* apps left in
      *Testing* mode have their refresh tokens revoked every 7 days.
-   - **Data Access** — click *Add or remove scopes* and add all three:
+   - **Data Access** — click *Add or remove scopes* and add all four:
      - `https://www.googleapis.com/auth/gmail.modify`
      - `https://www.googleapis.com/auth/calendar`
      - `https://www.googleapis.com/auth/spreadsheets`
+     - `https://www.googleapis.com/auth/drive`
 4. **Create an OAuth client ID** under *Google Auth Platform → Clients →
    Create client*:
    - Application type: **Desktop app**.
    - Click *Download JSON*. (You'll drop this into the mgdio setup page in a moment;
      no manual filesystem work.)
+
+> **Already have a client but lost the JSON?** Google won't re-download the
+> *original* secret, but you can mint a fresh one. Open the existing client
+> under *APIs & Services → Credentials → OAuth 2.0 Client IDs*, then under
+> *Client secrets* click **Add secret**. The new secret row has a **download
+> (⬇) button** — click it to get a ready-made `client_secret.json` and drop
+> that into the mgdio setup page. No need to create a new client or hand-build
+> any JSON.
 
 ## Install
 
@@ -179,7 +196,7 @@ uv run mgdio auth google
 
 A localhost setup page opens in your browser. Drag-and-drop the
 `client_secret.json` you downloaded above, click **Authorize**, and approve the
-single consent screen covering all three Google scopes. The resulting token is
+single consent screen covering all four Google scopes. The resulting token is
 written to your OS credential vault; future calls read from the vault and
 refresh transparently.
 
@@ -215,7 +232,7 @@ prefer, `scp` it ahead of time to:
 - Linux: `~/.local/share/mgdio/google/client_secret.json`
 - macOS: `~/Library/Application Support/mgdio/google/client_secret.json`
 
-Once authenticated, every subsequent `mgdio gmail / sheets / calendar`
+Once authenticated, every subsequent `mgdio gmail / sheets / calendar / drive`
 call reads the cached token from the keyring — no further interaction.
 
 > **Linux keyring caveat.** A minimal VPS image often doesn't have a
@@ -440,6 +457,105 @@ uv run mgdio calendar delete <event_id>
 uv run mgdio calendar quick-add "Lunch with Alice Tuesday 12pm"
 ```
 
+## Drive
+
+After `mgdio auth google`, Drive is ready too. Public API covers listing /
+searching, file metadata, creating folders, uploading, downloading (binary
+files) / exporting (Google-native Docs/Sheets/Slides), renaming, moving,
+copying, trashing / restoring, permanent delete, emptying trash, and sharing
+(list / grant / update / revoke permissions).
+
+> **One-time re-consent.** Drive added a new OAuth scope
+> (`https://www.googleapis.com/auth/drive`). If you authorized *before* Drive
+> landed, your stored token won't carry it — the first Drive call falls back to
+> the setup flow. Run `mgdio auth google --reset` and re-approve the consent
+> screen (now showing the Drive scope) once.
+
+```python
+from pathlib import Path
+
+from mgdio.drive import (
+    list_files, fetch_file, create_folder, upload_file,
+    download_file, export_file, update_file, move_file, copy_file,
+    trash_file, delete_file, empty_trash,
+    list_permissions, share_file, update_permission, unshare_file,
+)
+
+# List / search. Listing auto-paginates up to max_results.
+recent = list_files(order_by="modifiedTime desc", max_results=10)
+for f in recent:
+    print("DIR " if f.is_folder else "FILE", f.name, f.id)
+
+# `query` is the raw Drive `q` parameter.
+pdfs = list_files(query="mimeType='application/pdf'", max_results=20)
+hits = list_files(query="name contains 'invoice'")
+children = list_files(parent_id="<folder_id>")          # contents of a folder
+trashed = list_files(include_trashed=True)              # include trashed items
+
+# Metadata for one file.
+meta = fetch_file("<file_id>")
+print(meta.name, meta.size_bytes, meta.modified_time, meta.web_view_link)
+
+# Create a folder (optionally nested under a parent).
+folder = create_folder("Reports", parent_id="<parent_folder_id>")
+
+# Upload a local file into the folder.
+up = upload_file(Path("report.pdf"), name="Q1.pdf", parent_id=folder.id)
+
+# Download a BINARY file's content to disk.
+download_file(up.id, Path("./Q1-local.pdf"))
+
+# Google-native docs (Docs/Sheets/Slides) have NO raw bytes -- export instead.
+export_file("<google_doc_id>", Path("./out.pdf"), mime_type="application/pdf")
+export_file("<google_sheet_id>", Path("./out.csv"), mime_type="text/csv")
+
+# Rename / star (update_file leaves unspecified fields untouched).
+update_file(up.id, name="Q1-final.pdf")
+update_file(up.id, starred=True)
+
+# Move (re-parents: removes the old parent by default), copy.
+move_file(up.id, "<new_folder_id>")
+copy_file(up.id, name="Q1-copy.pdf", parent_id=folder.id)
+
+# Trash is recoverable; delete is PERMANENT (skips the trash).
+trash_file(up.id)                  # recoverable
+trash_file(up.id, trashed=False)   # restore
+delete_file(up.id)                 # irreversible
+empty_trash()                      # irreversible
+
+# Sharing. Exactly one grantee: email, domain, or anyone-with-the-link.
+perm = share_file(folder.id, role="reader", email="alice@example.com")
+share_file(folder.id, role="writer", anyone=True)
+share_file(folder.id, role="reader", domain="example.com")
+for p in list_permissions(folder.id):
+    print(p.role, p.type, p.email_address or p.domain or p.type, p.id)
+update_permission(folder.id, perm.id, role="writer")
+unshare_file(folder.id, perm.id)
+```
+
+CLI equivalents:
+
+```powershell
+uv run mgdio drive list --max 25
+uv run mgdio drive list --query "name contains 'invoice'" --max 10
+uv run mgdio drive list --parent <folder_id>
+uv run mgdio drive get <file_id>
+uv run mgdio drive mkdir "Reports" --parent <folder_id>
+uv run mgdio drive upload ./report.pdf --name "Q1.pdf" --parent <folder_id>
+uv run mgdio drive download <file_id> ./local.pdf
+uv run mgdio drive export <doc_id> ./out.pdf --mime application/pdf
+uv run mgdio drive rename <file_id> "new name.pdf"
+uv run mgdio drive move <file_id> <new_parent_folder_id>
+uv run mgdio drive copy <file_id> --name "copy" --parent <folder_id>
+uv run mgdio drive trash <file_id>            # recoverable
+uv run mgdio drive trash <file_id> --restore  # un-trash
+uv run mgdio drive delete <file_id>           # PERMANENT
+uv run mgdio drive empty-trash                # PERMANENT
+uv run mgdio drive perms <file_id>
+uv run mgdio drive share <file_id> --role reader --email alice@example.com
+uv run mgdio drive unshare <file_id> <permission_id>
+```
+
 ## YNAB
 
 YNAB uses a personal access token (not OAuth). Run `mgdio auth ynab` once and
@@ -579,7 +695,7 @@ from googleapiclient.discovery import build
 
 from mgdio.auth.google import get_credentials
 
-service = build("drive", "v3", credentials=get_credentials(),
+service = build("docs", "v1", credentials=get_credentials(),
                 cache_discovery=False)
 ```
 
@@ -587,12 +703,13 @@ No scopes argument, no per-service auth dance.
 
 ## Claude Code skills
 
-`mgdio` ships with four [Claude Code](https://claude.com/claude-code) skills
+`mgdio` ships with six [Claude Code](https://claude.com/claude-code) skills
 — one per service — that teach Claude how to drive the CLI for you. Once
 deployed, you can ask Claude things like *"list my 5 most recent emails,"
 "what's on my calendar this week," "edit transaction abc-123's memo to
-'grocery run,'"* or *"write this data to row 2 of my budget sheet,"* and
-it'll reach for `mgdio` instead of inventing API calls from scratch.
+'grocery run,'" "upload this file to my Reports folder in Drive,"* or *"write
+this data to row 2 of my budget sheet,"* and it'll reach for `mgdio` instead
+of inventing API calls from scratch.
 
 ```powershell
 # Preview what's bundled
@@ -617,6 +734,9 @@ The bundled skills are:
   create spreadsheets.
 - **`mgdio-calendar`** — list calendars, list / fetch / create / update /
   delete events, natural-language quick-add.
+- **`mgdio-drive`** — list / search files, get metadata, create folders,
+  upload / download / export, rename / move / copy, trash / delete, and
+  manage sharing permissions.
 - **`mgdio-ynab`** — list budgets / accounts / categories / transactions,
   edit a transaction's memo, cleared status, flag, or category.
 - **`mgdio-whoop`** — read recovery, sleep, workouts, cycles, profile, and
@@ -624,8 +744,10 @@ The bundled skills are:
 
 **Safety contract**: every skill instructs Claude that reads are
 auto-fine but writes (sending email, creating/updating/deleting events,
-writing to sheets, editing YNAB transactions) **must be confirmed with
-you before invocation**. Claude paraphrases the action and waits for
+writing to sheets, editing YNAB transactions, uploading/moving/deleting
+Drive files, changing sharing) **must be confirmed with you before
+invocation**. Drive's `delete` and `empty-trash` are flagged as
+irreversible, so Claude is told to prefer the recoverable `trash`. Claude paraphrases the action and waits for
 your explicit approval — even if the conversation sounded like
 permission was implicit. Writes are never chained without re-confirming.
 
@@ -659,9 +781,9 @@ Get-ChildItem $env:LOCALAPPDATA\mgdio\google\
 uv run python -c "import keyring; t = keyring.get_password('mgdio:google', 'oauth_token'); print('present:', bool(t), 'len:', len(t or ''))"
 # Expect: present: True, len: 500+ (a JSON blob)
 
-# 6. Confirm the cached token actually carries all three scopes
+# 6. Confirm the cached token actually carries all four scopes
 uv run python -c "from mgdio.auth.google import get_credentials; c = get_credentials(); print('valid:', c.valid); [print(' -', s) for s in sorted(c.scopes)]"
-# Expect three URLs: gmail.modify, calendar, spreadsheets
+# Expect four URLs: gmail.modify, calendar, spreadsheets, drive
 
 # 7. Second call is cheap: no browser, no prompt -- hits in-process cache
 uv run python -c "from mgdio.auth.google import get_credentials; get_credentials(); print('OK')"
@@ -804,6 +926,56 @@ uv run python examples/calendar_demo.py
 # Opt-in real-API integration tests
 $env:MGDIO_RUN_INTEGRATION = "1"
 uv run pytest tests/calendar/test_integration.py -ra
+Remove-Item Env:\MGDIO_RUN_INTEGRATION
+```
+
+### Drive quick-test commands
+
+After step 4 above, exercise the Drive surface. These create a throwaway
+folder + file and clean up after themselves. If you authorized before the
+Drive scope was added, run `uv run mgdio auth google --reset` first.
+
+```powershell
+# Smoke: import the public Drive API
+uv run python -c "from mgdio.drive import list_files, upload_file, create_folder, share_file, DriveFile; print('imports OK')"
+
+# List your 10 most recently modified files
+uv run mgdio drive list --order "modifiedTime desc" --max 10
+
+# Search with raw Drive query syntax
+uv run mgdio drive list --query "name contains 'mgdio'" --max 5
+
+# Create a throwaway folder and capture its id
+$fid = (uv run mgdio drive mkdir "mgdio-smoke" | Select-String "\[" | ForEach-Object { ($_ -split "[][]")[1] })
+Write-Output "folder id: $fid"
+
+# Upload a small file into it
+"hello from mgdio drive" | Out-File -Encoding utf8 drive_smoke.txt
+$gid = (uv run mgdio drive upload drive_smoke.txt --parent $fid | Select-String "\[" | ForEach-Object { ($_ -split "[][]")[1] })
+Write-Output "file id: $gid"
+
+# List the folder's contents
+uv run mgdio drive list --parent $fid
+
+# Metadata + download the content back
+uv run mgdio drive get $gid
+uv run mgdio drive download $gid drive_roundtrip.txt
+Get-Content drive_roundtrip.txt
+
+# Share with anyone who has the link, then inspect permissions
+uv run mgdio drive share $gid --role reader --anyone
+uv run mgdio drive perms $gid
+
+# Clean up (delete the folder + its contents; PERMANENT)
+uv run mgdio drive delete $fid
+Remove-Item drive_smoke.txt, drive_roundtrip.txt
+
+# End-to-end demo (creates its own throwaway folder + cleans up)
+uv run python examples/drive_demo.py
+
+# Opt-in real-API integration tests
+$env:MGDIO_RUN_INTEGRATION = "1"
+uv run pytest tests/drive/test_integration.py -ra
 Remove-Item Env:\MGDIO_RUN_INTEGRATION
 ```
 

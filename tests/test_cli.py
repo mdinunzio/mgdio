@@ -126,6 +126,7 @@ class TestCliShape:
         assert "ynab" in result.output
         assert "skills" in result.output
         assert "whoop" in result.output
+        assert "drive" in result.output
 
     def test_python_m_mgdio_help_runs(self):
         """Sanity: ``python -m mgdio --help`` exits 0 (covers __main__.py)."""
@@ -659,3 +660,133 @@ class TestWhoopCommands:
         assert result.exit_code == 0, result.output
         assert "a@b.c" in result.output
         fetch.assert_called_once()
+
+
+def _sample_drive_file(**overrides):
+    from datetime import datetime, timezone
+
+    from mgdio.drive import DriveFile
+
+    defaults = dict(
+        id="f-1",
+        name="report.pdf",
+        mime_type="application/pdf",
+        parents=("parent-1",),
+        size_bytes=20480,
+        created_time=datetime(2026, 5, 1, tzinfo=timezone.utc),
+        modified_time=datetime(2026, 5, 12, tzinfo=timezone.utc),
+        web_view_link="https://drive.google.com/file/d/f-1/view",
+        web_content_link="",
+        trashed=False,
+        starred=True,
+        shared=False,
+        md5_checksum="abc",
+        file_extension="pdf",
+        icon_link="",
+        owner_emails=("me@example.com",),
+    )
+    defaults.update(overrides)
+    return DriveFile(**defaults)
+
+
+class TestDriveCommands:
+    def test_help_lists_subcommands(self):
+        result = CliRunner().invoke(cli_module.cli, ["drive", "--help"])
+        assert result.exit_code == 0
+        for name in (
+            "list",
+            "get",
+            "mkdir",
+            "upload",
+            "download",
+            "export",
+            "rename",
+            "move",
+            "copy",
+            "trash",
+            "delete",
+            "share",
+            "perms",
+            "unshare",
+        ):
+            assert name in result.output
+
+    def test_list_invokes_list_files(self, monkeypatch):
+        fetch = MagicMock(return_value=[_sample_drive_file()])
+        monkeypatch.setattr(cli_module, "list_files", fetch)
+
+        result = CliRunner().invoke(
+            cli_module.cli,
+            ["drive", "list", "--query", "name contains 'r'", "--max", "5"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "report.pdf" in result.output
+        assert "f-1" in result.output
+        kwargs = fetch.call_args.kwargs
+        assert kwargs["query"] == "name contains 'r'"
+        assert kwargs["max_results"] == 5
+
+    def test_get_prints_metadata(self, monkeypatch):
+        fetch = MagicMock(return_value=_sample_drive_file())
+        monkeypatch.setattr(cli_module, "fetch_file", fetch)
+
+        result = CliRunner().invoke(cli_module.cli, ["drive", "get", "f-1"])
+
+        assert result.exit_code == 0, result.output
+        assert "report.pdf" in result.output
+        assert "me@example.com" in result.output
+        fetch.assert_called_once_with("f-1")
+
+    def test_mkdir_invokes_create_folder(self, monkeypatch):
+        from mgdio.drive import FOLDER_MIME_TYPE
+
+        create = MagicMock(
+            return_value=_sample_drive_file(
+                name="New", mime_type=FOLDER_MIME_TYPE, size_bytes=None
+            )
+        )
+        monkeypatch.setattr(cli_module, "create_folder", create)
+
+        result = CliRunner().invoke(
+            cli_module.cli, ["drive", "mkdir", "New", "--parent", "root-1"]
+        )
+
+        assert result.exit_code == 0, result.output
+        create.assert_called_once_with("New", parent_id="root-1")
+
+    def test_share_invokes_share_file(self, monkeypatch):
+        from mgdio.drive import Permission
+
+        share = MagicMock(
+            return_value=Permission(
+                id="perm-1",
+                type="user",
+                role="writer",
+                email_address="bob@example.com",
+                domain="",
+                display_name="Bob",
+            )
+        )
+        monkeypatch.setattr(cli_module, "share_file", share)
+
+        result = CliRunner().invoke(
+            cli_module.cli,
+            ["drive", "share", "f-1", "--role", "writer", "--email", "bob@example.com"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "perm-1" in result.output
+        kwargs = share.call_args.kwargs
+        assert kwargs["role"] == "writer"
+        assert kwargs["email"] == "bob@example.com"
+
+    def test_delete_invokes_delete_file(self, monkeypatch):
+        delete = MagicMock()
+        monkeypatch.setattr(cli_module, "delete_file", delete)
+
+        result = CliRunner().invoke(cli_module.cli, ["drive", "delete", "f-1"])
+
+        assert result.exit_code == 0, result.output
+        assert "Deleted." in result.output
+        delete.assert_called_once_with("f-1")

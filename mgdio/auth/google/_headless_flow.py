@@ -38,7 +38,10 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sys
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from google.oauth2.credentials import Credentials
@@ -101,7 +104,8 @@ def run_headless_flow(
     pasted = _read_pasted_response()
 
     try:
-        flow.fetch_token(authorization_response=pasted)
+        with _allow_insecure_loopback_transport():
+            flow.fetch_token(authorization_response=pasted)
     except Exception as exc:  # google-auth raises various subclasses
         raise RuntimeError(
             f"Failed to exchange the pasted URL for a token: {exc}. "
@@ -112,6 +116,34 @@ def run_headless_flow(
         ) from exc
 
     return flow.credentials
+
+
+@contextmanager
+def _allow_insecure_loopback_transport() -> Iterator[None]:
+    """Permit oauthlib to parse the ``http://localhost`` redirect response.
+
+    ``oauthlib`` refuses to process an ``authorization_response`` whose URL
+    is not ``https`` (``InsecureTransportError``), but our Desktop-client
+    redirect is the bare loopback ``http://localhost`` by necessity. That
+    URL never travels over a network -- the user copy-pastes it out of a
+    browser that failed to load it -- so parsing it as ``http`` is safe.
+    The actual token exchange with Google's token endpoint still happens
+    over ``https``.
+
+    Sets ``OAUTHLIB_INSECURE_TRANSPORT`` only for the duration of the
+    ``fetch_token`` call, restoring any prior value afterward so we don't
+    relax transport checks process-wide.
+    """
+    key = "OAUTHLIB_INSECURE_TRANSPORT"
+    previous = os.environ.get(key)
+    os.environ[key] = "1"
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = previous
 
 
 def _print_instructions(auth_url: str) -> None:

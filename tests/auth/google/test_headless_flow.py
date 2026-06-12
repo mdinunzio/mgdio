@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from unittest.mock import MagicMock
 
 import pytest
@@ -236,3 +237,58 @@ class TestPromptAndSaveClientSecret:
 
         with pytest.raises(MissingClientSecretError, match="No client_secret"):
             _headless_flow._prompt_and_save_client_secret(secret_path)
+
+
+_INSECURE_KEY = "OAUTHLIB_INSECURE_TRANSPORT"
+
+
+class TestAllowInsecureLoopbackTransport:
+    def test_sets_env_inside_and_restores_unset_after(self, monkeypatch):
+        monkeypatch.delenv(_INSECURE_KEY, raising=False)
+
+        with _headless_flow._allow_insecure_loopback_transport():
+            assert os.environ[_INSECURE_KEY] == "1"
+
+        assert _INSECURE_KEY not in os.environ
+
+    def test_restores_prior_value_after(self, monkeypatch):
+        monkeypatch.setenv(_INSECURE_KEY, "preexisting")
+
+        with _headless_flow._allow_insecure_loopback_transport():
+            assert os.environ[_INSECURE_KEY] == "1"
+
+        assert os.environ[_INSECURE_KEY] == "preexisting"
+
+    def test_restores_even_when_body_raises(self, monkeypatch):
+        monkeypatch.delenv(_INSECURE_KEY, raising=False)
+
+        with pytest.raises(ValueError):
+            with _headless_flow._allow_insecure_loopback_transport():
+                raise ValueError("boom")
+
+        assert _INSECURE_KEY not in os.environ
+
+    def test_fetch_token_runs_with_insecure_transport_enabled(
+        self, tmp_appdata, monkeypatch
+    ):
+        """The env var must be set *while* fetch_token runs (http loopback)."""
+        monkeypatch.delenv(_INSECURE_KEY, raising=False)
+        secret_path = tmp_appdata / "google" / "client_secret.json"
+        secret_path.write_text(_valid_client_secret_json(), encoding="utf-8")
+
+        seen: dict[str, str | None] = {}
+        flow = _make_flow_mock()
+        flow.fetch_token.side_effect = lambda **_k: seen.__setitem__(
+            "env", os.environ.get(_INSECURE_KEY)
+        )
+        monkeypatch.setattr(
+            "mgdio.auth.google._headless_flow.Flow.from_client_secrets_file",
+            MagicMock(return_value=flow),
+        )
+        _feed_inputs(monkeypatch, ["http://localhost/?code=x&state=y"])
+
+        _headless_flow.run_headless_flow(secret_path, list(GOOGLE_SCOPES))
+
+        assert seen["env"] == "1"
+        # And it's cleaned up afterward.
+        assert _INSECURE_KEY not in os.environ

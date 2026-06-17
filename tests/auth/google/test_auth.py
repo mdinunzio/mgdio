@@ -184,6 +184,25 @@ class TestClearStoredToken:
         assert SLUG not in google_auth._credentials
 
 
+class TestClearLegacyToken:
+    def test_removes_legacy_entry(self, tmp_appdata, fake_keyring):
+        from mgdio.settings import LEGACY_GOOGLE_KEYRING_SERVICE
+
+        key = (LEGACY_GOOGLE_KEYRING_SERVICE, GOOGLE_KEYRING_USERNAME)
+        fake_keyring[key] = "legacy-token"
+
+        google_auth.clear_legacy_token()
+
+        assert key not in fake_keyring
+
+    def test_noop_when_absent(self, tmp_appdata, fake_keyring):
+        google_auth.clear_legacy_token()  # must not raise
+        # And it doesn't touch a per-profile entry.
+        _seed_token(fake_keyring, tmp_appdata)
+        google_auth.clear_legacy_token()
+        assert (SERVICE, GOOGLE_KEYRING_USERNAME) in fake_keyring
+
+
 class TestSettingsConsistency:
     def test_client_secret_path_lives_under_google_subdir(self):
         assert GOOGLE_CLIENT_SECRET_PATH.parent.name == "google"

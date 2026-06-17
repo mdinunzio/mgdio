@@ -21,6 +21,7 @@ from mgdio.auth.google._profiles import (
 )
 from mgdio.auth.google.auth import (
     authorize_profile,
+    clear_legacy_token,
     clear_stored_token,
     get_credentials,
     reset_credentials_cache,
@@ -28,6 +29,7 @@ from mgdio.auth.google.auth import (
 
 __all__ = [
     "authorize_profile",
+    "clear_legacy_token",
     "clear_stored_token",
     "detect_legacy_token",
     "get_credentials",

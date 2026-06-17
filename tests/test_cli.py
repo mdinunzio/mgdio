@@ -86,6 +86,77 @@ class TestAuthGoogle:
         assert result.exit_code == 0, result.output
         assert "no Google profiles" in result.output
 
+    def test_remove_requires_a_target(self, monkeypatch):
+        clear = MagicMock()
+        monkeypatch.setattr(cli_module, "clear_google_token", clear)
+        result = CliRunner().invoke(cli_module.cli, ["auth", "google", "remove"])
+        assert result.exit_code != 0
+        assert "--profile" in result.output
+        clear.assert_not_called()
+
+    def test_remove_rejects_multiple_targets(self, monkeypatch):
+        result = CliRunner().invoke(
+            cli_module.cli,
+            ["auth", "google", "remove", "--profile", "svc", "--legacy"],
+        )
+        assert result.exit_code != 0
+        assert "mutually exclusive" in result.output
+
+    def test_remove_profile_with_yes(self, monkeypatch):
+        clear = MagicMock()
+        monkeypatch.setattr(cli_module, "clear_google_token", clear)
+
+        result = CliRunner().invoke(
+            cli_module.cli,
+            ["auth", "google", "remove", "--profile", "svc", "--yes"],
+        )
+
+        assert result.exit_code == 0, result.output
+        clear.assert_called_once_with("svc")
+        assert "Removed profile 'svc'." in result.output
+
+    def test_remove_profile_confirm_abort(self, monkeypatch):
+        clear = MagicMock()
+        monkeypatch.setattr(cli_module, "clear_google_token", clear)
+
+        # Answer 'n' to the confirmation prompt.
+        result = CliRunner().invoke(
+            cli_module.cli,
+            ["auth", "google", "remove", "--profile", "svc"],
+            input="n\n",
+        )
+
+        assert result.exit_code != 0  # aborted
+        clear.assert_not_called()
+
+    def test_remove_legacy(self, monkeypatch):
+        clear_legacy = MagicMock()
+        monkeypatch.setattr(cli_module, "clear_google_legacy_token", clear_legacy)
+
+        result = CliRunner().invoke(
+            cli_module.cli, ["auth", "google", "remove", "--legacy", "--yes"]
+        )
+
+        assert result.exit_code == 0, result.output
+        clear_legacy.assert_called_once()
+        assert "legacy" in result.output.lower()
+
+    def test_remove_all(self, monkeypatch):
+        clear = MagicMock()
+        clear_legacy = MagicMock()
+        monkeypatch.setattr(cli_module, "live_profiles", lambda: ["a", "b"])
+        monkeypatch.setattr(cli_module, "detect_legacy_token", lambda: True)
+        monkeypatch.setattr(cli_module, "clear_google_token", clear)
+        monkeypatch.setattr(cli_module, "clear_google_legacy_token", clear_legacy)
+
+        result = CliRunner().invoke(
+            cli_module.cli, ["auth", "google", "remove", "--all", "--yes"]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert clear.call_count == 2
+        clear_legacy.assert_called_once()
+
 
 class TestAuthYnab:
     def test_runs_get_token_and_prints_authenticated(self, monkeypatch):

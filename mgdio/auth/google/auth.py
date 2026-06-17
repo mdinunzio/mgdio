@@ -36,6 +36,7 @@ from mgdio.settings import (
     GOOGLE_CLIENT_SECRET_PATH,
     GOOGLE_KEYRING_USERNAME,
     GOOGLE_SCOPES,
+    LEGACY_GOOGLE_KEYRING_SERVICE,
     google_keyring_service,
 )
 
@@ -125,6 +126,18 @@ def clear_stored_token(profile: str) -> None:
         pass
     remove_from_index(profile)
     reset_credentials_cache(profile)
+
+
+def clear_legacy_token() -> None:
+    """Delete the pre-profiles token at the bare ``mgdio:google`` service.
+
+    No-op if absent. The legacy token has no profile slug, so
+    :func:`clear_stored_token` can't target it.
+    """
+    try:
+        keyring.delete_password(LEGACY_GOOGLE_KEYRING_SERVICE, GOOGLE_KEYRING_USERNAME)
+    except keyring.errors.PasswordDeleteError:
+        pass
 
 
 def reset_credentials_cache(profile: str | None = None) -> None:

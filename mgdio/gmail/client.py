@@ -1,40 +1,45 @@
 """Cached googleapiclient Gmail Resource builder.
 
 Credentials come from :func:`mgdio.auth.google.get_credentials` -- the same
-token used by Calendar and Sheets. No Gmail-specific auth here.
+token used by Calendar, Sheets, and Drive. No Gmail-specific auth here.
+Services are cached per resolved profile slug.
 """
 
 from __future__ import annotations
 
 from googleapiclient.discovery import Resource, build
 
-from mgdio.auth.google import get_credentials
+from mgdio.auth.google import get_credentials, resolve_profile
 
-_service: Resource | None = None
+_services: dict[str, Resource] = {}
 
 
-def get_service() -> Resource:
-    """Return the cached Gmail v1 ``Resource``, building it on first call.
+def get_service(profile: str | None = None) -> Resource:
+    """Return the cached Gmail v1 ``Resource`` for a profile.
 
-    The resource is cached at module level so subsequent reads/sends in
-    the same process reuse the underlying HTTP client and discovery
-    document.
+    The resource is cached per profile so subsequent reads/sends in the
+    same process reuse the underlying HTTP client and discovery document.
+
+    Args:
+        profile: Explicit profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         A ``googleapiclient.discovery.Resource`` for the Gmail v1 API.
     """
-    global _service
-    if _service is None:
-        _service = build(
+    slug = resolve_profile(profile)
+    service = _services.get(slug)
+    if service is None:
+        service = build(
             "gmail",
             "v1",
-            credentials=get_credentials(),
+            credentials=get_credentials(slug),
             cache_discovery=False,
         )
-    return _service
+        _services[slug] = service
+    return service
 
 
 def reset_service_cache() -> None:
-    """Clear the cached Gmail Resource (mainly for tests)."""
-    global _service
-    _service = None
+    """Clear all cached Gmail Resources (mainly for tests)."""
+    _services.clear()

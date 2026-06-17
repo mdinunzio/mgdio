@@ -82,6 +82,7 @@ def fetch_messages(
     batch_size: int = DEFAULT_BATCH_SIZE,
     max_retries: int = DEFAULT_MAX_RETRIES,
     initial_backoff: float = DEFAULT_INITIAL_BACKOFF,
+    profile: str | None = None,
 ) -> list[GmailMessage]:
     """List messages matching ``query`` and fetch their full content.
 
@@ -107,6 +108,8 @@ def fetch_messages(
             re-issued, not the whole batch.
         initial_backoff: Seconds to wait before the first retry. Doubles
             on each subsequent retry (capped at 30s).
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         List of populated :class:`GmailMessage` objects, possibly empty.
@@ -120,7 +123,7 @@ def fetch_messages(
     if max_retries < 0:
         raise ValueError("max_retries must be >= 0")
 
-    service = get_service()
+    service = get_service(profile)
     try:
         listing = (
             service.users()
@@ -226,11 +229,13 @@ def _is_rate_limit(exception: Exception) -> bool:
     return status == 429
 
 
-def fetch_message(message_id: str) -> GmailMessage:
+def fetch_message(message_id: str, *, profile: str | None = None) -> GmailMessage:
     """Fetch a single message by id (full format).
 
     Args:
         message_id: Gmail message id.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         A populated :class:`GmailMessage`.
@@ -238,7 +243,7 @@ def fetch_message(message_id: str) -> GmailMessage:
     Raises:
         MgdioAPIError: On any Gmail API HTTP error.
     """
-    service = get_service()
+    service = get_service(profile)
     try:
         raw = (
             service.users()

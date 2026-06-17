@@ -27,6 +27,14 @@
   docs), rename/update, move, copy, trash/restore, permanent delete,
   empty-trash, and sharing (list/grant/update/revoke permissions). Typed
   `DriveFile` / `Permission` dataclasses, auto-paginated listing.
+- Headless-Linux keyring auto-fallback: on a host with no Secret Service,
+  mgdio selects a `keyrings.alt` file backend automatically (plaintext by
+  default, `chmod 600`, no password prompt — cron-safe), opt into encryption
+  via `MGDIO_KEYRING_PLAINTEXT=0`.
+- Multi-account Google profiles: per-account tokens at `mgdio:google:<slug>`,
+  a `profile=` kwarg on every Google function, `--profile` on every Google CLI
+  command, `MGDIO_GOOGLE_PROFILE` env default, and `mgdio auth google profiles`
+  to list. Resolution waterfall: explicit → env var → sole profile.
 
 ## Next
 

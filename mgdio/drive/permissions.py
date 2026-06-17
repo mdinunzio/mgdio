@@ -39,11 +39,13 @@ class Permission:
     display_name: str
 
 
-def list_permissions(file_id: str) -> list[Permission]:
+def list_permissions(file_id: str, *, profile: str | None = None) -> list[Permission]:
     """List all sharing permissions on a file.
 
     Args:
         file_id: Drive file id.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         List of :class:`Permission`.
@@ -51,7 +53,7 @@ def list_permissions(file_id: str) -> list[Permission]:
     Raises:
         MgdioAPIError: On any Drive API error.
     """
-    service = get_service()
+    service = get_service(profile)
     try:
         resp = service.permissions().list(fileId=file_id, fields=_LIST_FIELDS).execute()
     except HttpError as exc:
@@ -67,6 +69,7 @@ def share_file(
     domain: str | None = None,
     anyone: bool = False,
     send_notification: bool = False,
+    profile: str | None = None,
 ) -> Permission:
     """Grant a sharing permission on a file.
 
@@ -82,6 +85,8 @@ def share_file(
         domain: Grantee domain for a domain share.
         anyone: If True, share with anyone who has the link.
         send_notification: Email the grantee (only valid for user/group).
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         The created :class:`Permission`.
@@ -104,7 +109,7 @@ def share_file(
     else:
         body["type"] = "anyone"
 
-    service = get_service()
+    service = get_service(profile)
     try:
         raw = (
             service.permissions()
@@ -128,6 +133,7 @@ def update_permission(
     permission_id: str,
     *,
     role: str,
+    profile: str | None = None,
 ) -> Permission:
     """Change the role of an existing permission.
 
@@ -135,6 +141,8 @@ def update_permission(
         file_id: Drive file id.
         permission_id: The permission to change (from ``list_permissions``).
         role: New role.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         The updated :class:`Permission`.
@@ -142,7 +150,7 @@ def update_permission(
     Raises:
         MgdioAPIError: On any Drive API error.
     """
-    service = get_service()
+    service = get_service(profile)
     try:
         raw = (
             service.permissions()
@@ -161,17 +169,21 @@ def update_permission(
     return _to_permission(raw)
 
 
-def unshare_file(file_id: str, permission_id: str) -> None:
+def unshare_file(
+    file_id: str, permission_id: str, *, profile: str | None = None
+) -> None:
     """Revoke a sharing permission.
 
     Args:
         file_id: Drive file id.
         permission_id: The permission to delete (from ``list_permissions``).
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Raises:
         MgdioAPIError: On any Drive API error.
     """
-    service = get_service()
+    service = get_service(profile)
     try:
         service.permissions().delete(
             fileId=file_id, permissionId=permission_id

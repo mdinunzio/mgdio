@@ -15,8 +15,11 @@ Read and write Google Calendar events through the user's account via the
 
 ## Prerequisite
 
-The user must have authenticated once: `mgdio auth google`. The same token
-covers Gmail, Calendar, and Sheets.
+The user must have authenticated once:
+`mgdio auth google --profile <slug>`. The same per-account token covers
+Gmail, Calendar, Sheets, and Drive. Add `--profile <slug>` to any
+`mgdio calendar` command to target a specific account; omit it to use
+`$MGDIO_GOOGLE_PROFILE` or the sole configured profile.
 
 ## Safety contract
 

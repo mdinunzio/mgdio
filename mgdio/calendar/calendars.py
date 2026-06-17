@@ -35,8 +35,12 @@ class Calendar:
     access_role: str
 
 
-def fetch_calendars() -> list[Calendar]:
+def fetch_calendars(*, profile: str | None = None) -> list[Calendar]:
     """List every calendar the authenticated user has access to.
+
+    Args:
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         List of :class:`Calendar`, including the primary calendar and
@@ -45,7 +49,7 @@ def fetch_calendars() -> list[Calendar]:
     Raises:
         MgdioAPIError: On any Calendar API HTTP error.
     """
-    service = get_service()
+    service = get_service(profile)
     try:
         resp = service.calendarList().list().execute()
     except HttpError as exc:

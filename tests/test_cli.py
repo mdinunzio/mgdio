@@ -10,59 +10,81 @@ from mgdio import cli as cli_module
 
 
 class TestAuthGoogle:
-    def test_runs_get_credentials_and_prints_authenticated(self, monkeypatch):
-        get_creds = MagicMock()
-        clear = MagicMock()
-        monkeypatch.setattr(cli_module, "get_credentials", get_creds)
-        monkeypatch.setattr(cli_module, "clear_google_token", clear)
+    def test_bare_auth_google_errors_with_guidance(self, monkeypatch):
+        authorize = MagicMock()
+        monkeypatch.setattr(cli_module, "authorize_google_profile", authorize)
 
         result = CliRunner().invoke(cli_module.cli, ["auth", "google"])
 
-        assert result.exit_code == 0, result.output
-        assert "Authenticated." in result.output
-        get_creds.assert_called_once_with(headless=False)
-        clear.assert_not_called()
+        assert result.exit_code != 0
+        assert "--profile" in result.output
+        authorize.assert_not_called()
 
-    def test_reset_clears_before_get_credentials(self, monkeypatch):
-        parent = MagicMock()
-        monkeypatch.setattr(cli_module, "clear_google_token", parent.clear)
-        monkeypatch.setattr(cli_module, "get_credentials", parent.get)
-
-        result = CliRunner().invoke(cli_module.cli, ["auth", "google", "--reset"])
-
-        assert result.exit_code == 0, result.output
-        assert [c[0] for c in parent.mock_calls] == ["clear", "get"]
-
-    def test_headless_flag_passes_through_to_get_credentials(self, monkeypatch):
-        get_creds = MagicMock()
+    def test_profile_authorizes_and_prints_message(self, monkeypatch):
+        authorize = MagicMock()
         clear = MagicMock()
-        monkeypatch.setattr(cli_module, "get_credentials", get_creds)
+        monkeypatch.setattr(cli_module, "authorize_google_profile", authorize)
         monkeypatch.setattr(cli_module, "clear_google_token", clear)
-
-        result = CliRunner().invoke(cli_module.cli, ["auth", "google", "--headless"])
-
-        assert result.exit_code == 0, result.output
-        get_creds.assert_called_once_with(headless=True)
-        clear.assert_not_called()
-
-    def test_reset_and_headless_combined(self, monkeypatch):
-        clear = MagicMock()
-        get_creds = MagicMock()
-        monkeypatch.setattr(cli_module, "clear_google_token", clear)
-        monkeypatch.setattr(cli_module, "get_credentials", get_creds)
+        monkeypatch.setattr(cli_module, "detect_legacy_token", lambda: False)
 
         result = CliRunner().invoke(
-            cli_module.cli, ["auth", "google", "--reset", "--headless"]
+            cli_module.cli, ["auth", "google", "--profile", "svc"]
         )
 
         assert result.exit_code == 0, result.output
-        clear.assert_called_once()
-        get_creds.assert_called_once_with(headless=True)
+        assert "Authenticated profile 'svc'." in result.output
+        authorize.assert_called_once_with("svc", headless=False)
+        clear.assert_not_called()
 
-    def test_help_lists_headless_flag(self):
+    def test_reset_clears_before_authorize(self, monkeypatch):
+        parent = MagicMock()
+        monkeypatch.setattr(cli_module, "clear_google_token", parent.clear)
+        monkeypatch.setattr(cli_module, "authorize_google_profile", parent.authorize)
+        monkeypatch.setattr(cli_module, "detect_legacy_token", lambda: False)
+
+        result = CliRunner().invoke(
+            cli_module.cli, ["auth", "google", "--profile", "svc", "--reset"]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert [c[0] for c in parent.mock_calls] == ["clear", "authorize"]
+        parent.clear.assert_called_once_with("svc")
+
+    def test_headless_flag_passes_through(self, monkeypatch):
+        authorize = MagicMock()
+        monkeypatch.setattr(cli_module, "authorize_google_profile", authorize)
+        monkeypatch.setattr(cli_module, "clear_google_token", MagicMock())
+        monkeypatch.setattr(cli_module, "detect_legacy_token", lambda: False)
+
+        result = CliRunner().invoke(
+            cli_module.cli, ["auth", "google", "--profile", "svc", "--headless"]
+        )
+
+        assert result.exit_code == 0, result.output
+        authorize.assert_called_once_with("svc", headless=True)
+
+    def test_help_lists_profile_and_headless_flags(self):
         result = CliRunner().invoke(cli_module.cli, ["auth", "google", "--help"])
         assert result.exit_code == 0
         assert "--headless" in result.output
+        assert "--profile" in result.output
+
+    def test_profiles_subcommand_lists_and_marks(self, monkeypatch):
+        monkeypatch.setattr(cli_module, "live_profiles", lambda: ["alpha", "beta"])
+        monkeypatch.setenv("MGDIO_GOOGLE_PROFILE", "beta")
+
+        result = CliRunner().invoke(cli_module.cli, ["auth", "google", "profiles"])
+
+        assert result.exit_code == 0, result.output
+        assert "alpha" in result.output
+        assert "beta" in result.output
+        assert "env-default" in result.output  # beta marked
+
+    def test_profiles_subcommand_empty(self, monkeypatch):
+        monkeypatch.setattr(cli_module, "live_profiles", lambda: [])
+        result = CliRunner().invoke(cli_module.cli, ["auth", "google", "profiles"])
+        assert result.exit_code == 0, result.output
+        assert "no Google profiles" in result.output
 
 
 class TestAuthYnab:
@@ -184,7 +206,18 @@ class TestGmailCommands:
         assert result.exit_code == 0, result.output
         assert "hi" in result.output
         assert "abc" in result.output
-        fetch_mock.assert_called_once_with("", 3)
+        fetch_mock.assert_called_once_with("", 3, profile=None)
+
+    def test_gmail_list_forwards_profile(self, monkeypatch):
+        fetch_mock = MagicMock(return_value=[])
+        monkeypatch.setattr(cli_module, "fetch_messages", fetch_mock)
+
+        result = CliRunner().invoke(
+            cli_module.cli, ["gmail", "list", "--profile", "svc"]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert fetch_mock.call_args.kwargs["profile"] == "svc"
 
     def test_gmail_send_invokes_send_email(self, monkeypatch):
         send_mock = MagicMock(return_value="sent-id-42")
@@ -232,7 +265,7 @@ class TestSheetsCommands:
         assert result.exit_code == 0, result.output
         assert "a\tb" in result.output
         assert "1\t2" in result.output
-        fetch_mock.assert_called_once_with("sid", "Sheet1!A1:B2")
+        fetch_mock.assert_called_once_with("sid", "Sheet1!A1:B2", profile=None)
 
     def test_sheets_write_passes_rows(self, monkeypatch):
         write_mock = MagicMock(return_value=4)
@@ -255,7 +288,7 @@ class TestSheetsCommands:
         assert result.exit_code == 0, result.output
         assert "Updated cells: 4" in result.output
         write_mock.assert_called_once_with(
-            "sid", "Sheet1!A1:B2", [["a", "b"], ["1", "2"]], raw=False
+            "sid", "Sheet1!A1:B2", [["a", "b"], ["1", "2"]], raw=False, profile=None
         )
 
     def test_sheets_create_prints_id_and_url(self, monkeypatch):
@@ -280,7 +313,9 @@ class TestSheetsCommands:
         assert result.exit_code == 0, result.output
         assert "new-sid" in result.output
         assert "new-sid/edit" in result.output
-        create_mock.assert_called_once_with("Demo", sheet_names=["Alpha", "Beta"])
+        create_mock.assert_called_once_with(
+            "Demo", sheet_names=["Alpha", "Beta"], profile=None
+        )
 
 
 def _sample_event_for_cli(**overrides):
@@ -409,7 +444,9 @@ class TestCalendarCommands:
 
         assert result.exit_code == 0, result.output
         assert "Deleted." in result.output
-        delete_mock.assert_called_once_with("evt-1", calendar_id="primary")
+        delete_mock.assert_called_once_with(
+            "evt-1", calendar_id="primary", profile=None
+        )
 
     def test_quick_add_invokes_quick_add(self, monkeypatch):
         quick_mock = MagicMock(return_value=_sample_event_for_cli())
@@ -422,7 +459,7 @@ class TestCalendarCommands:
 
         assert result.exit_code == 0, result.output
         quick_mock.assert_called_once_with(
-            "Lunch with Bob Tuesday 12pm", calendar_id="primary"
+            "Lunch with Bob Tuesday 12pm", calendar_id="primary", profile=None
         )
 
 
@@ -736,7 +773,7 @@ class TestDriveCommands:
         assert result.exit_code == 0, result.output
         assert "report.pdf" in result.output
         assert "me@example.com" in result.output
-        fetch.assert_called_once_with("f-1")
+        fetch.assert_called_once_with("f-1", profile=None)
 
     def test_mkdir_invokes_create_folder(self, monkeypatch):
         from mgdio.drive import FOLDER_MIME_TYPE
@@ -753,7 +790,7 @@ class TestDriveCommands:
         )
 
         assert result.exit_code == 0, result.output
-        create.assert_called_once_with("New", parent_id="root-1")
+        create.assert_called_once_with("New", parent_id="root-1", profile=None)
 
     def test_share_invokes_share_file(self, monkeypatch):
         from mgdio.drive import Permission
@@ -789,4 +826,4 @@ class TestDriveCommands:
 
         assert result.exit_code == 0, result.output
         assert "Deleted." in result.output
-        delete.assert_called_once_with("f-1")
+        delete.assert_called_once_with("f-1", profile=None)

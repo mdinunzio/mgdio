@@ -31,6 +31,7 @@ def fetch_values(
     range_: str,
     *,
     as_: ReturnAs = "list",
+    profile: str | None = None,
 ) -> Any:
     """Read a range from a spreadsheet.
 
@@ -41,6 +42,8 @@ def fetch_values(
         as_: Return shape -- ``"list"`` (default), ``"pandas"``, or
             ``"polars"``. The DataFrame options treat the first row as
             the header.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         ``list[list[Any]]`` when ``as_="list"``; a DataFrame otherwise.
@@ -49,7 +52,7 @@ def fetch_values(
         MgdioAPIError: On any Sheets API HTTP error.
         ImportError: If the requested ``as_`` backend is not installed.
     """
-    service = get_service()
+    service = get_service(profile)
     try:
         resp = (
             service.spreadsheets()
@@ -78,6 +81,7 @@ def write_values(
     values: Sequence[Sequence[Any]],
     *,
     raw: bool = False,
+    profile: str | None = None,
 ) -> int:
     """Overwrite a range with ``values``.
 
@@ -91,6 +95,8 @@ def write_values(
         raw: If ``True``, use ``valueInputOption=RAW`` -- the cells store
             the literal strings. Default ``USER_ENTERED`` parses formulas,
             dates, and numbers.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         Number of cells updated, per the Sheets API response.
@@ -100,7 +106,7 @@ def write_values(
     """
     option: ValueInputOption = "RAW" if raw else "USER_ENTERED"
     body = {"values": [list(row) for row in values]}
-    service = get_service()
+    service = get_service(profile)
     try:
         resp = (
             service.spreadsheets()
@@ -126,6 +132,7 @@ def append_values(
     values: Sequence[Sequence[Any]],
     *,
     raw: bool = False,
+    profile: str | None = None,
 ) -> int:
     """Append rows to the end of a table.
 
@@ -140,6 +147,8 @@ def append_values(
         values: Rows to append.
         raw: If ``True``, use ``valueInputOption=RAW`` instead of
             ``USER_ENTERED``.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         Number of cells updated.
@@ -149,7 +158,7 @@ def append_values(
     """
     option: ValueInputOption = "RAW" if raw else "USER_ENTERED"
     body = {"values": [list(row) for row in values]}
-    service = get_service()
+    service = get_service(profile)
     try:
         resp = (
             service.spreadsheets()
@@ -171,17 +180,21 @@ def append_values(
     return int(updates.get("updatedCells", 0))
 
 
-def clear_values(spreadsheet_id: str, range_: str) -> None:
+def clear_values(
+    spreadsheet_id: str, range_: str, *, profile: str | None = None
+) -> None:
     """Clear all values in ``range_`` (formatting is preserved).
 
     Args:
         spreadsheet_id: The spreadsheet's id.
         range_: A1-style range to clear.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Raises:
         MgdioAPIError: On any Sheets API HTTP error.
     """
-    service = get_service()
+    service = get_service(profile)
     try:
         service.spreadsheets().values().clear(
             spreadsheetId=spreadsheet_id, range=range_, body={}

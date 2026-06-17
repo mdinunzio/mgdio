@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from pathlib import Path
 
 import dotenv
@@ -36,8 +37,27 @@ APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
 GOOGLE_DATA_DIR: Path = APP_DATA_DIR / "google"
 GOOGLE_DATA_DIR.mkdir(parents=True, exist_ok=True)
 GOOGLE_CLIENT_SECRET_PATH: Path = GOOGLE_DATA_DIR / "client_secret.json"
-GOOGLE_KEYRING_SERVICE: str = "mgdio:google"
 GOOGLE_KEYRING_USERNAME: str = "oauth_token"
+
+# Google tokens are stored per account ("profile"), one keyring entry per
+# slug at service ``mgdio:google:<slug>``. There is no stored "default"
+# profile; which profile is the default for a given environment is set
+# via the MGDIO_GOOGLE_PROFILE env var (e.g. in a project's .env). The set
+# of known profiles is tracked in an on-disk index (keyring has no
+# portable list API). See :mod:`mgdio.auth.google._profiles`.
+GOOGLE_PROFILE_INDEX_PATH: Path = GOOGLE_DATA_DIR / "profiles.json"
+GOOGLE_PROFILE_SLUG_RE = re.compile(r"^[a-z0-9_-]+$")
+GOOGLE_PROFILE_ENV_VAR: str = "MGDIO_GOOGLE_PROFILE"
+# Pre-profiles releases stored a single token here; kept only so we can
+# detect-and-warn about an orphaned legacy token (never auto-migrated).
+LEGACY_GOOGLE_KEYRING_SERVICE: str = "mgdio:google"
+
+
+def google_keyring_service(slug: str) -> str:
+    """Return the per-profile keyring service id, ``mgdio:google:<slug>``."""
+    return f"mgdio:google:{slug}"
+
+
 GOOGLE_SCOPES: tuple[str, ...] = (
     "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/calendar",

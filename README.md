@@ -22,8 +22,12 @@ so they can be `pip` / `uv add`-ed into any other project with a uniform API.
 - **Vault-backed** — tokens live in the OS credential vault: Windows Credential
   Manager, macOS Keychain, or Linux Secret Service. No plaintext token files.
 - **One consent for all Google services** — Gmail, Calendar, Sheets, and Drive
-  share a single OAuth client and a single token under `mgdio:google`. Consent
-  once; every service subpackage just calls `get_credentials()`.
+  share a single OAuth client. Consent once per account; every service
+  subpackage just calls `get_credentials()`.
+- **Multiple Google accounts** — each account is a named *profile* with its own
+  token under `mgdio:google:<slug>`. Select one with `--profile`, the
+  `MGDIO_GOOGLE_PROFILE` env var, or automatically when only one exists. See
+  [Multiple Google accounts](#multiple-google-accounts-profiles).
 - **Headless-friendly** — `mgdio auth google --headless` runs a copy-paste
   OAuth flow for machines without a browser (Linux VPS, containers, SSH-only
   hosts). See [Headless install](#headless-install-linux-vps-ssh-only-machines)
@@ -49,7 +53,8 @@ mgdio/
 ```
 
 Each provider exposes the same triple: `get_credentials()`,
-`clear_stored_token()`, `reset_credentials_cache()`.
+`clear_stored_token()`, `reset_credentials_cache()`. (For Google these are
+profile-aware: `get_credentials(profile=…)` and `clear_stored_token(profile)`.)
 
 ## One-time Google Cloud Console setup
 
@@ -191,36 +196,40 @@ uv pip install -e .
 ## First-run auth
 
 ```powershell
-uv run mgdio auth google
+uv run mgdio auth google --profile mdinunziosvc
 ```
 
-A localhost setup page opens in your browser. Drag-and-drop the
+`--profile <slug>` names the Google account (slug = lowercase letters, digits,
+`-`, `_`). A localhost setup page opens in your browser. Drag-and-drop the
 `client_secret.json` you downloaded above, click **Authorize**, and approve the
 single consent screen covering all four Google scopes. The resulting token is
-written to your OS credential vault; future calls read from the vault and
-refresh transparently.
+written to your OS credential vault under `mgdio:google:<slug>`; future calls
+read from the vault and refresh transparently. With only one profile
+configured, you never have to name it again — see
+[Multiple Google accounts](#multiple-google-accounts-profiles).
 
-To force a fresh consent flow (e.g. after rotating credentials or changing
-scopes):
+To force a fresh consent flow for that profile (e.g. after rotating
+credentials or changing scopes):
 
 ```powershell
-uv run mgdio auth google --reset
+uv run mgdio auth google --profile mdinunziosvc --reset
 ```
 
 ### Headless install (Linux VPS, SSH-only machines)
 
 On a machine without a browser — a Linux VPS, a container, or any
-environment where `webbrowser.open()` is a no-op — pass `--headless`:
+environment where `webbrowser.open()` is a no-op — pass `--headless`
+(still with `--profile`):
 
 ```bash
-mgdio auth google --headless
+mgdio auth google --profile mdinunziosvc --headless
 ```
 
 mgdio prints the Google authorization URL on the terminal. You open it
 on **any** device that has a browser (your laptop, your phone), grant
-consent, and Google redirects to `http://localhost:8765/?state=...&code=...`.
+consent, and Google redirects to `http://localhost/?state=...&code=...`.
 That redirect **will fail to load** in your browser because nothing's
-listening on `localhost:8765` over there — **this is expected**. Copy
+listening on `localhost` over there — **this is expected**. Copy
 the entire failed-redirect URL out of the address bar, paste it back
 into the VPS terminal, and press Enter. mgdio extracts the auth code,
 exchanges it for credentials, and stores them in the keyring as usual.
@@ -265,18 +274,67 @@ call reads the cached token from the keyring — no further interaction.
 
 ## Where credentials live
 
-- **OAuth token**: OS credential vault under service `mgdio:google`, username
-  `oauth_token`. On Windows: *Credential Manager → Windows Credentials*; macOS:
-  *Keychain*; Linux: *Secret Service*. On a headless Linux box with no Secret
-  Service, mgdio falls back to a `chmod 600` file at
-  `~/.local/share/mgdio/keyring/mgdio_plaintext.cfg` (see the
+- **OAuth token**: OS credential vault under service `mgdio:google:<profile>`,
+  username `oauth_token` (one entry per Google account). On Windows: *Credential
+  Manager → Windows Credentials*; macOS: *Keychain*; Linux: *Secret Service*. On
+  a headless Linux box with no Secret Service, mgdio falls back to a `chmod 600`
+  file at `~/.local/share/mgdio/keyring/mgdio_plaintext.cfg` (see the
   [Linux keyring callout](#headless-install-linux-vps-ssh-only-machines)).
-- **`client_secret.json`**: plain file at the platform-appropriate path:
+- **Profile index**: the list of known profile slugs lives at
+  `~/.local/share/mgdio/google/profiles.json` (keyring has no portable list
+  API). The keyring remains the source of truth for the token bytes.
+- **`client_secret.json`**: a single shared file (app identity, not per-account)
+  at the platform-appropriate path:
   - Windows: `%LOCALAPPDATA%\mgdio\google\client_secret.json`
   - macOS: `~/Library/Application Support/mgdio/google/client_secret.json`
   - Linux: `~/.local/share/mgdio/google/client_secret.json`
 
 This is application configuration, not a per-session secret.
+
+## Multiple Google accounts (profiles)
+
+mgdio holds one OAuth token per Google account, each named by a *profile* slug
+and stored at `mgdio:google:<slug>`. There is no stored "default" — which
+profile a given environment uses is set by the `MGDIO_GOOGLE_PROFILE` env var
+(e.g. in a project's `.env`).
+
+```powershell
+# Authorize two accounts
+uv run mgdio auth google --profile personal
+uv run mgdio auth google --profile mdinunziosvc
+
+# List configured profiles (marks the env-default and the auto-selected one)
+uv run mgdio auth google profiles
+
+# Use a specific profile for one command
+uv run mgdio drive list --profile mdinunziosvc --max 5
+
+# Or set a default for the whole environment (.env or shell)
+$env:MGDIO_GOOGLE_PROFILE = "mdinunziosvc"
+uv run mgdio gmail list --max 5            # uses mdinunziosvc
+```
+
+**Profile resolution waterfall** (most specific wins), applied to every Google
+call:
+
+1. An explicit `--profile <slug>` (CLI) or `profile="<slug>"` (Python).
+2. The `MGDIO_GOOGLE_PROFILE` env var.
+3. The sole profile, if exactly one is configured (so single-account use is
+   zero-config).
+4. Otherwise an error telling you to pick one.
+
+A missing/typo'd profile raises a clear error rather than silently using the
+wrong account. In Python, every Google function takes an optional trailing
+`profile=` keyword:
+
+```python
+from mgdio.drive import list_files
+from mgdio.gmail import send_email
+
+list_files(max_results=5, profile="mdinunziosvc")
+send_email(to="a@b.com", subject="hi", body="…", profile="personal")
+# Omit profile= to use the env var / sole profile.
+```
 
 ## Gmail
 
@@ -484,8 +542,8 @@ copying, trashing / restoring, permanent delete, emptying trash, and sharing
 > **One-time re-consent.** Drive added a new OAuth scope
 > (`https://www.googleapis.com/auth/drive`). If you authorized *before* Drive
 > landed, your stored token won't carry it — the first Drive call falls back to
-> the setup flow. Run `mgdio auth google --reset` and re-approve the consent
-> screen (now showing the Drive scope) once.
+> the setup flow. Run `mgdio auth google --profile <slug> --reset` and
+> re-approve the consent screen (now showing the Drive scope) once.
 
 ```python
 from pathlib import Path
@@ -778,40 +836,41 @@ uv sync --extra dev
 uv pip install -e .
 
 # 2. Confirm the CLI surface
-uv run mgdio --help                # shows the `auth` group
-uv run mgdio auth --help           # shows the `google` subcommand
-uv run mgdio auth google --help    # shows the --reset flag
+uv run mgdio --help                       # shows the `auth` group
+uv run mgdio auth --help                  # shows the `google` subcommand
+uv run mgdio auth google --help           # shows --profile / --reset / --headless
 
 # 3. Run the unit suite (no real APIs touched)
 uv run pytest -ra
 
 # 4. First-time setup: drag-and-drop client_secret.json, then Authorize
-uv run mgdio auth google           # opens browser, completes consent
-# Expect: "Authenticated." printed when consent finishes
+uv run mgdio auth google --profile svc    # opens browser, completes consent
+# Expect: "Authenticated profile 'svc'." printed when consent finishes
+uv run mgdio auth google profiles         # lists configured profiles
 
 # 5. Verify the on-disk + vault state landed where expected
 Get-ChildItem $env:LOCALAPPDATA\mgdio\google\
-# Expect: client_secret.json present
+# Expect: client_secret.json and profiles.json present
 
-# Inspect the OS keyring entry from Python
-uv run python -c "import keyring; t = keyring.get_password('mgdio:google', 'oauth_token'); print('present:', bool(t), 'len:', len(t or ''))"
+# Inspect the OS keyring entry from Python (per-profile service)
+uv run python -c "import keyring; t = keyring.get_password('mgdio:google:svc', 'oauth_token'); print('present:', bool(t), 'len:', len(t or ''))"
 # Expect: present: True, len: 500+ (a JSON blob)
 
 # 6. Confirm the cached token actually carries all four scopes
-uv run python -c "from mgdio.auth.google import get_credentials; c = get_credentials(); print('valid:', c.valid); [print(' -', s) for s in sorted(c.scopes)]"
+uv run python -c "from mgdio.auth.google import get_credentials; c = get_credentials('svc'); print('valid:', c.valid); [print(' -', s) for s in sorted(c.scopes)]"
 # Expect four URLs: gmail.modify, calendar, spreadsheets, drive
 
 # 7. Second call is cheap: no browser, no prompt -- hits in-process cache
-uv run python -c "from mgdio.auth.google import get_credentials; get_credentials(); print('OK')"
+uv run python -c "from mgdio.auth.google import get_credentials; get_credentials('svc'); print('OK')"
 
 # 8. Verify cross-process persistence: new Python, still no prompt
-uv run python -c "from mgdio.auth.google import get_credentials; c = get_credentials(); print('valid (from keyring):', c.valid)"
+uv run python -c "from mgdio.auth.google import get_credentials; c = get_credentials('svc'); print('valid (from keyring):', c.valid)"
 
-# 9. Reset and re-auth (forces a fresh consent flow)
-uv run mgdio auth google --reset   # opens browser again
+# 9. Reset and re-auth (forces a fresh consent flow for that profile)
+uv run mgdio auth google --profile svc --reset   # opens browser again
 
 # 10. Inspect Credential Manager visually (optional)
-#     Start -> "Credential Manager" -> Windows Credentials -> search "mgdio:google"
+#     Start -> "Credential Manager" -> Windows Credentials -> search "mgdio:google:svc"
 ```
 
 ### Gmail quick-test commands
@@ -949,7 +1008,7 @@ Remove-Item Env:\MGDIO_RUN_INTEGRATION
 
 After step 4 above, exercise the Drive surface. These create a throwaway
 folder + file and clean up after themselves. If you authorized before the
-Drive scope was added, run `uv run mgdio auth google --reset` first.
+Drive scope was added, run `uv run mgdio auth google --profile svc --reset` first.
 
 ```powershell
 # Smoke: import the public Drive API
@@ -1034,7 +1093,11 @@ Remove-Item Env:\MGDIO_RUN_INTEGRATION
 ## Troubleshooting
 
 - **Refresh token expired / revoked** — verify the Google Auth Platform consent
-  screen is *Published*, then `mgdio auth google --reset`.
+  screen is *Published*, then `mgdio auth google --profile <slug> --reset`.
+- **`no Google profiles` / `multiple Google profiles` error** — pick an account:
+  pass `--profile <slug>` (or set `MGDIO_GOOGLE_PROFILE`), or authorize one with
+  `mgdio auth google --profile <slug>`. List existing ones with
+  `mgdio auth google profiles`.
 - **Scope mismatch after upgrade** — if a future release adds a new Google scope,
   the first call will fall back to the setup flow. Approve the new scope on the
   consent screen.
@@ -1046,7 +1109,7 @@ Remove-Item Env:\MGDIO_RUN_INTEGRATION
 - **`mismatching_state` in `--headless` mode** — you pasted a redirect URL
   from a *different* mgdio session. State is rotated every run; finish the
   paste in the same terminal session that printed the auth URL. Re-run
-  `mgdio auth google --headless` and try again.
+  `mgdio auth google --profile <slug> --headless` and try again.
 - **`keyring.errors.NoKeyringError` on a Linux VPS** — mgdio normally
   handles this automatically by falling back to a file-based store (see
   the keyring callout in [Headless install](#headless-install-linux-vps-ssh-only-machines)).

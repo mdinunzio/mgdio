@@ -62,6 +62,7 @@ def create_spreadsheet(
     title: str,
     *,
     sheet_names: Sequence[str] | None = None,
+    profile: str | None = None,
 ) -> Spreadsheet:
     """Create a new spreadsheet.
 
@@ -69,6 +70,8 @@ def create_spreadsheet(
         title: Document title.
         sheet_names: Optional initial tab names. If omitted, Google
             creates one tab named ``"Sheet1"``.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         A populated :class:`Spreadsheet` for the new document.
@@ -82,7 +85,7 @@ def create_spreadsheet(
             {"properties": {"title": name, "index": idx}}
             for idx, name in enumerate(sheet_names)
         ]
-    service = get_service()
+    service = get_service(profile)
     try:
         raw = service.spreadsheets().create(body=body).execute()
     except HttpError as exc:
@@ -90,11 +93,15 @@ def create_spreadsheet(
     return _to_spreadsheet(raw)
 
 
-def fetch_spreadsheet(spreadsheet_id: str) -> Spreadsheet:
+def fetch_spreadsheet(
+    spreadsheet_id: str, *, profile: str | None = None
+) -> Spreadsheet:
     """Fetch metadata for a spreadsheet (no cell values).
 
     Args:
         spreadsheet_id: The spreadsheet's id.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         A populated :class:`Spreadsheet`.
@@ -102,7 +109,7 @@ def fetch_spreadsheet(spreadsheet_id: str) -> Spreadsheet:
     Raises:
         MgdioAPIError: On any Sheets API HTTP error.
     """
-    service = get_service()
+    service = get_service(profile)
     try:
         raw = (
             service.spreadsheets()
@@ -119,6 +126,7 @@ def add_sheet(
     title: str,
     *,
     index: int | None = None,
+    profile: str | None = None,
 ) -> SheetTab:
     """Add a tab to a spreadsheet.
 
@@ -126,6 +134,8 @@ def add_sheet(
         spreadsheet_id: The spreadsheet's id.
         title: Name of the new tab.
         index: Optional zero-based position; default is "append at end".
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         The new :class:`SheetTab`.
@@ -137,18 +147,26 @@ def add_sheet(
     if index is not None:
         properties["index"] = index
     request = {"addSheet": {"properties": properties}}
-    raw = _batch_update(spreadsheet_id, [request])
+    raw = _batch_update(spreadsheet_id, [request], profile=profile)
     reply = raw["replies"][0]["addSheet"]["properties"]
     return _to_sheet_tab(reply)
 
 
-def rename_sheet(spreadsheet_id: str, sheet_id: int, new_title: str) -> None:
+def rename_sheet(
+    spreadsheet_id: str,
+    sheet_id: int,
+    new_title: str,
+    *,
+    profile: str | None = None,
+) -> None:
     """Rename a tab.
 
     Args:
         spreadsheet_id: The spreadsheet's id.
         sheet_id: The numeric sheet id (from :attr:`SheetTab.id`).
         new_title: New tab name.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Raises:
         MgdioAPIError: On any Sheets API HTTP error.
@@ -159,25 +177,31 @@ def rename_sheet(spreadsheet_id: str, sheet_id: int, new_title: str) -> None:
             "fields": "title",
         }
     }
-    _batch_update(spreadsheet_id, [request])
+    _batch_update(spreadsheet_id, [request], profile=profile)
 
 
-def delete_sheet(spreadsheet_id: str, sheet_id: int) -> None:
+def delete_sheet(
+    spreadsheet_id: str, sheet_id: int, *, profile: str | None = None
+) -> None:
     """Delete a tab.
 
     Args:
         spreadsheet_id: The spreadsheet's id.
         sheet_id: The numeric sheet id (from :attr:`SheetTab.id`).
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Raises:
         MgdioAPIError: On any Sheets API HTTP error.
     """
     request = {"deleteSheet": {"sheetId": sheet_id}}
-    _batch_update(spreadsheet_id, [request])
+    _batch_update(spreadsheet_id, [request], profile=profile)
 
 
-def _batch_update(spreadsheet_id: str, requests: list[dict]) -> dict:
-    service = get_service()
+def _batch_update(
+    spreadsheet_id: str, requests: list[dict], *, profile: str | None = None
+) -> dict:
+    service = get_service(profile)
     try:
         return (
             service.spreadsheets()

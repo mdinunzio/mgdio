@@ -14,8 +14,11 @@ Read and write Google Sheets through the user's account via the `mgdio` CLI.
 
 ## Prerequisite
 
-The user must have authenticated once: `mgdio auth google`. The same token
-covers Gmail, Calendar, and Sheets.
+The user must have authenticated once:
+`mgdio auth google --profile <slug>`. The same per-account token covers
+Gmail, Calendar, Sheets, and Drive. Add `--profile <slug>` to any
+`mgdio sheets` command to target a specific account; omit it to use
+`$MGDIO_GOOGLE_PROFILE` or the sole configured profile.
 
 ## Safety contract
 

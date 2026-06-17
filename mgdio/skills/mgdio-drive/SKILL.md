@@ -15,10 +15,15 @@ Read and manage the user's Google Drive via the `mgdio` CLI.
 ## Prerequisite
 
 The user must have authenticated once with the Drive scope:
-`mgdio auth google`. Drive shares the single `mgdio:google` token with
-Gmail, Sheets, and Calendar. If Drive was added after the user last
-authorized, the first Drive call triggers a one-time re-consent — tell
-them to run `mgdio auth google --reset` and re-approve.
+`mgdio auth google --profile <slug>`. Drive shares the per-account
+`mgdio:google:<slug>` token with Gmail, Sheets, and Calendar. If Drive was
+added after the user last authorized, the first Drive call triggers a
+one-time re-consent — tell them to run
+`mgdio auth google --profile <slug> --reset` and re-approve.
+
+**Multiple accounts:** add `--profile <slug>` to any `mgdio drive` command
+to target a specific Google account. Omit it to use `$MGDIO_GOOGLE_PROFILE`
+or the sole configured profile. `mgdio auth google profiles` lists them.
 
 ## Safety contract
 

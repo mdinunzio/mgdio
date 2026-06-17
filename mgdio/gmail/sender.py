@@ -27,6 +27,7 @@ def send_email(
     attachments: Sequence[Path | str] | None = None,
     html: str | None = None,
     sender: str | None = None,
+    profile: str | None = None,
 ) -> str:
     """Send an email via the Gmail API. Returns the sent message id.
 
@@ -42,6 +43,8 @@ def send_email(
         sender: Optional ``From`` value. Defaults to ``"me"`` (the
             authenticated user); the Gmail API rewrites this to the
             authenticated address.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         The ``id`` of the message Gmail accepted.
@@ -61,7 +64,7 @@ def send_email(
     )
     encoded = base64.urlsafe_b64encode(msg.as_bytes()).decode("ascii")
 
-    service = get_service()
+    service = get_service(profile)
     try:
         result = (
             service.users()

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 from datetime import datetime
@@ -9,9 +10,11 @@ from pathlib import Path
 
 import click
 
+from mgdio.auth.google import authorize_profile as authorize_google_profile
 from mgdio.auth.google import clear_stored_token as clear_google_token
 from mgdio.auth.google import (
-    get_credentials,
+    detect_legacy_token,
+    live_profiles,
 )
 from mgdio.auth.whoop import clear_stored_token as clear_whoop_token
 from mgdio.auth.whoop import get_access_token as get_whoop_token
@@ -42,6 +45,7 @@ from mgdio.drive import (
     upload_file,
 )
 from mgdio.gmail import fetch_message, fetch_messages, send_email
+from mgdio.settings import GOOGLE_PROFILE_ENV_VAR
 from mgdio.sheets import (
     append_values,
     clear_values,
@@ -84,11 +88,28 @@ def auth() -> None:
     """
 
 
-@auth.command("google")
+def _profile_option(func):
+    """Attach the shared ``--profile`` option to a Google service command."""
+    return click.option(
+        "--profile",
+        default=None,
+        help=(
+            "Google account profile slug. Omit to use $"
+            f"{GOOGLE_PROFILE_ENV_VAR} or the sole configured profile."
+        ),
+    )(func)
+
+
+@auth.group("google", invoke_without_command=True)
+@click.option(
+    "--profile",
+    default=None,
+    help="Account profile slug to authorize, e.g. mdinunziosvc.",
+)
 @click.option(
     "--reset",
     is_flag=True,
-    help="Delete the stored token before running, forcing a fresh consent flow.",
+    help="Delete this profile's stored token before running.",
 )
 @click.option(
     "--headless",
@@ -98,20 +119,57 @@ def auth() -> None:
         "For machines without a browser (e.g. a Linux VPS)."
     ),
 )
-def auth_google(reset: bool, headless: bool) -> None:
-    """Run (or re-run) the Google OAuth onboarding flow.
+@click.pass_context
+def auth_google(
+    ctx: click.Context, profile: str | None, reset: bool, headless: bool
+) -> None:
+    """Run (or re-run) the Google OAuth onboarding flow for a profile.
 
-    Requests Gmail + Calendar + Sheets scopes in a single consent screen.
-    Token is stored in your OS keyring under ``mgdio:google``.
+    Requests Gmail + Calendar + Sheets + Drive scopes in a single consent
+    screen. The token is stored in your OS keyring under
+    ``mgdio:google:<profile>``. ``--profile`` is required.
 
     Pass ``--headless`` on machines without a browser (e.g. a Linux VPS):
     mgdio will print the auth URL and prompt for the resulting redirect
     URL to be pasted back, instead of opening a localhost setup page.
+
+    Run ``mgdio auth google profiles`` to list configured profiles.
     """
+    if ctx.invoked_subcommand is not None:
+        return
+    if not profile:
+        raise click.UsageError(
+            "pass --profile <slug>, e.g. " "mgdio auth google --profile mdinunziosvc"
+        )
     if reset:
-        clear_google_token()
-    get_credentials(headless=headless)
-    click.echo("Authenticated.")
+        clear_google_token(profile)
+    authorize_google_profile(profile, headless=headless)
+    click.echo(f"Authenticated profile '{profile}'.")
+    if detect_legacy_token():
+        click.echo(
+            "note: a legacy token at 'mgdio:google' (pre-profiles) is still "
+            "in your keyring and now unused; remove it via your OS keyring "
+            "if you like."
+        )
+
+
+@auth_google.command("profiles")
+def auth_google_profiles() -> None:
+    """List configured Google account profiles."""
+    slugs = live_profiles()
+    if not slugs:
+        click.echo("(no Google profiles; run `mgdio auth google --profile <slug>`)")
+        return
+    env = os.environ.get(GOOGLE_PROFILE_ENV_VAR)
+    auto = slugs[0] if len(slugs) == 1 else None
+    for slug in slugs:
+        marks = []
+        if slug == env:
+            marks.append("env-default")
+        if slug == auto:
+            marks.append("auto")
+        suffix = f"  [{', '.join(marks)}]" if marks else ""
+        click.echo(f"{slug}{suffix}")
 
 
 @auth.command("ynab")
@@ -173,9 +231,10 @@ def gmail() -> None:
     show_default=True,
     help="Max messages to fetch.",
 )
-def gmail_list(query: str, max_results: int) -> None:
+@_profile_option
+def gmail_list(query: str, max_results: int, profile: str | None) -> None:
     """List recent inbox messages (subject + sender + date)."""
-    for message in fetch_messages(query, max_results):
+    for message in fetch_messages(query, max_results, profile=profile):
         click.echo(
             f"{message.date:%Y-%m-%d %H:%M}  "
             f"{message.sender[:40]:40}  "
@@ -186,9 +245,10 @@ def gmail_list(query: str, max_results: int) -> None:
 
 @gmail.command("get")
 @click.argument("message_id")
-def gmail_get(message_id: str) -> None:
+@_profile_option
+def gmail_get(message_id: str, profile: str | None) -> None:
     """Print one message's headers, snippet, and plain-text body."""
-    message = fetch_message(message_id)
+    message = fetch_message(message_id, profile=profile)
     click.echo(f"Id:      {message.id}")
     click.echo(f"Date:    {message.date:%Y-%m-%d %H:%M %Z}")
     click.echo(f"From:    {message.sender}")
@@ -220,6 +280,7 @@ def gmail_get(message_id: str) -> None:
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     help="Attach a file. Repeatable.",
 )
+@_profile_option
 def gmail_send(
     to: str,
     subject: str,
@@ -228,6 +289,7 @@ def gmail_send(
     bcc: str | None,
     html: str | None,
     attachments: tuple[Path, ...],
+    profile: str | None,
 ) -> None:
     """Send an email."""
     message_id = send_email(
@@ -238,6 +300,7 @@ def gmail_send(
         bcc=bcc,
         html=html,
         attachments=list(attachments) or None,
+        profile=profile,
     )
     click.echo(f"Sent: {message_id}")
 
@@ -249,9 +312,10 @@ def sheets() -> None:
 
 @sheets.command("info")
 @click.argument("spreadsheet_id")
-def sheets_info(spreadsheet_id: str) -> None:
+@_profile_option
+def sheets_info(spreadsheet_id: str, profile: str | None) -> None:
     """Print metadata about a spreadsheet (title, tabs, url)."""
-    sheet = fetch_spreadsheet(spreadsheet_id)
+    sheet = fetch_spreadsheet(spreadsheet_id, profile=profile)
     click.echo(f"Title:  {sheet.title}")
     click.echo(f"Url:    {sheet.url}")
     click.echo(f"Locale: {sheet.locale}  ({sheet.time_zone})")
@@ -267,9 +331,10 @@ def sheets_info(spreadsheet_id: str) -> None:
 @sheets.command("read")
 @click.argument("spreadsheet_id")
 @click.argument("range_")
-def sheets_read(spreadsheet_id: str, range_: str) -> None:
+@_profile_option
+def sheets_read(spreadsheet_id: str, range_: str, profile: str | None) -> None:
     """Print a tab-separated dump of a range."""
-    for row in fetch_values(spreadsheet_id, range_):
+    for row in fetch_values(spreadsheet_id, range_, profile=profile):
         click.echo("\t".join("" if cell is None else str(cell) for cell in row))
 
 
@@ -287,15 +352,17 @@ def sheets_read(spreadsheet_id: str, range_: str) -> None:
     is_flag=True,
     help="Use valueInputOption=RAW (no formula/date/number parsing).",
 )
+@_profile_option
 def sheets_write(
     spreadsheet_id: str,
     range_: str,
     rows: tuple[str, ...],
     raw: bool,
+    profile: str | None,
 ) -> None:
     """Overwrite a range with --row values (comma-separated cells)."""
     values = [row.split(",") for row in rows]
-    updated = write_values(spreadsheet_id, range_, values, raw=raw)
+    updated = write_values(spreadsheet_id, range_, values, raw=raw, profile=profile)
     click.echo(f"Updated cells: {updated}")
 
 
@@ -309,24 +376,27 @@ def sheets_write(
     help="One row of comma-separated cells. Repeatable.",
 )
 @click.option("--raw", is_flag=True)
+@_profile_option
 def sheets_append(
     spreadsheet_id: str,
     range_: str,
     rows: tuple[str, ...],
     raw: bool,
+    profile: str | None,
 ) -> None:
     """Append --row values to the end of the table at range_."""
     values = [row.split(",") for row in rows]
-    updated = append_values(spreadsheet_id, range_, values, raw=raw)
+    updated = append_values(spreadsheet_id, range_, values, raw=raw, profile=profile)
     click.echo(f"Appended cells: {updated}")
 
 
 @sheets.command("clear")
 @click.argument("spreadsheet_id")
 @click.argument("range_")
-def sheets_clear(spreadsheet_id: str, range_: str) -> None:
+@_profile_option
+def sheets_clear(spreadsheet_id: str, range_: str, profile: str | None) -> None:
     """Clear all values in range_ (formatting preserved)."""
-    clear_values(spreadsheet_id, range_)
+    clear_values(spreadsheet_id, range_, profile=profile)
     click.echo("Cleared.")
 
 
@@ -338,9 +408,12 @@ def sheets_clear(spreadsheet_id: str, range_: str) -> None:
     multiple=True,
     help="Initial tab name. Repeatable.",
 )
-def sheets_create(title: str, tabs: tuple[str, ...]) -> None:
+@_profile_option
+def sheets_create(title: str, tabs: tuple[str, ...], profile: str | None) -> None:
     """Create a new spreadsheet."""
-    spreadsheet = create_spreadsheet(title, sheet_names=list(tabs) or None)
+    spreadsheet = create_spreadsheet(
+        title, sheet_names=list(tabs) or None, profile=profile
+    )
     click.echo(f"Created: {spreadsheet.id}")
     click.echo(f"Url:     {spreadsheet.url}")
 
@@ -351,9 +424,10 @@ def calendar_cmd() -> None:
 
 
 @calendar_cmd.command("list-cals")
-def calendar_list_cals() -> None:
+@_profile_option
+def calendar_list_cals(profile: str | None) -> None:
     """List every calendar the authenticated user has access to."""
-    for cal in fetch_calendars():
+    for cal in fetch_calendars(profile=profile):
         marker = "*" if cal.primary else " "
         click.echo(f"{marker} {cal.access_role:18} " f"{cal.summary[:40]:40} {cal.id}")
 
@@ -386,12 +460,14 @@ def calendar_list_cals() -> None:
     default=None,
     help="ISO datetime upper bound, e.g. 2026-05-16T00:00:00-04:00.",
 )
+@_profile_option
 def calendar_list_events(
     calendar_id: str,
     max_results: int,
     query: str,
     time_min: str | None,
     time_max: str | None,
+    profile: str | None,
 ) -> None:
     """List upcoming events on a calendar."""
     events = fetch_events(
@@ -400,6 +476,7 @@ def calendar_list_events(
         query=query,
         time_min=_parse_iso_aware(time_min, "--time-min"),
         time_max=_parse_iso_aware(time_max, "--time-max"),
+        profile=profile,
     )
     for ev in events:
         when = f"{ev.start:%Y-%m-%d}" if ev.all_day else f"{ev.start:%Y-%m-%d %H:%M}"
@@ -409,9 +486,10 @@ def calendar_list_events(
 @calendar_cmd.command("get")
 @click.argument("event_id")
 @click.option("--calendar", "calendar_id", default="primary", show_default=True)
-def calendar_get(event_id: str, calendar_id: str) -> None:
+@_profile_option
+def calendar_get(event_id: str, calendar_id: str, profile: str | None) -> None:
     """Print a single event's details."""
-    ev = fetch_event(event_id, calendar_id=calendar_id)
+    ev = fetch_event(event_id, calendar_id=calendar_id, profile=profile)
     click.echo(f"Id:       {ev.id}")
     click.echo(f"Calendar: {ev.calendar_id}")
     click.echo(f"Summary:  {ev.summary}")
@@ -457,6 +535,7 @@ def calendar_get(event_id: str, calendar_id: str) -> None:
     help="Treat start/end as date-only (time-of-day ignored).",
 )
 @click.option("--calendar", "calendar_id", default="primary", show_default=True)
+@_profile_option
 def calendar_create(
     summary: str,
     start_str: str,
@@ -466,6 +545,7 @@ def calendar_create(
     attendees: tuple[str, ...],
     all_day: bool,
     calendar_id: str,
+    profile: str | None,
 ) -> None:
     """Create a new event."""
     start = _parse_iso_aware(start_str, "--start")
@@ -480,6 +560,7 @@ def calendar_create(
         attendees=list(attendees) or None,
         calendar_id=calendar_id,
         all_day=all_day,
+        profile=profile,
     )
     click.echo(f"Created: {ev.id}")
     click.echo(f"Url:     {ev.html_link}")
@@ -501,6 +582,7 @@ def calendar_create(
         "existing all-day event."
     ),
 )
+@_profile_option
 def calendar_update(
     event_id: str,
     calendar_id: str,
@@ -510,6 +592,7 @@ def calendar_update(
     description: str | None,
     location: str | None,
     all_day: bool,
+    profile: str | None,
 ) -> None:
     """PATCH an event. Only options you pass are changed."""
     ev = update_event(
@@ -521,6 +604,7 @@ def calendar_update(
         description=description,
         location=location,
         all_day=all_day or None,
+        profile=profile,
     )
     click.echo(f"Updated: {ev.id}")
     click.echo(f"Url:     {ev.html_link}")
@@ -529,18 +613,20 @@ def calendar_update(
 @calendar_cmd.command("delete")
 @click.argument("event_id")
 @click.option("--calendar", "calendar_id", default="primary", show_default=True)
-def calendar_delete(event_id: str, calendar_id: str) -> None:
+@_profile_option
+def calendar_delete(event_id: str, calendar_id: str, profile: str | None) -> None:
     """Delete an event."""
-    delete_event(event_id, calendar_id=calendar_id)
+    delete_event(event_id, calendar_id=calendar_id, profile=profile)
     click.echo("Deleted.")
 
 
 @calendar_cmd.command("quick-add")
 @click.argument("text")
 @click.option("--calendar", "calendar_id", default="primary", show_default=True)
-def calendar_quick_add(text: str, calendar_id: str) -> None:
+@_profile_option
+def calendar_quick_add(text: str, calendar_id: str, profile: str | None) -> None:
     """Create an event from a natural-language string (Google parses it)."""
-    ev = quick_add(text, calendar_id=calendar_id)
+    ev = quick_add(text, calendar_id=calendar_id, profile=profile)
     click.echo(f"Created: {ev.id}")
     click.echo(f"Summary: {ev.summary}")
     click.echo(f"Url:     {ev.html_link}")
@@ -860,12 +946,14 @@ def _fmt_size(size_bytes: int | None) -> str:
     "--trashed", is_flag=True, help="Include trashed files (default excludes them)."
 )
 @click.option("--max", "max_results", default=25, type=int, show_default=True)
+@_profile_option
 def drive_list(
     query: str,
     parent_id: str | None,
     order_by: str | None,
     trashed: bool,
     max_results: int,
+    profile: str | None,
 ) -> None:
     """List / search files and folders."""
     files = list_files(
@@ -874,6 +962,7 @@ def drive_list(
         include_trashed=trashed,
         order_by=order_by,
         max_results=max_results,
+        profile=profile,
     )
     for f in files:
         kind = "DIR " if f.is_folder else "FILE"
@@ -885,9 +974,10 @@ def drive_list(
 
 @drive.command("get")
 @click.argument("file_id")
-def drive_get(file_id: str) -> None:
+@_profile_option
+def drive_get(file_id: str, profile: str | None) -> None:
     """Print a file's metadata."""
-    f = fetch_file(file_id)
+    f = fetch_file(file_id, profile=profile)
     click.echo(f"Id:        {f.id}")
     click.echo(f"Name:      {f.name}")
     click.echo(f"MIME:      {f.mime_type}")
@@ -904,9 +994,10 @@ def drive_get(file_id: str) -> None:
 @drive.command("mkdir")
 @click.argument("name")
 @click.option("--parent", "parent_id", default=None, help="Parent folder id.")
-def drive_mkdir(name: str, parent_id: str | None) -> None:
+@_profile_option
+def drive_mkdir(name: str, parent_id: str | None, profile: str | None) -> None:
     """Create a folder."""
-    folder = create_folder(name, parent_id=parent_id)
+    folder = create_folder(name, parent_id=parent_id, profile=profile)
     click.echo(f"Created folder: {folder.id}")
     click.echo(f"Url:            {folder.web_view_link}")
 
@@ -917,9 +1008,15 @@ def drive_mkdir(name: str, parent_id: str | None) -> None:
 )
 @click.option("--name", default=None, help="Name in Drive (default: local name).")
 @click.option("--parent", "parent_id", default=None, help="Parent folder id.")
-def drive_upload(local_path: Path, name: str | None, parent_id: str | None) -> None:
+@_profile_option
+def drive_upload(
+    local_path: Path,
+    name: str | None,
+    parent_id: str | None,
+    profile: str | None,
+) -> None:
     """Upload a local file to Drive."""
-    f = upload_file(local_path, name=name, parent_id=parent_id)
+    f = upload_file(local_path, name=name, parent_id=parent_id, profile=profile)
     click.echo(f"Uploaded: {f.id}")
     click.echo(f"Url:      {f.web_view_link}")
 
@@ -927,9 +1024,10 @@ def drive_upload(local_path: Path, name: str | None, parent_id: str | None) -> N
 @drive.command("download")
 @click.argument("file_id")
 @click.argument("local_path", type=click.Path(dir_okay=False, path_type=Path))
-def drive_download(file_id: str, local_path: Path) -> None:
+@_profile_option
+def drive_download(file_id: str, local_path: Path, profile: str | None) -> None:
     """Download a binary file's content to LOCAL_PATH."""
-    dest = download_file(file_id, local_path)
+    dest = download_file(file_id, local_path, profile=profile)
     click.echo(f"Downloaded to: {dest}")
 
 
@@ -942,29 +1040,34 @@ def drive_download(file_id: str, local_path: Path) -> None:
     required=True,
     help="Export MIME type, e.g. application/pdf or text/csv.",
 )
-def drive_export(file_id: str, local_path: Path, mime_type: str) -> None:
+@_profile_option
+def drive_export(
+    file_id: str, local_path: Path, mime_type: str, profile: str | None
+) -> None:
     """Export a Google-native doc (Docs/Sheets/Slides) to LOCAL_PATH."""
-    dest = export_file(file_id, local_path, mime_type=mime_type)
+    dest = export_file(file_id, local_path, mime_type=mime_type, profile=profile)
     click.echo(f"Exported to: {dest}")
 
 
 @drive.command("rename")
 @click.argument("file_id")
 @click.argument("new_name")
-def drive_rename(file_id: str, new_name: str) -> None:
+@_profile_option
+def drive_rename(file_id: str, new_name: str, profile: str | None) -> None:
     """Rename a file or folder."""
     from mgdio.drive import update_file
 
-    f = update_file(file_id, name=new_name)
+    f = update_file(file_id, name=new_name, profile=profile)
     click.echo(f"Renamed: {f.name}  [{f.id}]")
 
 
 @drive.command("move")
 @click.argument("file_id")
 @click.argument("new_parent_id")
-def drive_move(file_id: str, new_parent_id: str) -> None:
+@_profile_option
+def drive_move(file_id: str, new_parent_id: str, profile: str | None) -> None:
     """Move a file into a different folder."""
-    f = move_file(file_id, new_parent_id)
+    f = move_file(file_id, new_parent_id, profile=profile)
     click.echo(f"Moved: {f.name}  -> parents {', '.join(f.parents)}")
 
 
@@ -972,9 +1075,15 @@ def drive_move(file_id: str, new_parent_id: str) -> None:
 @click.argument("file_id")
 @click.option("--name", default=None, help="Name for the copy.")
 @click.option("--parent", "parent_id", default=None, help="Destination folder id.")
-def drive_copy(file_id: str, name: str | None, parent_id: str | None) -> None:
+@_profile_option
+def drive_copy(
+    file_id: str,
+    name: str | None,
+    parent_id: str | None,
+    profile: str | None,
+) -> None:
     """Copy a file."""
-    f = copy_file(file_id, name=name, parent_id=parent_id)
+    f = copy_file(file_id, name=name, parent_id=parent_id, profile=profile)
     click.echo(f"Copied to: {f.id}")
     click.echo(f"Url:       {f.web_view_link}")
 
@@ -982,35 +1091,39 @@ def drive_copy(file_id: str, name: str | None, parent_id: str | None) -> None:
 @drive.command("trash")
 @click.argument("file_id")
 @click.option("--restore", is_flag=True, help="Restore from trash instead.")
-def drive_trash(file_id: str, restore: bool) -> None:
+@_profile_option
+def drive_trash(file_id: str, restore: bool, profile: str | None) -> None:
     """Move a file to the trash (or --restore it)."""
-    f = trash_file(file_id, trashed=not restore)
+    f = trash_file(file_id, trashed=not restore, profile=profile)
     state = "restored" if restore else "trashed"
     click.echo(f"{state.capitalize()}: {f.name}  [{f.id}]")
 
 
 @drive.command("delete")
 @click.argument("file_id")
-def drive_delete(file_id: str) -> None:
+@_profile_option
+def drive_delete(file_id: str, profile: str | None) -> None:
     """Permanently delete a file (skips the trash -- irreversible)."""
-    delete_file(file_id)
+    delete_file(file_id, profile=profile)
     click.echo("Deleted.")
 
 
 @drive.command("empty-trash")
-def drive_empty_trash() -> None:
+@_profile_option
+def drive_empty_trash(profile: str | None) -> None:
     """Permanently delete every trashed file (irreversible)."""
     from mgdio.drive import empty_trash
 
-    empty_trash()
+    empty_trash(profile=profile)
     click.echo("Trash emptied.")
 
 
 @drive.command("perms")
 @click.argument("file_id")
-def drive_perms(file_id: str) -> None:
+@_profile_option
+def drive_perms(file_id: str, profile: str | None) -> None:
     """List a file's sharing permissions."""
-    for p in list_permissions(file_id):
+    for p in list_permissions(file_id, profile=profile):
         who = p.email_address or p.domain or p.type
         click.echo(f"{p.role:12} {p.type:8} {who[:40]:40}  [{p.id}]")
 
@@ -1022,6 +1135,7 @@ def drive_perms(file_id: str) -> None:
 @click.option("--domain", default=None, help="Share with a Workspace domain.")
 @click.option("--anyone", is_flag=True, help="Share with anyone who has the link.")
 @click.option("--notify", is_flag=True, help="Email the grantee (user/group only).")
+@_profile_option
 def drive_share(
     file_id: str,
     role: str,
@@ -1029,6 +1143,7 @@ def drive_share(
     domain: str | None,
     anyone: bool,
     notify: bool,
+    profile: str | None,
 ) -> None:
     """Grant a sharing permission on a file."""
     p = share_file(
@@ -1038,6 +1153,7 @@ def drive_share(
         domain=domain,
         anyone=anyone,
         send_notification=notify,
+        profile=profile,
     )
     click.echo(f"Granted {p.role} to {p.email_address or p.domain or p.type}")
     click.echo(f"Permission id: {p.id}")
@@ -1046,9 +1162,10 @@ def drive_share(
 @drive.command("unshare")
 @click.argument("file_id")
 @click.argument("permission_id")
-def drive_unshare(file_id: str, permission_id: str) -> None:
+@_profile_option
+def drive_unshare(file_id: str, permission_id: str, profile: str | None) -> None:
     """Revoke a sharing permission (id from `drive perms`)."""
-    unshare_file(file_id, permission_id)
+    unshare_file(file_id, permission_id, profile=profile)
     click.echo("Revoked.")
 
 

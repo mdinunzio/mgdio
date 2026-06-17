@@ -104,6 +104,7 @@ def fetch_events(
     query: str = "",
     max_results: int = 50,
     single_events: bool = True,
+    profile: str | None = None,
 ) -> list[CalendarEvent]:
     """List events on ``calendar_id``.
 
@@ -117,6 +118,8 @@ def fetch_events(
             into individual instances and ordered by start time. When
             False, the underlying recurring event is returned once and
             order is by last-modified.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         List of :class:`CalendarEvent`, possibly empty.
@@ -141,7 +144,7 @@ def fetch_events(
     if query:
         params["q"] = query
 
-    service = get_service()
+    service = get_service(profile)
     try:
         resp = service.events().list(**params).execute()
     except HttpError as exc:
@@ -150,12 +153,16 @@ def fetch_events(
     return [_to_event(item, calendar_id) for item in resp.get("items", [])]
 
 
-def fetch_event(event_id: str, calendar_id: str = "primary") -> CalendarEvent:
+def fetch_event(
+    event_id: str, calendar_id: str = "primary", *, profile: str | None = None
+) -> CalendarEvent:
     """Fetch a single event by id.
 
     Args:
         event_id: Event id.
         calendar_id: Owning calendar. Default ``"primary"``.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         A populated :class:`CalendarEvent`.
@@ -163,7 +170,7 @@ def fetch_event(event_id: str, calendar_id: str = "primary") -> CalendarEvent:
     Raises:
         MgdioAPIError: On any Calendar API HTTP error.
     """
-    service = get_service()
+    service = get_service(profile)
     try:
         raw = service.events().get(calendarId=calendar_id, eventId=event_id).execute()
     except HttpError as exc:
@@ -181,6 +188,7 @@ def create_event(
     attendees: Sequence[str] | None = None,
     calendar_id: str = "primary",
     all_day: bool = False,
+    profile: str | None = None,
 ) -> CalendarEvent:
     """Create a new event.
 
@@ -195,6 +203,8 @@ def create_event(
         attendees: Optional iterable of attendee email addresses.
         calendar_id: Target calendar. Default ``"primary"``.
         all_day: If True, the event is date-only.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         The created :class:`CalendarEvent`.
@@ -218,7 +228,7 @@ def create_event(
     if attendees:
         body["attendees"] = [{"email": e} for e in attendees]
 
-    service = get_service()
+    service = get_service(profile)
     try:
         raw = service.events().insert(calendarId=calendar_id, body=body).execute()
     except HttpError as exc:
@@ -237,6 +247,7 @@ def update_event(
     attendees: Sequence[str] | _ClearType | None = None,
     all_day: bool | None = None,
     calendar_id: str = "primary",
+    profile: str | None = None,
 ) -> CalendarEvent:
     """PATCH an event. ``None`` = no-op, :data:`CLEAR` = null the field.
 
@@ -252,6 +263,8 @@ def update_event(
             updating times of an existing all-day event you must pass
             ``all_day=True``.
         calendar_id: Owning calendar. Default ``"primary"``.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         The updated :class:`CalendarEvent`.
@@ -279,7 +292,7 @@ def update_event(
         _require_aware(end, "end")
         body["end"] = _format_endpoint(end, all_day=bool(all_day))
 
-    service = get_service()
+    service = get_service(profile)
     try:
         raw = (
             service.events()
@@ -291,17 +304,21 @@ def update_event(
     return _to_event(raw, calendar_id)
 
 
-def delete_event(event_id: str, calendar_id: str = "primary") -> None:
+def delete_event(
+    event_id: str, calendar_id: str = "primary", *, profile: str | None = None
+) -> None:
     """Delete an event.
 
     Args:
         event_id: Event id.
         calendar_id: Owning calendar. Default ``"primary"``.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Raises:
         MgdioAPIError: On any Calendar API HTTP error.
     """
-    service = get_service()
+    service = get_service(profile)
     try:
         service.events().delete(calendarId=calendar_id, eventId=event_id).execute()
     except HttpError as exc:
@@ -311,6 +328,8 @@ def delete_event(event_id: str, calendar_id: str = "primary") -> None:
 def quick_add(
     text: str,
     calendar_id: str = "primary",
+    *,
+    profile: str | None = None,
 ) -> CalendarEvent:
     """Create an event from a natural-language string.
 
@@ -321,6 +340,8 @@ def quick_add(
     Args:
         text: Natural-language event description.
         calendar_id: Target calendar. Default ``"primary"``.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         The created :class:`CalendarEvent`.
@@ -328,7 +349,7 @@ def quick_add(
     Raises:
         MgdioAPIError: On any Calendar API HTTP error.
     """
-    service = get_service()
+    service = get_service(profile)
     try:
         raw = service.events().quickAdd(calendarId=calendar_id, text=text).execute()
     except HttpError as exc:

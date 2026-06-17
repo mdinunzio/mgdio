@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from mgdio import settings as mgdio_settings
+from mgdio.auth.google import _profiles as google_profiles
 from mgdio.auth.google import auth as google_auth
 from mgdio.auth.whoop import auth as whoop_auth
 from mgdio.auth.ynab import auth as ynab_auth
@@ -54,6 +55,12 @@ def tmp_appdata(tmp_path, monkeypatch):
     monkeypatch.setattr(mgdio_settings, "GOOGLE_DATA_DIR", google_dir)
     monkeypatch.setattr(mgdio_settings, "GOOGLE_CLIENT_SECRET_PATH", client_secret)
     monkeypatch.setattr(google_auth, "GOOGLE_CLIENT_SECRET_PATH", client_secret)
+    # Profile index lives alongside client_secret.json; _profiles reads it
+    # via settings.GOOGLE_PROFILE_INDEX_PATH at call time, so this one patch
+    # is enough.
+    monkeypatch.setattr(
+        mgdio_settings, "GOOGLE_PROFILE_INDEX_PATH", google_dir / "profiles.json"
+    )
     return tmp_path
 
 
@@ -83,6 +90,7 @@ def fake_keyring(monkeypatch):
                 raise real_keyring.errors.PasswordDeleteError(str(exc)) from exc
 
     monkeypatch.setattr(google_auth, "keyring", _FakeKeyring)
+    monkeypatch.setattr(google_profiles, "keyring", _FakeKeyring)
     monkeypatch.setattr(ynab_auth, "keyring", _FakeKeyring)
     monkeypatch.setattr(whoop_auth, "keyring", _FakeKeyring)
     return store
@@ -92,9 +100,11 @@ def fake_keyring(monkeypatch):
 def mock_gmail_service(monkeypatch) -> MagicMock:
     """Patch :func:`mgdio.gmail.client.get_service` to return a MagicMock."""
     service = MagicMock(name="GmailService")
-    monkeypatch.setattr(gmail_client, "_service", service)
-    monkeypatch.setattr("mgdio.gmail.messages.get_service", lambda: service)
-    monkeypatch.setattr("mgdio.gmail.sender.get_service", lambda: service)
+    monkeypatch.setattr(gmail_client, "_services", {})
+    monkeypatch.setattr(
+        "mgdio.gmail.messages.get_service", lambda profile=None: service
+    )
+    monkeypatch.setattr("mgdio.gmail.sender.get_service", lambda profile=None: service)
     return service
 
 
@@ -102,9 +112,11 @@ def mock_gmail_service(monkeypatch) -> MagicMock:
 def mock_sheets_service(monkeypatch) -> MagicMock:
     """Patch :func:`mgdio.sheets.client.get_service` to return a MagicMock."""
     service = MagicMock(name="SheetsService")
-    monkeypatch.setattr(sheets_client, "_service", service)
-    monkeypatch.setattr("mgdio.sheets.values.get_service", lambda: service)
-    monkeypatch.setattr("mgdio.sheets.spreadsheets.get_service", lambda: service)
+    monkeypatch.setattr(sheets_client, "_services", {})
+    monkeypatch.setattr("mgdio.sheets.values.get_service", lambda profile=None: service)
+    monkeypatch.setattr(
+        "mgdio.sheets.spreadsheets.get_service", lambda profile=None: service
+    )
     return service
 
 
@@ -112,9 +124,13 @@ def mock_sheets_service(monkeypatch) -> MagicMock:
 def mock_calendar_service(monkeypatch) -> MagicMock:
     """Patch :func:`mgdio.calendar.client.get_service` to return a MagicMock."""
     service = MagicMock(name="CalendarService")
-    monkeypatch.setattr(calendar_client, "_service", service)
-    monkeypatch.setattr("mgdio.calendar.events.get_service", lambda: service)
-    monkeypatch.setattr("mgdio.calendar.calendars.get_service", lambda: service)
+    monkeypatch.setattr(calendar_client, "_services", {})
+    monkeypatch.setattr(
+        "mgdio.calendar.events.get_service", lambda profile=None: service
+    )
+    monkeypatch.setattr(
+        "mgdio.calendar.calendars.get_service", lambda profile=None: service
+    )
     return service
 
 
@@ -122,9 +138,11 @@ def mock_calendar_service(monkeypatch) -> MagicMock:
 def mock_drive_service(monkeypatch) -> MagicMock:
     """Patch :func:`mgdio.drive.client.get_service` to return a MagicMock."""
     service = MagicMock(name="DriveService")
-    monkeypatch.setattr(drive_client, "_service", service)
-    monkeypatch.setattr("mgdio.drive.files.get_service", lambda: service)
-    monkeypatch.setattr("mgdio.drive.permissions.get_service", lambda: service)
+    monkeypatch.setattr(drive_client, "_services", {})
+    monkeypatch.setattr("mgdio.drive.files.get_service", lambda profile=None: service)
+    monkeypatch.setattr(
+        "mgdio.drive.permissions.get_service", lambda profile=None: service
+    )
     return service
 
 

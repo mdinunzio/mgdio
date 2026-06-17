@@ -101,6 +101,7 @@ def list_files(
     include_trashed: bool = False,
     order_by: str | None = None,
     max_results: int = 100,
+    profile: str | None = None,
 ) -> list[DriveFile]:
     """List / search files, auto-paginating up to ``max_results``.
 
@@ -113,6 +114,8 @@ def list_files(
         include_trashed: Include trashed files (default excludes them).
         order_by: Sort key, e.g. ``"modifiedTime desc"`` or ``"name"``.
         max_results: Max files to return.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         List of :class:`DriveFile`.
@@ -129,7 +132,7 @@ def list_files(
         clauses.append("trashed = false")
     q = " and ".join(clauses) if clauses else None
 
-    service = get_service()
+    service = get_service(profile)
     out: list[DriveFile] = []
     page_token: str | None = None
     try:
@@ -155,11 +158,13 @@ def list_files(
     return out[:max_results]
 
 
-def fetch_file(file_id: str) -> DriveFile:
+def fetch_file(file_id: str, *, profile: str | None = None) -> DriveFile:
     """Fetch a single file's metadata.
 
     Args:
         file_id: Drive file id.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         A populated :class:`DriveFile`.
@@ -167,7 +172,7 @@ def fetch_file(file_id: str) -> DriveFile:
     Raises:
         MgdioAPIError: On any Drive API error.
     """
-    service = get_service()
+    service = get_service(profile)
     try:
         raw = service.files().get(fileId=file_id, fields=_FILE_FIELDS).execute()
     except HttpError as exc:
@@ -179,12 +184,15 @@ def create_folder(
     name: str,
     *,
     parent_id: str | None = None,
+    profile: str | None = None,
 ) -> DriveFile:
     """Create a folder.
 
     Args:
         name: Folder name.
         parent_id: Parent folder id; defaults to "My Drive" root.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         The created folder as a :class:`DriveFile`.
@@ -195,7 +203,7 @@ def create_folder(
     body: dict[str, Any] = {"name": name, "mimeType": FOLDER_MIME_TYPE}
     if parent_id:
         body["parents"] = [parent_id]
-    service = get_service()
+    service = get_service(profile)
     try:
         raw = service.files().create(body=body, fields=_FILE_FIELDS).execute()
     except HttpError as exc:
@@ -209,6 +217,7 @@ def upload_file(
     name: str | None = None,
     parent_id: str | None = None,
     mime_type: str | None = None,
+    profile: str | None = None,
 ) -> DriveFile:
     """Upload a local file to Drive.
 
@@ -217,6 +226,8 @@ def upload_file(
         name: Name to give the Drive file; defaults to the local name.
         parent_id: Parent folder id; defaults to "My Drive" root.
         mime_type: Content type; guessed from the extension if omitted.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         The created file as a :class:`DriveFile`.
@@ -236,7 +247,7 @@ def upload_file(
         body["parents"] = [parent_id]
     media = MediaFileUpload(str(path), mimetype=mime_type, resumable=True)
 
-    service = get_service()
+    service = get_service(profile)
     try:
         raw = (
             service.files()
@@ -248,7 +259,9 @@ def upload_file(
     return _to_file(raw)
 
 
-def download_file(file_id: str, local_path: str | Path) -> Path:
+def download_file(
+    file_id: str, local_path: str | Path, *, profile: str | None = None
+) -> Path:
     """Download a binary file's content to a local path.
 
     For Google-native docs (Docs/Sheets/Slides), use :func:`export_file`
@@ -257,6 +270,8 @@ def download_file(file_id: str, local_path: str | Path) -> Path:
     Args:
         file_id: Drive file id.
         local_path: Destination path on disk.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         The destination :class:`~pathlib.Path`.
@@ -265,7 +280,7 @@ def download_file(file_id: str, local_path: str | Path) -> Path:
         MgdioAPIError: On any Drive API error.
     """
     dest = Path(local_path)
-    service = get_service()
+    service = get_service(profile)
     try:
         request = service.files().get_media(fileId=file_id)
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -284,6 +299,7 @@ def export_file(
     local_path: str | Path,
     *,
     mime_type: str,
+    profile: str | None = None,
 ) -> Path:
     """Export a Google-native doc to ``mime_type`` and save it locally.
 
@@ -296,6 +312,8 @@ def export_file(
         file_id: Drive file id (must be a Google-native doc).
         local_path: Destination path on disk.
         mime_type: Export target MIME type.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         The destination :class:`~pathlib.Path`.
@@ -304,7 +322,7 @@ def export_file(
         MgdioAPIError: On any Drive API error.
     """
     dest = Path(local_path)
-    service = get_service()
+    service = get_service(profile)
     try:
         request = service.files().export_media(fileId=file_id, mimeType=mime_type)
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -328,6 +346,7 @@ def update_file(
     starred: bool | None = None,
     local_path: str | Path | None = None,
     mime_type: str | None = None,
+    profile: str | None = None,
 ) -> DriveFile:
     """Update a file's metadata and/or replace its content.
 
@@ -337,6 +356,8 @@ def update_file(
         starred: New starred state (``None`` leaves it unchanged).
         local_path: If given, replace the file's content with this file.
         mime_type: Content type for ``local_path``; guessed if omitted.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         The updated :class:`DriveFile`.
@@ -360,7 +381,7 @@ def update_file(
             str(path), mimetype=guessed or "application/octet-stream", resumable=True
         )
 
-    service = get_service()
+    service = get_service(profile)
     try:
         raw = (
             service.files()
@@ -382,6 +403,7 @@ def move_file(
     new_parent_id: str,
     *,
     remove_existing_parents: bool = True,
+    profile: str | None = None,
 ) -> DriveFile:
     """Move a file into ``new_parent_id``.
 
@@ -391,6 +413,8 @@ def move_file(
         remove_existing_parents: If True (default), detach the file from
             its current parents (a true move). If False, the file ends up
             in multiple folders (Drive allows multi-parenting).
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         The updated :class:`DriveFile`.
@@ -398,7 +422,7 @@ def move_file(
     Raises:
         MgdioAPIError: On any Drive API error.
     """
-    service = get_service()
+    service = get_service(profile)
     try:
         kwargs: dict[str, Any] = {
             "fileId": file_id,
@@ -422,6 +446,7 @@ def copy_file(
     *,
     name: str | None = None,
     parent_id: str | None = None,
+    profile: str | None = None,
 ) -> DriveFile:
     """Copy a file.
 
@@ -429,6 +454,8 @@ def copy_file(
         file_id: Source file id.
         name: Name for the copy; defaults to "Copy of <original>".
         parent_id: Destination folder id; defaults to the source's folder.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         The new copy as a :class:`DriveFile`.
@@ -441,7 +468,7 @@ def copy_file(
         body["name"] = name
     if parent_id is not None:
         body["parents"] = [parent_id]
-    service = get_service()
+    service = get_service(profile)
     try:
         raw = (
             service.files()
@@ -453,12 +480,16 @@ def copy_file(
     return _to_file(raw)
 
 
-def trash_file(file_id: str, *, trashed: bool = True) -> DriveFile:
+def trash_file(
+    file_id: str, *, trashed: bool = True, profile: str | None = None
+) -> DriveFile:
     """Move a file to the trash (or restore it with ``trashed=False``).
 
     Args:
         file_id: Drive file id.
         trashed: ``True`` to trash, ``False`` to restore.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Returns:
         The updated :class:`DriveFile`.
@@ -466,7 +497,7 @@ def trash_file(file_id: str, *, trashed: bool = True) -> DriveFile:
     Raises:
         MgdioAPIError: On any Drive API error.
     """
-    service = get_service()
+    service = get_service(profile)
     try:
         raw = (
             service.files()
@@ -478,29 +509,35 @@ def trash_file(file_id: str, *, trashed: bool = True) -> DriveFile:
     return _to_file(raw)
 
 
-def delete_file(file_id: str) -> None:
+def delete_file(file_id: str, *, profile: str | None = None) -> None:
     """Permanently delete a file (skips the trash -- irreversible).
 
     Args:
         file_id: Drive file id.
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Raises:
         MgdioAPIError: On any Drive API error.
     """
-    service = get_service()
+    service = get_service(profile)
     try:
         service.files().delete(fileId=file_id).execute()
     except HttpError as exc:
         raise MgdioAPIError(f"Drive delete {file_id} failed: {exc}") from exc
 
 
-def empty_trash() -> None:
+def empty_trash(*, profile: str | None = None) -> None:
     """Permanently delete every trashed file (irreversible).
+
+    Args:
+        profile: Google account profile slug, or None to resolve via the
+            waterfall (env var / sole profile).
 
     Raises:
         MgdioAPIError: On any Drive API error.
     """
-    service = get_service()
+    service = get_service(profile)
     try:
         service.files().emptyTrash().execute()
     except HttpError as exc:

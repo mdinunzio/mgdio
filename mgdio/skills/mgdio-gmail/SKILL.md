@@ -13,10 +13,12 @@ Read and send email through the user's Gmail account via the `mgdio` CLI.
 
 ## Prerequisite
 
-The user must have authenticated once: `mgdio auth google`. If any command
-below fails with an auth error (HTTP 401 or "no token"), tell the user to
-run that command first. On a headless box, they should use
-`mgdio auth google --headless`.
+The user must have authenticated once:
+`mgdio auth google --profile <slug>`. If any command below fails with an
+auth error (HTTP 401, "no token", or "no Google profiles"), tell the user
+to authorize a profile first. On a headless box, add `--headless`. Add
+`--profile <slug>` to any `mgdio gmail` command to target a specific
+account; omit it to use `$MGDIO_GOOGLE_PROFILE` or the sole profile.
 
 ## Safety contract
 

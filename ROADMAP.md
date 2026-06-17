@@ -33,8 +33,9 @@
   via `MGDIO_KEYRING_PLAINTEXT=0`.
 - Multi-account Google profiles: per-account tokens at `mgdio:google:<slug>`,
   a `profile=` kwarg on every Google function, `--profile` on every Google CLI
-  command, `MGDIO_GOOGLE_PROFILE` env default, and `mgdio auth google profiles`
-  to list. Resolution waterfall: explicit → env var → sole profile.
+  command, `MGDIO_GOOGLE_PROFILE` env default, `mgdio auth google profiles` to
+  list, and `mgdio auth google remove` (`--profile` / `--legacy` / `--all`) to
+  clean up. Resolution waterfall: explicit → env var → sole profile.
 
 ## Next
 

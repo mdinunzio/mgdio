@@ -306,6 +306,11 @@ uv run mgdio auth google --profile mdinunziosvc
 # List configured profiles (marks the env-default and the auto-selected one)
 uv run mgdio auth google profiles
 
+# Remove credentials when cleaning up (confirms unless --yes)
+uv run mgdio auth google remove --profile personal
+uv run mgdio auth google remove --legacy    # the pre-profiles mgdio:google token
+uv run mgdio auth google remove --all        # every profile + legacy
+
 # Use a specific profile for one command
 uv run mgdio drive list --profile mdinunziosvc --max 5
 

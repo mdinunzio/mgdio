@@ -11,6 +11,7 @@ from pathlib import Path
 import click
 
 from mgdio.auth.google import authorize_profile as authorize_google_profile
+from mgdio.auth.google import clear_legacy_token as clear_google_legacy_token
 from mgdio.auth.google import clear_stored_token as clear_google_token
 from mgdio.auth.google import (
     detect_legacy_token,
@@ -148,8 +149,8 @@ def auth_google(
     if detect_legacy_token():
         click.echo(
             "note: a legacy token at 'mgdio:google' (pre-profiles) is still "
-            "in your keyring and now unused; remove it via your OS keyring "
-            "if you like."
+            "in your keyring and now unused; remove it with "
+            "`mgdio auth google remove --legacy`."
         )
 
 
@@ -170,6 +171,61 @@ def auth_google_profiles() -> None:
             marks.append("auto")
         suffix = f"  [{', '.join(marks)}]" if marks else ""
         click.echo(f"{slug}{suffix}")
+
+
+@auth_google.command("remove")
+@click.option("--profile", default=None, help="Profile slug to remove.")
+@click.option(
+    "--legacy",
+    is_flag=True,
+    help="Remove the pre-profiles token at the bare 'mgdio:google' service.",
+)
+@click.option("--all", "all_", is_flag=True, help="Remove every profile (+ legacy).")
+@click.option(
+    "--yes", "-y", is_flag=True, help="Skip the confirmation prompt (for scripts)."
+)
+def auth_google_remove(
+    profile: str | None, legacy: bool, all_: bool, yes: bool
+) -> None:
+    """Delete stored Google credentials (a profile, the legacy token, or all).
+
+    Examples: ``mgdio auth google remove --profile personal``,
+    ``--legacy`` (the old token), or ``--all``.
+    """
+    selected = sum(bool(x) for x in (profile, legacy, all_))
+    if selected == 0:
+        raise click.UsageError("pass one of --profile <slug>, --legacy, or --all.")
+    if selected > 1:
+        raise click.UsageError("--profile, --legacy, and --all are mutually exclusive.")
+
+    # Build the work list + a human description for the confirmation.
+    profiles_to_remove: list[str] = []
+    remove_legacy = False
+    if all_:
+        profiles_to_remove = live_profiles()
+        remove_legacy = detect_legacy_token()
+    elif legacy:
+        remove_legacy = True
+    else:
+        profiles_to_remove = [profile]  # type: ignore[list-item]
+
+    targets = [f"profile '{slug}'" for slug in profiles_to_remove]
+    if remove_legacy:
+        targets.append("legacy 'mgdio:google' token")
+    if not targets:
+        click.echo("Nothing to remove.")
+        return
+
+    if not yes:
+        click.echo("About to delete: " + ", ".join(targets) + ".")
+        click.confirm("This cannot be undone. Continue?", abort=True)
+
+    for slug in profiles_to_remove:
+        clear_google_token(slug)
+        click.echo(f"Removed profile '{slug}'.")
+    if remove_legacy:
+        clear_google_legacy_token()
+        click.echo("Removed legacy 'mgdio:google' token.")
 
 
 @auth.command("ynab")

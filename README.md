@@ -701,7 +701,7 @@ and a localhost setup page walks you through it.
 
 **One-time Whoop developer-app setup:**
 
-1. Open <https://developer.whoop.com> and sign in with your Whoop account.
+1. Open <https://developer-dashboard.whoop.com> and sign in with your Whoop account.
 2. Create a **Team**, then create an **App**.
 3. Set the app's **Redirect URI** to exactly
    `http://localhost:8765/callback` (the default — see the override note

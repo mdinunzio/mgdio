@@ -416,8 +416,9 @@ _PAGE_TEMPLATE = """\
 <h2>1. Create a Whoop developer app</h2>
 <ol>
   <li>Open
-      <a href="https://developer.whoop.com/" target="_blank">
-      developer.whoop.com</a> and sign in with your Whoop account.</li>
+      <a href="https://developer-dashboard.whoop.com/" target="_blank">
+      developer-dashboard.whoop.com</a> and sign in with your Whoop
+      account.</li>
   <li>Create a <strong>Team</strong>, then create a new <strong>App</strong>.</li>
   <li>Set the app's <strong>Redirect URI</strong> to exactly:<br>
       <code>{redirect_uri}</code></li>

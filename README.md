@@ -669,6 +669,20 @@ machine without a browser, use `mgdio auth maps --headless` to paste the key on
 the terminal instead. This covers the common `GOOGLEMAPS_*` Google Sheets
 helpers.
 
+> **Staying within the free tier (avoid surprise bills).** Google Maps Platform
+> **requires a billing account**, and there is **no automatic spending cap** —
+> usage past the monthly free allowance is billed, and *budget alerts only
+> notify, they don't stop anything*. The reliable hard cap is a **per-API daily
+> quota**: when it's hit, requests are rejected (an error) instead of billed. To
+> set it, in the [Cloud Console](https://console.cloud.google.com/google/maps-apis/quotas)
+> go to **Google Maps Platform → Quotas**, pick the **Geocoding API**, edit the
+> **Requests per day** limit to a low number (e.g. `500`), and repeat for the
+> **Directions API**. (Daily quotas reset at midnight Pacific.) For personal use
+> a few hundred/day stays comfortably free while capping any runaway loop.
+> Restricting the key to just those two APIs (step 4 of setup) and adding a
+> budget alert as a backstop are both good hygiene, but the daily quota is what
+> actually prevents charges.
+
 ```python
 from mgdio.maps import geocode, reverse_geocode, fetch_route
 

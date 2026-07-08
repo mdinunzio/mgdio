@@ -97,6 +97,17 @@ class TestPage:
         assert "Geocoding API" in page
         assert "Directions API" in page
 
+    def test_page_explains_free_tier_cap(self):
+        page = _setup_server._PAGE
+        assert "Requests per day" in page
+        assert "Quotas" in page
+
+    def test_headless_instructions_mention_cap(self, capsys):
+        _setup_server._print_headless_instructions()
+        err = capsys.readouterr().err
+        assert "Requests per day" in err
+        assert "Quotas" in err
+
 
 class TestHeadlessFlow:
     def test_reads_stdin_validates_and_returns(self, monkeypatch):

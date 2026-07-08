@@ -109,3 +109,7 @@ exception.
 - **`units` only changes text.** `distance_meters` / `duration_seconds`
   are always raw SI; use the `*_miles` / `*_minutes` / `*_km` properties
   for converted numbers.
+- **Billing / free tier.** Each call costs Maps quota (billable). Maps
+  Platform has no automatic spending cap; the reliable way to stay free
+  is a per-API *Requests per day* quota in the Cloud Console (Google Maps
+  Platform → Quotas). If a user worries about cost, point them there.

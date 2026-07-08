@@ -120,7 +120,12 @@ def _print_headless_instructions() -> None:
         "     (create or pick a project; billing must be enabled)\n"
         "  2. Under APIs & Services -> Library, enable the Geocoding API\n"
         "     and the Directions API.\n"
-        "  3. Create credentials -> API key, then copy it.\n\n"
+        "  3. Create credentials -> API key, then copy it.\n"
+        "  4. Cap usage to stay free: at Google Maps Platform -> Quotas\n"
+        "     (https://console.cloud.google.com/google/maps-apis/quotas),\n"
+        "     set 'Requests per day' to a low number (e.g. 500) for the\n"
+        "     Geocoding and Directions APIs. There is NO automatic spending\n"
+        "     cap; a daily quota rejects requests instead of billing them.\n\n"
         "Paste the key below. It is verified with a test geocode before\n"
         "being saved to your OS keyring.\n"
     )
@@ -317,7 +322,24 @@ _PAGE = """\
   <li><em>(Recommended)</em> Click <em>Edit API key</em> and, under
       <em>API restrictions</em>, restrict it to just the Geocoding API and
       Directions API.</li>
+  <li><strong>Cap usage to stay free.</strong> There is no automatic
+      spending limit -- usage past the monthly free tier is billed, and
+      budget alerts only <em>notify</em>. Set a hard cap: open
+      <a href="https://console.cloud.google.com/google/maps-apis/quotas"
+         target="_blank">Google Maps Platform &rarr; Quotas</a>, pick the
+      <strong>Geocoding API</strong>, edit <em>Requests per day</em> to a
+      low number (e.g. <code>500</code>), and repeat for the
+      <strong>Directions API</strong>. When a daily quota is hit, requests
+      are rejected instead of billed.</li>
 </ol>
+
+<div class="note">
+  <strong>Billing &amp; the free tier.</strong> Google Maps Platform
+  requires a billing account, but the per-API <em>Requests per day</em>
+  quota above is a true hard cap: for personal use a few hundred/day
+  stays comfortably within the free tier while stopping any runaway loop
+  before it costs anything. (Daily quotas reset at midnight Pacific.)
+</div>
 
 <h2>2. Paste it below</h2>
 <textarea id="key" placeholder="paste your Google Maps API key"

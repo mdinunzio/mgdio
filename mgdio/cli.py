@@ -92,6 +92,25 @@ def auth() -> None:
     """
 
 
+@auth.command("status")
+def auth_status() -> None:
+    """Show which providers are authenticated on this machine."""
+    from mgdio.auth.status import get_auth_status
+
+    rows = get_auth_status()
+    width = max(len(r.name) for r in rows)
+    for r in rows:
+        mark = "[x]" if r.authenticated else "[ ]"
+        click.echo(f"{mark} {r.name:<{width}}  {r.detail}")
+
+    missing = [r for r in rows if not r.authenticated]
+    if missing:
+        click.echo("")
+        click.echo("To authenticate the remaining provider(s):")
+        for r in missing:
+            click.echo(f"  {r.auth_command}")
+
+
 def _profile_option(func):
     """Attach the shared ``--profile`` option to a Google service command."""
     return click.option(

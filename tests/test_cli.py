@@ -158,6 +158,42 @@ class TestAuthGoogle:
         clear_legacy.assert_called_once()
 
 
+class TestAuthStatus:
+    def test_lists_all_providers(self, monkeypatch):
+        from mgdio.auth.status import ProviderStatus
+
+        rows = [
+            ProviderStatus("google", True, "1 profile(s): svc", "cmd-g"),
+            ProviderStatus("ynab", False, "not authenticated", "mgdio auth ynab"),
+            ProviderStatus("whoop", True, "token stored", "cmd-w"),
+            ProviderStatus("maps", False, "not authenticated", "mgdio auth maps"),
+        ]
+        monkeypatch.setattr("mgdio.auth.status.get_auth_status", lambda: rows)
+
+        result = CliRunner().invoke(cli_module.cli, ["auth", "status"])
+
+        assert result.exit_code == 0, result.output
+        assert "[x] google" in result.output
+        assert "[ ] ynab" in result.output
+        assert "[x] whoop" in result.output
+        assert "[ ] maps" in result.output
+        # Missing providers get their auth command listed.
+        assert "mgdio auth ynab" in result.output
+        assert "mgdio auth maps" in result.output
+
+    def test_all_authenticated_no_remaining_section(self, monkeypatch):
+        from mgdio.auth.status import ProviderStatus
+
+        rows = [ProviderStatus("maps", True, "API key stored", "mgdio auth maps")]
+        monkeypatch.setattr("mgdio.auth.status.get_auth_status", lambda: rows)
+
+        result = CliRunner().invoke(cli_module.cli, ["auth", "status"])
+
+        assert result.exit_code == 0, result.output
+        assert "[x] maps" in result.output
+        assert "remaining" not in result.output
+
+
 class TestAuthYnab:
     def test_runs_get_token_and_prints_authenticated(self, monkeypatch):
         get_token = MagicMock()

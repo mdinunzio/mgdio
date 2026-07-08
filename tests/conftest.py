@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from mgdio import settings as mgdio_settings
+from mgdio.auth import status as auth_status_mod
 from mgdio.auth.google import _profiles as google_profiles
 from mgdio.auth.google import auth as google_auth
 from mgdio.auth.maps import auth as maps_auth
@@ -100,6 +101,7 @@ def fake_keyring(monkeypatch):
     monkeypatch.setattr(ynab_auth, "keyring", _FakeKeyring)
     monkeypatch.setattr(whoop_auth, "keyring", _FakeKeyring)
     monkeypatch.setattr(maps_auth, "keyring", _FakeKeyring)
+    monkeypatch.setattr(auth_status_mod, "keyring", _FakeKeyring)
     return store
 
 

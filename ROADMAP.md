@@ -41,6 +41,9 @@
   (`mgdio auth maps`, stored under `mgdio:maps`). Typed `GeocodeResult` /
   `Route` / `RouteStep` dataclasses, imperial-default units, `mgdio maps` CLI
   group — covers the common `GOOGLEMAPS_*` Google Sheets helpers.
+- `mgdio auth status`: at-a-glance report of which providers (Google profiles,
+  YNAB, Whoop, Maps) are authenticated on this machine, plus the commands to
+  set up whatever's missing. Keyring-only, triggers no setup flows.
 
 ## Next
 

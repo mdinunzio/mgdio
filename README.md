@@ -218,6 +218,26 @@ credentials or changing scopes):
 uv run mgdio auth google --profile mdinunziosvc --reset
 ```
 
+### Checking what's authenticated
+
+`mgdio auth status` reports, at a glance, which providers are set up on this
+machine and what's left to do (it only reads the keyring — no network calls,
+no setup flows triggered):
+
+```powershell
+uv run mgdio auth status
+```
+
+```text
+[x] google  1 profile(s): mdinunziosvc
+[x] ynab    token stored
+[x] whoop   token stored
+[ ] maps    not authenticated
+
+To authenticate the remaining provider(s):
+  mgdio auth maps
+```
+
 ### Headless install (Linux VPS, SSH-only machines)
 
 On a machine without a browser — a Linux VPS, a container, or any

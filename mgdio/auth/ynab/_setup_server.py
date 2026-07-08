@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import sys
 import threading
 import time
 import webbrowser
@@ -85,6 +86,43 @@ def run_setup_flow() -> str:
     if result.token is None:
         raise RuntimeError(result.error or "Setup flow did not complete.")
     return result.token
+
+
+def run_headless_flow() -> str:
+    """Prompt for a YNAB token on the terminal (no browser) and validate it.
+
+    For machines without a browser -- a Linux VPS, a container, an SSH
+    session. Prints instructions, reads the token from stdin, verifies it
+    against ``/v1/user``, and returns it.
+
+    Returns:
+        The validated YNAB personal access token.
+
+    Raises:
+        RuntimeError: If nothing was pasted or the token failed validation.
+    """
+    _print_headless_instructions()
+    token = input("paste YNAB personal access token > ").strip()
+    if not token:
+        raise RuntimeError("No token pasted; aborting.")
+    ok, message = _validate_token(token)
+    if not ok:
+        raise RuntimeError(f"Token validation failed: {message}")
+    return token
+
+
+def _print_headless_instructions() -> None:
+    """Print token-minting steps to stderr for the headless flow."""
+    msg = (
+        "\n=== mgdio headless YNAB setup ===\n\n"
+        "Mint a personal access token:\n"
+        "  1. https://app.ynab.com/settings/developer (sign in)\n"
+        "  2. Click New Token, re-enter your password, click Generate.\n"
+        "  3. Copy the token string (YNAB won't show it again).\n\n"
+        "Paste the token below. It is verified against GET /v1/user\n"
+        "before being saved to your OS keyring.\n"
+    )
+    print(msg, file=sys.stderr, flush=True)
 
 
 def _validate_token(token: str) -> tuple[bool, str]:

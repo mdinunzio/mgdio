@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import sys
 import threading
 import time
 import webbrowser
@@ -85,6 +86,45 @@ def run_setup_flow() -> str:
     if result.api_key is None:
         raise RuntimeError(result.error or "Setup flow did not complete.")
     return result.api_key
+
+
+def run_headless_flow() -> str:
+    """Prompt for a Maps API key on the terminal (no browser) and validate it.
+
+    For machines without a browser -- a Linux VPS, a container, an SSH
+    session. Prints Cloud Console instructions, reads the key from stdin,
+    verifies it with a test geocode, and returns it.
+
+    Returns:
+        The validated Google Maps API key.
+
+    Raises:
+        RuntimeError: If nothing was pasted or the key failed validation.
+    """
+    _print_headless_instructions()
+    api_key = input("paste Google Maps API key > ").strip()
+    if not api_key:
+        raise RuntimeError("No API key pasted; aborting.")
+    ok, message = _validate_key(api_key)
+    if not ok:
+        raise RuntimeError(f"API key validation failed: {message}")
+    return api_key
+
+
+def _print_headless_instructions() -> None:
+    """Print Cloud Console setup steps to stderr for the headless flow."""
+    msg = (
+        "\n=== mgdio headless Google Maps setup ===\n\n"
+        "Create an API key in the Google Cloud Console:\n"
+        "  1. https://console.cloud.google.com/google/maps-apis/credentials\n"
+        "     (create or pick a project; billing must be enabled)\n"
+        "  2. Under APIs & Services -> Library, enable the Geocoding API\n"
+        "     and the Directions API.\n"
+        "  3. Create credentials -> API key, then copy it.\n\n"
+        "Paste the key below. It is verified with a test geocode before\n"
+        "being saved to your OS keyring.\n"
+    )
+    print(msg, file=sys.stderr, flush=True)
 
 
 def _validate_key(api_key: str) -> tuple[bool, str]:

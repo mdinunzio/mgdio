@@ -44,14 +44,14 @@
 - `mgdio auth status`: at-a-glance report of which providers (Google profiles,
   YNAB, Whoop, Maps) are authenticated on this machine, plus the commands to
   set up whatever's missing. Keyring-only, triggers no setup flows.
+- Headless auth for the paste-token providers: `mgdio auth maps --headless` and
+  `mgdio auth ynab --headless` read the key/token from the terminal (with
+  validation) instead of opening a browser page — for Linux VPS / SSH hosts.
 
 ## Next
 
 - **Twilio** — SMS + voice. Auth is account SID + auth token; will follow the
   YNAB paste-token UX. Subpackage at `mgdio/twilio/`.
-- **`mgdio auth ynab --headless`** — YNAB's paste flow already works headlessly
-  via stdin (no browser needed on the host), but the setup page is HTML. Add a
-  pure-terminal variant for symmetry with `--headless` on Google.
 
 ## Possibly later
 

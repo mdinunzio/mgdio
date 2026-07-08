@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
 import requests
 
 from mgdio.auth.ynab import _setup_server
@@ -59,3 +60,25 @@ class TestPageContent:
     def test_page_mentions_keyring_storage(self):
         assert "OS credential vault" in _setup_server._PAGE
         assert "mgdio:ynab" in _setup_server._PAGE
+
+
+class TestHeadlessFlow:
+    def test_reads_stdin_validates_and_returns(self, monkeypatch):
+        monkeypatch.setattr("builtins.input", lambda *_a, **_k: "  tok-123  ")
+        monkeypatch.setattr(
+            _setup_server, "_validate_token", lambda t: (True, "Token verified.")
+        )
+        assert _setup_server.run_headless_flow() == "tok-123"
+
+    def test_empty_paste_raises(self, monkeypatch):
+        monkeypatch.setattr("builtins.input", lambda *_a, **_k: "  ")
+        with pytest.raises(RuntimeError, match="No token pasted"):
+            _setup_server.run_headless_flow()
+
+    def test_validation_failure_raises(self, monkeypatch):
+        monkeypatch.setattr("builtins.input", lambda *_a, **_k: "bad")
+        monkeypatch.setattr(
+            _setup_server, "_validate_token", lambda t: (False, "401 unauthorized")
+        )
+        with pytest.raises(RuntimeError, match="validation failed"):
+            _setup_server.run_headless_flow()

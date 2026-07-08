@@ -10,11 +10,13 @@ import pytest
 from mgdio import settings as mgdio_settings
 from mgdio.auth.google import _profiles as google_profiles
 from mgdio.auth.google import auth as google_auth
+from mgdio.auth.maps import auth as maps_auth
 from mgdio.auth.whoop import auth as whoop_auth
 from mgdio.auth.ynab import auth as ynab_auth
 from mgdio.calendar import client as calendar_client
 from mgdio.drive import client as drive_client
 from mgdio.gmail import client as gmail_client
+from mgdio.maps import client as maps_client
 from mgdio.sheets import client as sheets_client
 from mgdio.whoop import client as whoop_client
 from mgdio.ynab import client as ynab_client
@@ -26,22 +28,26 @@ def reset_caches() -> None:
     google_auth.reset_credentials_cache()
     ynab_auth.reset_token_cache()
     whoop_auth.reset_token_cache()
+    maps_auth.reset_key_cache()
     gmail_client.reset_service_cache()
     sheets_client.reset_service_cache()
     calendar_client.reset_service_cache()
     drive_client.reset_service_cache()
     ynab_client.reset_session_cache()
     whoop_client.reset_session_cache()
+    maps_client.reset_session_cache()
     yield
     google_auth.reset_credentials_cache()
     ynab_auth.reset_token_cache()
     whoop_auth.reset_token_cache()
+    maps_auth.reset_key_cache()
     gmail_client.reset_service_cache()
     sheets_client.reset_service_cache()
     calendar_client.reset_service_cache()
     drive_client.reset_service_cache()
     ynab_client.reset_session_cache()
     whoop_client.reset_session_cache()
+    maps_client.reset_session_cache()
 
 
 @pytest.fixture
@@ -93,6 +99,7 @@ def fake_keyring(monkeypatch):
     monkeypatch.setattr(google_profiles, "keyring", _FakeKeyring)
     monkeypatch.setattr(ynab_auth, "keyring", _FakeKeyring)
     monkeypatch.setattr(whoop_auth, "keyring", _FakeKeyring)
+    monkeypatch.setattr(maps_auth, "keyring", _FakeKeyring)
     return store
 
 
@@ -191,6 +198,20 @@ def mock_whoop_request(monkeypatch) -> MagicMock:
     """Patch ``mgdio.whoop.client.request`` for the single-object endpoints."""
     mock = MagicMock(name="whoop_client.request")
     monkeypatch.setattr("mgdio.whoop.user.request", mock)
+    return mock
+
+
+@pytest.fixture
+def mock_maps_request(monkeypatch) -> MagicMock:
+    """Patch ``mgdio.maps.client.request`` in the geocoding + directions modules.
+
+    Returns the ``MagicMock`` -- set ``return_value`` to a parsed Maps
+    response body (already status-OK; the real client would have raised
+    otherwise). Inspect ``call_args`` to assert endpoint + params.
+    """
+    mock = MagicMock(name="maps_client.request")
+    monkeypatch.setattr("mgdio.maps.geocoding.request", mock)
+    monkeypatch.setattr("mgdio.maps.directions.request", mock)
     return mock
 
 

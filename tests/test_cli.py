@@ -220,6 +220,7 @@ class TestCliShape:
         assert "skills" in result.output
         assert "whoop" in result.output
         assert "drive" in result.output
+        assert "maps" in result.output
 
     def test_python_m_mgdio_help_runs(self):
         """Sanity: ``python -m mgdio --help`` exits 0 (covers __main__.py)."""
@@ -898,3 +899,141 @@ class TestDriveCommands:
         assert result.exit_code == 0, result.output
         assert "Deleted." in result.output
         delete.assert_called_once_with("f-1", profile=None)
+
+
+class TestAuthMaps:
+    def test_runs_get_api_key_and_prints_authenticated(self, monkeypatch):
+        get_key = MagicMock()
+        clear = MagicMock()
+        monkeypatch.setattr(cli_module, "get_maps_key", get_key)
+        monkeypatch.setattr(cli_module, "clear_maps_key", clear)
+
+        result = CliRunner().invoke(cli_module.cli, ["auth", "maps"])
+
+        assert result.exit_code == 0, result.output
+        assert "Authenticated." in result.output
+        get_key.assert_called_once()
+        clear.assert_not_called()
+
+    def test_reset_clears_before_get_key(self, monkeypatch):
+        parent = MagicMock()
+        monkeypatch.setattr(cli_module, "clear_maps_key", parent.clear)
+        monkeypatch.setattr(cli_module, "get_maps_key", parent.get)
+
+        result = CliRunner().invoke(cli_module.cli, ["auth", "maps", "--reset"])
+
+        assert result.exit_code == 0, result.output
+        assert [c[0] for c in parent.mock_calls] == ["clear", "get"]
+
+
+def _sample_geocode_result():
+    from mgdio.maps import GeocodeResult
+
+    return GeocodeResult(
+        formatted_address="New York, NY, USA",
+        latitude=40.7127753,
+        longitude=-74.0059728,
+        location_type="APPROXIMATE",
+        place_id="ChIJ123",
+        types=("locality",),
+    )
+
+
+def _sample_route():
+    from mgdio.maps import Route, RouteStep
+
+    return Route(
+        distance_meters=8368,
+        distance_text="5.2 mi",
+        duration_seconds=720,
+        duration_text="12 mins",
+        start_address="New York, NY",
+        end_address="Hoboken, NJ",
+        summary="I-95 S",
+        steps=(
+            RouteStep(
+                instruction="Head north on Broadway",
+                distance_meters=161,
+                distance_text="0.1 mi",
+                duration_seconds=60,
+                duration_text="1 min",
+                travel_mode="DRIVING",
+            ),
+        ),
+    )
+
+
+class TestMapsCommands:
+    def test_maps_help_lists_subcommands(self):
+        result = CliRunner().invoke(cli_module.cli, ["maps", "--help"])
+        assert result.exit_code == 0
+        for name in ("geocode", "reverse", "distance", "duration", "directions"):
+            assert name in result.output
+
+    def test_geocode_prints_address_and_latlng(self, monkeypatch):
+        geo = MagicMock(return_value=[_sample_geocode_result()])
+        monkeypatch.setattr(cli_module, "geocode", geo)
+
+        result = CliRunner().invoke(cli_module.cli, ["maps", "geocode", "New York"])
+
+        assert result.exit_code == 0, result.output
+        assert "New York, NY, USA" in result.output
+        assert "40.7127753, -74.0059728" in result.output
+        geo.assert_called_once_with("New York")
+
+    def test_geocode_no_match(self, monkeypatch):
+        monkeypatch.setattr(cli_module, "geocode", MagicMock(return_value=[]))
+        result = CliRunner().invoke(cli_module.cli, ["maps", "geocode", "xyz"])
+        assert result.exit_code == 0, result.output
+        assert "No match" in result.output
+
+    def test_reverse_prints_address(self, monkeypatch):
+        rev = MagicMock(return_value=[_sample_geocode_result()])
+        monkeypatch.setattr(cli_module, "reverse_geocode", rev)
+
+        result = CliRunner().invoke(
+            cli_module.cli, ["maps", "reverse", "40.714,-74.006"]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "New York, NY, USA" in result.output
+        rev.assert_called_once_with(40.714, -74.006)
+
+    def test_distance_prints_text(self, monkeypatch):
+        route = MagicMock(return_value=_sample_route())
+        monkeypatch.setattr(cli_module, "fetch_route", route)
+
+        result = CliRunner().invoke(
+            cli_module.cli, ["maps", "distance", "NY 10005", "Hoboken NJ"]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "5.2 mi" in result.output
+        kwargs = route.call_args.kwargs
+        assert kwargs["mode"] == "driving"
+        assert kwargs["units"] == "imperial"
+
+    def test_duration_prints_text(self, monkeypatch):
+        route = MagicMock(return_value=_sample_route())
+        monkeypatch.setattr(cli_module, "fetch_route", route)
+
+        result = CliRunner().invoke(
+            cli_module.cli,
+            ["maps", "duration", "NY", "Hoboken", "--mode", "walking"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "12 mins" in result.output
+        assert route.call_args.kwargs["mode"] == "walking"
+
+    def test_directions_prints_steps(self, monkeypatch):
+        route = MagicMock(return_value=_sample_route())
+        monkeypatch.setattr(cli_module, "fetch_route", route)
+
+        result = CliRunner().invoke(
+            cli_module.cli, ["maps", "directions", "NY", "Hoboken"]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "Head north on Broadway" in result.output
+        assert "5.2 mi, 12 mins" in result.output

@@ -16,6 +16,7 @@ EXPECTED_SKILLS = {
     "mgdio-ynab",
     "mgdio-whoop",
     "mgdio-drive",
+    "mgdio-maps",
 }
 
 

@@ -36,6 +36,11 @@
   command, `MGDIO_GOOGLE_PROFILE` env default, `mgdio auth google profiles` to
   list, and `mgdio auth google remove` (`--profile` / `--legacy` / `--all`) to
   clean up. Resolution waterfall: explicit → env var → sole profile.
+- Google Maps: geocoding (address → coordinates, place → address, reverse) and
+  routing (distance / duration / turn-by-turn directions) via an API key
+  (`mgdio auth maps`, stored under `mgdio:maps`). Typed `GeocodeResult` /
+  `Route` / `RouteStep` dataclasses, imperial-default units, `mgdio maps` CLI
+  group — covers the common `GOOGLEMAPS_*` Google Sheets helpers.
 
 ## Next
 

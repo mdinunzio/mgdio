@@ -256,17 +256,26 @@ def auth_google_remove(
     is_flag=True,
     help="Delete the stored token before running, forcing a fresh paste flow.",
 )
-def auth_ynab(reset: bool) -> None:
+@click.option(
+    "--headless",
+    is_flag=True,
+    help="Paste the token on the terminal instead of a browser page (Linux VPS).",
+)
+def auth_ynab(reset: bool, headless: bool) -> None:
     """Run (or re-run) the YNAB personal-access-token onboarding flow.
 
     Opens a localhost setup page in your browser with instructions to
     mint a token at app.ynab.com/settings/developer; paste the token
     there and it's validated and saved to your OS keyring under
     ``mgdio:ynab``.
+
+    Pass ``--headless`` on machines without a browser (e.g. a Linux VPS):
+    mgdio prints the instructions and reads the token from the terminal
+    instead of opening a localhost page.
     """
     if reset:
         clear_ynab_token()
-    get_ynab_token()
+    get_ynab_token(headless=headless)
     click.echo("Authenticated.")
 
 
@@ -300,17 +309,26 @@ def auth_whoop(reset: bool) -> None:
     is_flag=True,
     help="Delete the stored API key before running, forcing a fresh paste flow.",
 )
-def auth_maps(reset: bool) -> None:
+@click.option(
+    "--headless",
+    is_flag=True,
+    help="Paste the key on the terminal instead of a browser page (Linux VPS).",
+)
+def auth_maps(reset: bool, headless: bool) -> None:
     """Run (or re-run) the Google Maps API-key onboarding flow.
 
     Maps uses an API key, not the shared Google login. Opens a localhost
     setup page with Cloud Console instructions (enable the Geocoding +
     Directions APIs, create a key); paste the key there and it's verified
     with a test geocode and saved to your OS keyring under ``mgdio:maps``.
+
+    Pass ``--headless`` on machines without a browser (e.g. a Linux VPS):
+    mgdio prints the instructions and reads the key from the terminal
+    instead of opening a localhost page.
     """
     if reset:
         clear_maps_key()
-    get_maps_key()
+    get_maps_key(headless=headless)
     click.echo("Authenticated.")
 
 

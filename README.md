@@ -664,8 +664,10 @@ Google Maps uses an **API key**, not the shared Google OAuth login. Run
 `mgdio auth maps` once: a localhost setup page walks you through creating a key
 in the Cloud Console (enable the **Geocoding API** and **Directions API**;
 billing must be enabled, even for the free tier), then validates the pasted key
-with a test geocode and stores it in your keyring under `mgdio:maps`. This
-covers the common `GOOGLEMAPS_*` Google Sheets helpers.
+with a test geocode and stores it in your keyring under `mgdio:maps`. On a
+machine without a browser, use `mgdio auth maps --headless` to paste the key on
+the terminal instead. This covers the common `GOOGLEMAPS_*` Google Sheets
+helpers.
 
 ```python
 from mgdio.maps import geocode, reverse_geocode, fetch_route
@@ -712,7 +714,8 @@ YNAB uses a personal access token (not OAuth). Run `mgdio auth ynab` once and
 a localhost setup page opens with instructions for minting a token at
 <https://app.ynab.com/settings/developer>. Paste it into the page; mgdio
 validates it against `GET /v1/user` before saving to your OS keyring under
-`mgdio:ynab`.
+`mgdio:ynab`. On a browserless machine, use `mgdio auth ynab --headless` to
+paste the token on the terminal instead.
 
 Money is stored as integer **milliunits** on the wire (`$12.34` -> `12340`).
 All dataclasses expose both the raw milliunit field and a `..._dollars`

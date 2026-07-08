@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
 import requests
 
 from mgdio.auth.maps import _setup_server
@@ -95,3 +96,23 @@ class TestPage:
         assert "API key" in page
         assert "Geocoding API" in page
         assert "Directions API" in page
+
+
+class TestHeadlessFlow:
+    def test_reads_stdin_validates_and_returns(self, monkeypatch):
+        monkeypatch.setattr("builtins.input", lambda *_a, **_k: "  my-key  ")
+        monkeypatch.setattr(
+            _setup_server, "_validate_key", lambda k: (True, "Key verified.")
+        )
+        assert _setup_server.run_headless_flow() == "my-key"
+
+    def test_empty_paste_raises(self, monkeypatch):
+        monkeypatch.setattr("builtins.input", lambda *_a, **_k: "   ")
+        with pytest.raises(RuntimeError, match="No API key pasted"):
+            _setup_server.run_headless_flow()
+
+    def test_validation_failure_raises(self, monkeypatch):
+        monkeypatch.setattr("builtins.input", lambda *_a, **_k: "bad")
+        monkeypatch.setattr(_setup_server, "_validate_key", lambda k: (False, "denied"))
+        with pytest.raises(RuntimeError, match="validation failed"):
+            _setup_server.run_headless_flow()

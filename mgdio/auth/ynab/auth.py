@@ -13,7 +13,7 @@ import logging
 
 import keyring
 
-from mgdio.auth.ynab._setup_server import run_setup_flow
+from mgdio.auth.ynab._setup_server import run_headless_flow, run_setup_flow
 from mgdio.settings import YNAB_KEYRING_SERVICE, YNAB_KEYRING_USERNAME
 
 logger = logging.getLogger(__name__)
@@ -21,12 +21,19 @@ logger = logging.getLogger(__name__)
 _token: str | None = None
 
 
-def get_token() -> str:
+def get_token(headless: bool = False) -> str:
     """Return the cached YNAB personal access token.
 
-    On first call (or after :func:`clear_stored_token`) the localhost
-    setup page opens in the browser; the pasted token is validated
-    against ``/v1/user`` before being saved to the OS keyring.
+    On first call (or after :func:`clear_stored_token`) the setup flow
+    runs: the browser localhost page by default, or a terminal
+    copy-paste prompt when ``headless=True``. Either way the pasted
+    token is validated against ``/v1/user`` before being saved to the
+    OS keyring.
+
+    Args:
+        headless: If True, prompt for the token on the terminal instead
+            of opening a browser page. For machines without a browser
+            (e.g. a Linux VPS). Only used if a fresh flow is needed.
 
     Returns:
         The personal access token string.
@@ -40,7 +47,8 @@ def get_token() -> str:
         _token = stored
         return _token
 
-    _token = run_setup_flow()
+    flow = run_headless_flow if headless else run_setup_flow
+    _token = flow()
     keyring.set_password(YNAB_KEYRING_SERVICE, YNAB_KEYRING_USERNAME, _token)
     return _token
 

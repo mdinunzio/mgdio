@@ -19,9 +19,10 @@ Maps uses a **Google Maps Platform API key**, NOT the shared Google
 login used by Gmail/Sheets/Calendar/Drive. The user must have run
 `mgdio auth maps` once: it opens a local page with Cloud Console
 instructions (enable the Geocoding + Directions APIs, create a key,
-billing must be enabled) and stores the key under `mgdio:maps`. If a
-command fails with an auth error or "REQUEST_DENIED", tell them to run
-`mgdio auth maps`.
+billing must be enabled) and stores the key under `mgdio:maps`. On a
+browserless machine, `mgdio auth maps --headless` reads the key from the
+terminal instead. If a command fails with an auth error or
+"REQUEST_DENIED", tell them to run `mgdio auth maps`.
 
 ## Safety contract
 

@@ -218,6 +218,16 @@ class TestAuthYnab:
         assert result.exit_code == 0, result.output
         assert [c[0] for c in parent.mock_calls] == ["clear", "get"]
 
+    def test_headless_flag_passes_through(self, monkeypatch):
+        get_token = MagicMock()
+        monkeypatch.setattr(cli_module, "get_ynab_token", get_token)
+        monkeypatch.setattr(cli_module, "clear_ynab_token", MagicMock())
+
+        result = CliRunner().invoke(cli_module.cli, ["auth", "ynab", "--headless"])
+
+        assert result.exit_code == 0, result.output
+        get_token.assert_called_once_with(headless=True)
+
 
 class TestAuthWhoop:
     def test_runs_get_token_and_prints_authenticated(self, monkeypatch):
@@ -960,6 +970,16 @@ class TestAuthMaps:
 
         assert result.exit_code == 0, result.output
         assert [c[0] for c in parent.mock_calls] == ["clear", "get"]
+
+    def test_headless_flag_passes_through(self, monkeypatch):
+        get_key = MagicMock()
+        monkeypatch.setattr(cli_module, "get_maps_key", get_key)
+        monkeypatch.setattr(cli_module, "clear_maps_key", MagicMock())
+
+        result = CliRunner().invoke(cli_module.cli, ["auth", "maps", "--headless"])
+
+        assert result.exit_code == 0, result.output
+        get_key.assert_called_once_with(headless=True)
 
 
 def _sample_geocode_result():

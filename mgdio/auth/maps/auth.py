@@ -13,7 +13,7 @@ import logging
 
 import keyring
 
-from mgdio.auth.maps._setup_server import run_setup_flow
+from mgdio.auth.maps._setup_server import run_headless_flow, run_setup_flow
 from mgdio.settings import MAPS_KEYRING_SERVICE, MAPS_KEYRING_USERNAME
 
 logger = logging.getLogger(__name__)
@@ -21,12 +21,18 @@ logger = logging.getLogger(__name__)
 _api_key: str | None = None
 
 
-def get_api_key() -> str:
+def get_api_key(headless: bool = False) -> str:
     """Return the cached Google Maps API key.
 
-    On first call (or after :func:`clear_stored_token`) the localhost
-    setup page opens in the browser; the pasted key is validated with a
-    test geocode before being saved to the OS keyring.
+    On first call (or after :func:`clear_stored_token`) the setup flow
+    runs: the browser localhost page by default, or a terminal
+    copy-paste prompt when ``headless=True``. Either way the pasted key
+    is validated with a test geocode before being saved to the keyring.
+
+    Args:
+        headless: If True, prompt for the key on the terminal instead of
+            opening a browser page. For machines without a browser (e.g.
+            a Linux VPS). Only used if a fresh flow is needed.
 
     Returns:
         The Google Maps Platform API key string.
@@ -40,7 +46,8 @@ def get_api_key() -> str:
         _api_key = stored
         return _api_key
 
-    _api_key = run_setup_flow()
+    flow = run_headless_flow if headless else run_setup_flow
+    _api_key = flow()
     keyring.set_password(MAPS_KEYRING_SERVICE, MAPS_KEYRING_USERNAME, _api_key)
     return _api_key
 

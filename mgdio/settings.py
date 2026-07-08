@@ -69,6 +69,13 @@ YNAB_KEYRING_SERVICE: str = "mgdio:ynab"
 YNAB_KEYRING_USERNAME: str = "personal_access_token"
 YNAB_API_BASE: str = "https://api.ynab.com/v1"
 
+# Google Maps Platform uses an API key (NOT the shared Google OAuth
+# token). The user pastes a key from the Cloud Console into a localhost
+# setup page; it's stored in the keyring under ``mgdio:maps``.
+MAPS_KEYRING_SERVICE: str = "mgdio:maps"
+MAPS_KEYRING_USERNAME: str = "api_key"
+MAPS_API_BASE: str = "https://maps.googleapis.com/maps/api"
+
 WHOOP_DATA_DIR: Path = APP_DATA_DIR / "whoop"
 WHOOP_DATA_DIR.mkdir(parents=True, exist_ok=True)
 # Two keyring entries under one service: the pasted app credentials

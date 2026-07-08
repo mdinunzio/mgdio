@@ -108,4 +108,5 @@ class TestBundledSkillNames:
             "mgdio-ynab",
             "mgdio-whoop",
             "mgdio-drive",
+            "mgdio-maps",
         }

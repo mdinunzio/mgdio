@@ -7,7 +7,8 @@ so they can be `pip` / `uv add`-ed into any other project with a uniform API.
 > (read/send), Google Sheets (read/write/append/clear, spreadsheet + tab
 > management), Google Calendar (list calendars + event CRUD + quick-add), and
 > Google Drive (list/search, upload/download/export, folders, move/copy,
-> trash/delete, sharing). Plus YNAB (budgets, accounts, categories,
+> trash/delete, sharing). Plus Google Maps (geocoding + distance / duration /
+> directions) via an API key, YNAB (budgets, accounts, categories,
 > transactions, memo edits) via personal-access-token auth, and Whoop
 > (recovery, sleep, workouts, cycles, profile, body) via OAuth 2.0. Both
 > browser-based and headless (VPS-friendly) Google OAuth flows supported.
@@ -39,6 +40,7 @@ so they can be `pip` / `uv add`-ed into any other project with a uniform API.
 mgdio/
 ├── auth/
 │   ├── google/        # Gmail + Calendar + Sheets + Drive share one OAuth token
+│   ├── maps/          # Google Maps API-key paste flow
 │   ├── ynab/          # personal-access-token paste flow
 │   ├── whoop/         # OAuth 2.0 code flow (paste Client ID/Secret + authorize)
 │   └── twilio/        # planned
@@ -46,6 +48,7 @@ mgdio/
 ├── sheets/            # values + spreadsheets/tabs on top of mgdio.auth.google
 ├── calendar/          # calendars + events CRUD on top of mgdio.auth.google
 ├── drive/             # files/folders, upload/download, sharing on mgdio.auth.google
+├── maps/              # geocoding + directions on an API key (mgdio.auth.maps)
 ├── ynab/              # budgets, accounts, categories, transactions
 ├── whoop/             # recovery, sleep, workouts, cycles, profile, body
 ├── settings.py
@@ -635,6 +638,54 @@ uv run mgdio drive share <file_id> --role reader --email alice@example.com
 uv run mgdio drive unshare <file_id> <permission_id>
 ```
 
+## Maps
+
+Google Maps uses an **API key**, not the shared Google OAuth login. Run
+`mgdio auth maps` once: a localhost setup page walks you through creating a key
+in the Cloud Console (enable the **Geocoding API** and **Directions API**;
+billing must be enabled, even for the free tier), then validates the pasted key
+with a test geocode and stores it in your keyring under `mgdio:maps`. This
+covers the common `GOOGLEMAPS_*` Google Sheets helpers.
+
+```python
+from mgdio.maps import geocode, reverse_geocode, fetch_route
+
+# Address / place -> coordinates (list, best match first).
+hit = geocode("10 Hanover Square, NY")[0]
+print(hit.formatted_address, hit.latitude, hit.longitude)
+print(hit.latlng)                       # "40.70..., -74.01..." (Sheets-style)
+
+# Formatted address of a place.
+print(geocode("Statue of Liberty")[0].formatted_address)
+
+# Coordinate -> postal address.
+print(reverse_geocode(40.7127753, -74.0059728)[0].formatted_address)
+
+# Distance / duration / directions between two locations.
+route = fetch_route("NY 10005", "Hoboken NJ", mode="driving")  # or walking/…
+print(route.distance_text, route.duration_text)   # "5.2 mi" "12 mins"
+print(route.distance_meters, route.duration_seconds)  # raw SI, always present
+print(route.distance_miles, route.duration_minutes)   # converted numbers
+for step in route.instructions:                   # HTML-stripped steps
+    print(step)
+```
+
+`fetch_route` returns the best route and raises `MgdioAPIError` if none exists
+(matching the Sheets "No route found!" behavior); `fetch_routes(...)` returns a
+list (empty on no result) and takes `alternatives=True`. `mode` is
+`driving` (default), `walking`, `bicycling`, or `transit`; `units` is
+`imperial` (default) or `metric` and only affects the `*_text` fields.
+
+CLI equivalents:
+
+```powershell
+uv run mgdio maps geocode "10 Hanover Square, NY"
+uv run mgdio maps reverse "40.714,-74.006"    # one "lat,lng" token
+uv run mgdio maps distance "NY 10005" "Hoboken NJ"
+uv run mgdio maps duration "NY 10005" "Hoboken NJ" --mode walking
+uv run mgdio maps directions "NY 10005" "Hoboken NJ"
+```
+
 ## YNAB
 
 YNAB uses a personal access token (not OAuth). Run `mgdio auth ynab` once and
@@ -782,13 +833,14 @@ No scopes argument, no per-service auth dance.
 
 ## Claude Code skills
 
-`mgdio` ships with six [Claude Code](https://claude.com/claude-code) skills
+`mgdio` ships with seven [Claude Code](https://claude.com/claude-code) skills
 — one per service — that teach Claude how to drive the CLI for you. Once
 deployed, you can ask Claude things like *"list my 5 most recent emails,"
 "what's on my calendar this week," "edit transaction abc-123's memo to
-'grocery run,'" "upload this file to my Reports folder in Drive,"* or *"write
-this data to row 2 of my budget sheet,"* and it'll reach for `mgdio` instead
-of inventing API calls from scratch.
+'grocery run,'" "upload this file to my Reports folder in Drive," "how far is
+it from here to the airport,"* or *"write this data to row 2 of my budget
+sheet,"* and it'll reach for `mgdio` instead of inventing API calls from
+scratch.
 
 ```powershell
 # Preview what's bundled
@@ -820,6 +872,8 @@ The bundled skills are:
   edit a transaction's memo, cleared status, flag, or category.
 - **`mgdio-whoop`** — read recovery, sleep, workouts, cycles, profile, and
   body measurements (read-only).
+- **`mgdio-maps`** — geocode addresses, reverse-geocode coordinates, and
+  compute distance / duration / directions between locations (read-only).
 
 **Safety contract**: every skill instructs Claude that reads are
 auto-fine but writes (sending email, creating/updating/deleting events,
@@ -1095,6 +1149,37 @@ uv run pytest tests/ynab/test_integration.py -ra
 Remove-Item Env:\MGDIO_RUN_INTEGRATION
 ```
 
+### Maps quick-test commands
+
+Maps has its own API key (not the Google OAuth login).
+
+```powershell
+# 1. Create a key + paste it via the setup page (enable Geocoding + Directions)
+uv run mgdio auth maps
+# Expect: "Authenticated." once the page verifies the key.
+
+# 2. Confirm the key landed in the OS keyring
+uv run python -c "import keyring; k = keyring.get_password('mgdio:maps', 'api_key'); print('present:', bool(k))"
+
+# 3. Smoke: import the public Maps API
+uv run python -c "from mgdio.maps import geocode, reverse_geocode, fetch_route, GeocodeResult, Route; print('imports OK')"
+
+# 4. Geocode + reverse-geocode
+uv run mgdio maps geocode "10 Hanover Square, NY"
+uv run mgdio maps reverse "40.714,-74.006"
+
+# 5. Distance / duration / directions
+uv run mgdio maps distance "NY 10005" "Hoboken NJ"
+uv run mgdio maps duration "NY 10005" "Hoboken NJ" --mode walking
+uv run mgdio maps directions "NY 10005" "Hoboken NJ"
+
+# 6. End-to-end demo
+uv run python examples/maps_demo.py
+
+# 7. Reset and re-auth (forces a fresh paste flow)
+uv run mgdio auth maps --reset
+```
+
 ## Troubleshooting
 
 - **Refresh token expired / revoked** — verify the Google Auth Platform consent
@@ -1111,6 +1196,12 @@ Remove-Item Env:\MGDIO_RUN_INTEGRATION
 - **YNAB token rejected** — `mgdio auth ynab --reset` to paste a new one. The
   setup page calls `GET /v1/user` before saving so common typos surface
   immediately instead of on first use.
+- **Maps `REQUEST_DENIED`** — the API key is invalid, or the Geocoding /
+  Directions API isn't enabled for its project, or billing isn't enabled on the
+  project. Fix it in the Cloud Console, then `mgdio auth maps --reset`.
+- **Maps `reverse` says "No such option"** — pass the coordinate as a single
+  quoted `"lat,lng"` token (e.g. `"40.714,-74.006"`) so the negative longitude
+  isn't parsed as a CLI option.
 - **`mismatching_state` in `--headless` mode** — you pasted a redirect URL
   from a *different* mgdio session. State is rotated every run; finish the
   paste in the same terminal session that printed the auth URL. Re-run

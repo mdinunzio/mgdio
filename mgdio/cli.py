@@ -17,6 +17,8 @@ from mgdio.auth.google import (
     detect_legacy_token,
     live_profiles,
 )
+from mgdio.auth.maps import clear_stored_token as clear_maps_key
+from mgdio.auth.maps import get_api_key as get_maps_key
 from mgdio.auth.whoop import clear_stored_token as clear_whoop_token
 from mgdio.auth.whoop import get_access_token as get_whoop_token
 from mgdio.auth.ynab import clear_stored_token as clear_ynab_token
@@ -46,6 +48,7 @@ from mgdio.drive import (
     upload_file,
 )
 from mgdio.gmail import fetch_message, fetch_messages, send_email
+from mgdio.maps import fetch_route, geocode, reverse_geocode
 from mgdio.settings import GOOGLE_PROFILE_ENV_VAR
 from mgdio.sheets import (
     append_values,
@@ -269,6 +272,26 @@ def auth_whoop(reset: bool) -> None:
     if reset:
         clear_whoop_token()
     get_whoop_token()
+    click.echo("Authenticated.")
+
+
+@auth.command("maps")
+@click.option(
+    "--reset",
+    is_flag=True,
+    help="Delete the stored API key before running, forcing a fresh paste flow.",
+)
+def auth_maps(reset: bool) -> None:
+    """Run (or re-run) the Google Maps API-key onboarding flow.
+
+    Maps uses an API key, not the shared Google login. Opens a localhost
+    setup page with Cloud Console instructions (enable the Geocoding +
+    Directions APIs, create a key); paste the key there and it's verified
+    with a test geocode and saved to your OS keyring under ``mgdio:maps``.
+    """
+    if reset:
+        clear_maps_key()
+    get_maps_key()
     click.echo("Authenticated.")
 
 
@@ -1223,6 +1246,97 @@ def drive_unshare(file_id: str, permission_id: str, profile: str | None) -> None
     """Revoke a sharing permission (id from `drive perms`)."""
     unshare_file(file_id, permission_id, profile=profile)
     click.echo("Revoked.")
+
+
+@cli.group()
+def maps() -> None:
+    """Google Maps commands (geocoding, distance, directions)."""
+
+
+def _route_opts(func):
+    """Attach shared --mode / --units options to a route command."""
+    func = click.option(
+        "--units",
+        type=click.Choice(["imperial", "metric"]),
+        default="imperial",
+        show_default=True,
+        help="Units for the distance/duration text.",
+    )(func)
+    func = click.option(
+        "--mode",
+        type=click.Choice(["driving", "walking", "bicycling", "transit"]),
+        default="driving",
+        show_default=True,
+        help="Travel mode.",
+    )(func)
+    return func
+
+
+@maps.command("geocode")
+@click.argument("address")
+def maps_geocode(address: str) -> None:
+    """Geocode an address / place to its formatted address + coordinates."""
+    results = geocode(address)
+    if not results:
+        click.echo("No match found.")
+        return
+    for r in results:
+        click.echo(f"{r.formatted_address}  ({r.latlng})  [{r.location_type}]")
+
+
+@maps.command("reverse")
+@click.argument("latlng")
+def maps_reverse(latlng: str) -> None:
+    """Reverse-geocode a coordinate to a postal address.
+
+    LATLNG is a single "latitude,longitude" string, e.g.
+    "40.714,-74.006" (a single token so the negative longitude isn't
+    parsed as an option).
+    """
+    parts = latlng.replace(" ", "").split(",")
+    if len(parts) != 2:
+        raise click.UsageError('LATLNG must be "latitude,longitude".')
+    try:
+        latitude, longitude = float(parts[0]), float(parts[1])
+    except ValueError as exc:
+        raise click.UsageError(f"Invalid coordinate {latlng!r}: {exc}")
+    results = reverse_geocode(latitude, longitude)
+    if not results:
+        click.echo("No match found.")
+        return
+    click.echo(results[0].formatted_address)
+
+
+@maps.command("distance")
+@click.argument("origin")
+@click.argument("destination")
+@_route_opts
+def maps_distance(origin: str, destination: str, mode: str, units: str) -> None:
+    """Print the travel distance between two locations."""
+    route = fetch_route(origin, destination, mode=mode, units=units)
+    click.echo(route.distance_text)
+
+
+@maps.command("duration")
+@click.argument("origin")
+@click.argument("destination")
+@_route_opts
+def maps_duration(origin: str, destination: str, mode: str, units: str) -> None:
+    """Print the travel time between two locations."""
+    route = fetch_route(origin, destination, mode=mode, units=units)
+    click.echo(route.duration_text)
+
+
+@maps.command("directions")
+@click.argument("origin")
+@click.argument("destination")
+@_route_opts
+def maps_directions(origin: str, destination: str, mode: str, units: str) -> None:
+    """Print turn-by-turn directions between two locations."""
+    route = fetch_route(origin, destination, mode=mode, units=units)
+    click.echo(f"{route.distance_text}, {route.duration_text}")
+    for i, step in enumerate(route.instructions, start=1):
+        click.echo(f"  {i}. {step}")
 
 
 @cli.group()

@@ -303,16 +303,27 @@ call reads the cached token from the keyring — no further interaction.
   a headless Linux box with no Secret Service, mgdio falls back to a `chmod 600`
   file at `~/.local/share/mgdio/keyring/mgdio_plaintext.cfg` (see the
   [Linux keyring callout](#headless-install-linux-vps-ssh-only-machines)).
-- **Profile index**: the list of known profile slugs lives at
-  `~/.local/share/mgdio/google/profiles.json` (keyring has no portable list
+- **Profile index**: the list of known profile slugs lives next to
+  `client_secret.json` as `google/profiles.json` (keyring has no portable list
   API). The keyring remains the source of truth for the token bytes.
 - **`client_secret.json`**: a single shared file (app identity, not per-account)
   at the platform-appropriate path:
-  - Windows: `%LOCALAPPDATA%\mgdio\google\client_secret.json`
+  - Windows: `%LOCALAPPDATA%\mgdio\mgdio\google\client_secret.json`
+    (yes, `mgdio` twice — on Windows `platformdirs` nests under an author
+    folder that defaults to the app name)
   - macOS: `~/Library/Application Support/mgdio/google/client_secret.json`
   - Linux: `~/.local/share/mgdio/google/client_secret.json`
 
-This is application configuration, not a per-session secret.
+This is application configuration, not a per-session secret. To print the real
+path on your machine rather than guess:
+
+```powershell
+uv run python -c "from mgdio.settings import GOOGLE_CLIENT_SECRET_PATH as p; print(p, p.exists())"
+```
+
+You rarely need to touch it: `mgdio auth google --profile <slug> --reset` deletes
+only the *token* and reuses this file, so re-auth doesn't require re-downloading
+anything.
 
 ## Multiple Google accounts (profiles)
 
@@ -945,7 +956,10 @@ uv run mgdio auth google --profile svc    # opens browser, completes consent
 uv run mgdio auth google profiles         # lists configured profiles
 
 # 5. Verify the on-disk + vault state landed where expected
-Get-ChildItem $env:LOCALAPPDATA\mgdio\google\
+#    (note the doubled 'mgdio\mgdio' on Windows -- platformdirs nests under
+#     an author folder; ask mgdio for the path rather than guessing)
+uv run python -c "from mgdio.settings import GOOGLE_DATA_DIR as d; print(d)"
+Get-ChildItem $env:LOCALAPPDATA\mgdio\mgdio\google\
 # Expect: client_secret.json and profiles.json present
 
 # Inspect the OS keyring entry from Python (per-profile service)

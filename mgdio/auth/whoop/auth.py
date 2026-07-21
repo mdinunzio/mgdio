@@ -28,6 +28,7 @@ import time
 import keyring
 import requests
 
+from mgdio.auth import _keyring
 from mgdio.auth.whoop._setup_server import run_setup_flow
 from mgdio.exceptions import MgdioAuthError
 from mgdio.settings import (
@@ -71,6 +72,10 @@ def get_access_token() -> str:
             stored = None
 
     if stored is None:
+        # The setup flow writes both keyring slots; verify they can be
+        # overwritten before asking the user to authorize.
+        _keyring.ensure_writable(WHOOP_KEYRING_SERVICE, WHOOP_KEYRING_USERNAME_TOKEN)
+        _keyring.ensure_writable(WHOOP_KEYRING_SERVICE, WHOOP_KEYRING_USERNAME_APP)
         stored = run_setup_flow()
         _save_token_to_keyring(stored)
 
@@ -83,11 +88,12 @@ def clear_stored_token() -> None:
 
     Leaves ``app_credentials`` in place so the next ``mgdio auth whoop``
     can re-authorize without re-pasting the Client ID / Secret.
+
+    Raises:
+        MgdioKeyringError: If the token exists but the keyring refuses
+            to delete it (after stale-item recovery).
     """
-    try:
-        keyring.delete_password(WHOOP_KEYRING_SERVICE, WHOOP_KEYRING_USERNAME_TOKEN)
-    except keyring.errors.PasswordDeleteError:
-        pass
+    _keyring.delete_password(WHOOP_KEYRING_SERVICE, WHOOP_KEYRING_USERNAME_TOKEN)
     reset_token_cache()
 
 
@@ -169,7 +175,7 @@ def _load_token_from_keyring() -> dict | None:
 
 
 def _save_token_to_keyring(token: dict) -> None:
-    keyring.set_password(
+    _keyring.set_password(
         WHOOP_KEYRING_SERVICE,
         WHOOP_KEYRING_USERNAME_TOKEN,
         json.dumps(token),

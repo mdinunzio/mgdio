@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from mgdio import settings as mgdio_settings
+from mgdio.auth import _keyring as auth_keyring_helpers
 from mgdio.auth import status as auth_status_mod
 from mgdio.auth.google import _profiles as google_profiles
 from mgdio.auth.google import auth as google_auth
@@ -102,6 +103,9 @@ def fake_keyring(monkeypatch):
     monkeypatch.setattr(whoop_auth, "keyring", _FakeKeyring)
     monkeypatch.setattr(maps_auth, "keyring", _FakeKeyring)
     monkeypatch.setattr(auth_status_mod, "keyring", _FakeKeyring)
+    # The robust write/delete helpers route through their own module-level
+    # `keyring`; point it at the same store so provider saves land here.
+    monkeypatch.setattr(auth_keyring_helpers, "keyring", _FakeKeyring)
     return store
 
 

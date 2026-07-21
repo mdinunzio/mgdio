@@ -5,8 +5,11 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock
 
+import pytest
+
 from mgdio.auth.google import _profiles as google_profiles
 from mgdio.auth.google import auth as google_auth
+from mgdio.exceptions import MgdioKeyringError
 from mgdio.settings import (
     GOOGLE_CLIENT_SECRET_PATH,
     GOOGLE_KEYRING_USERNAME,
@@ -113,6 +116,22 @@ class TestGetCredentials:
 
 
 class TestAuthorizeProfile:
+    def test_broken_vault_entry_fails_before_consent_flow(
+        self, tmp_appdata, fake_keyring, monkeypatch
+    ):
+        _seed_token(fake_keyring, tmp_appdata)
+        monkeypatch.setattr(
+            google_auth._keyring,
+            "ensure_writable",
+            MagicMock(side_effect=MgdioKeyringError("vault refused write")),
+        )
+        run_setup = MagicMock()
+        monkeypatch.setattr(google_auth, "run_setup_flow", run_setup)
+
+        with pytest.raises(MgdioKeyringError):
+            google_auth.authorize_profile(SLUG)
+        run_setup.assert_not_called()
+
     def test_runs_setup_flow_and_persists_with_index(
         self, tmp_appdata, fake_keyring, monkeypatch
     ):

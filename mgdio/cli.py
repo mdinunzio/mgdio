@@ -47,6 +47,7 @@ from mgdio.drive import (
     unshare_file,
     upload_file,
 )
+from mgdio.exceptions import MgdioError
 from mgdio.gmail import fetch_message, fetch_messages, send_email
 from mgdio.maps import fetch_route, geocode, reverse_geocode
 from mgdio.settings import GOOGLE_PROFILE_ENV_VAR
@@ -1473,5 +1474,19 @@ def _read_skill_description(skill_md_path: Path) -> str:
     return " ".join(match.group(1).split())
 
 
+def main() -> None:
+    """Console-script entry point: render mgdio errors without a traceback.
+
+    Click handles its own usage errors; anything mgdio raises on purpose
+    (auth failures, keyring refusals, API errors) carries an actionable
+    message, so print that instead of a stack trace.
+    """
+    try:
+        cli(standalone_mode=True)
+    except MgdioError as exc:
+        click.echo(f"error: {exc}", err=True)
+        raise SystemExit(1) from exc
+
+
 if __name__ == "__main__":
-    cli()
+    main()

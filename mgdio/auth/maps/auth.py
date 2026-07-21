@@ -13,6 +13,7 @@ import logging
 
 import keyring
 
+from mgdio.auth import _keyring
 from mgdio.auth.maps._setup_server import run_headless_flow, run_setup_flow
 from mgdio.settings import MAPS_KEYRING_SERVICE, MAPS_KEYRING_USERNAME
 
@@ -46,18 +47,21 @@ def get_api_key(headless: bool = False) -> str:
         _api_key = stored
         return _api_key
 
+    _keyring.ensure_writable(MAPS_KEYRING_SERVICE, MAPS_KEYRING_USERNAME)
     flow = run_headless_flow if headless else run_setup_flow
     _api_key = flow()
-    keyring.set_password(MAPS_KEYRING_SERVICE, MAPS_KEYRING_USERNAME, _api_key)
+    _keyring.set_password(MAPS_KEYRING_SERVICE, MAPS_KEYRING_USERNAME, _api_key)
     return _api_key
 
 
 def clear_stored_token() -> None:
-    """Delete the cached Maps API key from the OS keyring and cache."""
-    try:
-        keyring.delete_password(MAPS_KEYRING_SERVICE, MAPS_KEYRING_USERNAME)
-    except keyring.errors.PasswordDeleteError:
-        pass
+    """Delete the cached Maps API key from the OS keyring and cache.
+
+    Raises:
+        MgdioKeyringError: If the key exists but the keyring refuses to
+            delete it (after stale-item recovery).
+    """
+    _keyring.delete_password(MAPS_KEYRING_SERVICE, MAPS_KEYRING_USERNAME)
     reset_key_cache()
 
 

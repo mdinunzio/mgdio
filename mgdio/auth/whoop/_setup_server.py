@@ -36,6 +36,7 @@ from urllib.parse import parse_qs, urlencode, urlparse
 import keyring
 import requests
 
+from mgdio.auth import _keyring
 from mgdio.exceptions import MgdioAuthError
 from mgdio.settings import (
     WHOOP_API_BASE,
@@ -191,7 +192,7 @@ def _validate_access_token(access_token: str) -> tuple[bool, str]:
 
 
 def _save_app_credentials(client_id: str, client_secret: str) -> None:
-    keyring.set_password(
+    _keyring.set_password(
         WHOOP_KEYRING_SERVICE,
         WHOOP_KEYRING_USERNAME_APP,
         json.dumps({"client_id": client_id, "client_secret": client_secret}),

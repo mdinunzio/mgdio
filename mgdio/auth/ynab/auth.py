@@ -13,6 +13,7 @@ import logging
 
 import keyring
 
+from mgdio.auth import _keyring
 from mgdio.auth.ynab._setup_server import run_headless_flow, run_setup_flow
 from mgdio.settings import YNAB_KEYRING_SERVICE, YNAB_KEYRING_USERNAME
 
@@ -47,18 +48,21 @@ def get_token(headless: bool = False) -> str:
         _token = stored
         return _token
 
+    _keyring.ensure_writable(YNAB_KEYRING_SERVICE, YNAB_KEYRING_USERNAME)
     flow = run_headless_flow if headless else run_setup_flow
     _token = flow()
-    keyring.set_password(YNAB_KEYRING_SERVICE, YNAB_KEYRING_USERNAME, _token)
+    _keyring.set_password(YNAB_KEYRING_SERVICE, YNAB_KEYRING_USERNAME, _token)
     return _token
 
 
 def clear_stored_token() -> None:
-    """Delete the cached YNAB token from the OS keyring and in-process cache."""
-    try:
-        keyring.delete_password(YNAB_KEYRING_SERVICE, YNAB_KEYRING_USERNAME)
-    except keyring.errors.PasswordDeleteError:
-        pass
+    """Delete the cached YNAB token from the OS keyring and in-process cache.
+
+    Raises:
+        MgdioKeyringError: If the token exists but the keyring refuses
+            to delete it (after stale-item recovery).
+    """
+    _keyring.delete_password(YNAB_KEYRING_SERVICE, YNAB_KEYRING_USERNAME)
     reset_token_cache()
 
 

@@ -325,6 +325,26 @@ You rarely need to touch it: `mgdio auth google --profile <slug> --reset` delete
 only the *token* and reuses this file, so re-auth doesn't require re-downloading
 anything.
 
+> **macOS Keychain — stale items handled automatically.** The Keychain
+> binds each item's ACL to the exact binary that created it. If that
+> binary is replaced — most commonly after rebuilding a `.venv` — the
+> Keychain refuses to let the new python overwrite or delete the old
+> item (`errSecInvalidOwnerEdit`, error `-25244`). mgdio recovers on its
+> own: it deletes the stale item with Apple's `security` CLI (which
+> isn't subject to the item's app ACL) and retries the save. Interactive
+> auth flows also verify the vault entry is writable *before* opening
+> the consent page, so a broken entry fails fast with instructions
+> instead of after you've authorized. If recovery ever fails, the error
+> message includes the manual fix, e.g.:
+>
+> ```bash
+> security delete-generic-password -s "mgdio:google:<profile>" -a "oauth_token"
+> ```
+>
+> Relatedly, after a `.venv` rebuild macOS may show a one-time
+> *"python wants to access your keychain"* dialog on the next read —
+> click **Always Allow**.
+
 ## Multiple Google accounts (profiles)
 
 mgdio holds one OAuth token per Google account, each named by a *profile* slug

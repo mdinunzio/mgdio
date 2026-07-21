@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
 from click.testing import CliRunner
 
 from mgdio import cli as cli_module
@@ -1093,3 +1094,31 @@ class TestMapsCommands:
         assert result.exit_code == 0, result.output
         assert "Head north on Broadway" in result.output
         assert "5.2 mi, 12 mins" in result.output
+
+
+class TestMainEntryPoint:
+    def test_mgdio_errors_print_one_line_message_not_traceback(
+        self, monkeypatch, capsys
+    ):
+        from mgdio.exceptions import MgdioKeyringError
+
+        boom = MagicMock(side_effect=MgdioKeyringError("vault refused; run X"))
+        monkeypatch.setattr(cli_module, "cli", boom)
+
+        with pytest.raises(SystemExit) as excinfo:
+            cli_module.main()
+
+        assert excinfo.value.code == 1
+        captured = capsys.readouterr()
+        assert "error: vault refused; run X" in captured.err
+        assert "Traceback" not in captured.err
+
+    def test_click_usage_errors_pass_through(self, monkeypatch):
+        import sys
+
+        monkeypatch.setattr(sys, "argv", ["mgdio", "not-a-command"])
+
+        with pytest.raises(SystemExit) as excinfo:
+            cli_module.main()
+
+        assert excinfo.value.code == 2

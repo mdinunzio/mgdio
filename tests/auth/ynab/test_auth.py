@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from mgdio.auth.ynab import auth as ynab_auth
+from mgdio.exceptions import MgdioKeyringError
 from mgdio.settings import YNAB_KEYRING_SERVICE, YNAB_KEYRING_USERNAME
 
 
@@ -43,6 +46,23 @@ class TestGetToken:
             fake_keyring[(YNAB_KEYRING_SERVICE, YNAB_KEYRING_USERNAME)]
             == "freshly-pasted-token"
         )
+
+
+class TestPreflightWritability:
+    def test_broken_vault_entry_fails_before_paste_flow(
+        self, fake_keyring, monkeypatch
+    ):
+        monkeypatch.setattr(
+            ynab_auth._keyring,
+            "ensure_writable",
+            MagicMock(side_effect=MgdioKeyringError("vault refused write")),
+        )
+        run_setup = MagicMock()
+        monkeypatch.setattr(ynab_auth, "run_setup_flow", run_setup)
+
+        with pytest.raises(MgdioKeyringError):
+            ynab_auth.get_token()
+        run_setup.assert_not_called()
 
 
 class TestClearStoredToken:

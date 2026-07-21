@@ -11,6 +11,10 @@ class MgdioAuthError(MgdioError):
     """Authentication or authorization failure."""
 
 
+class MgdioKeyringError(MgdioAuthError):
+    """The OS credential vault refused to store or delete an entry."""
+
+
 class MissingClientSecretError(MgdioAuthError):
     """The OAuth client_secret.json file is not present on disk."""
 

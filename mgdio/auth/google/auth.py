@@ -24,6 +24,7 @@ import keyring
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 
+from mgdio.auth import _keyring
 from mgdio.auth.google._headless_flow import run_headless_flow
 from mgdio.auth.google._profiles import (
     add_to_index,
@@ -79,6 +80,7 @@ def get_credentials(profile: str | None = None, headless: bool = False) -> Crede
         creds.refresh(Request())
         _save_token_to_keyring(slug, creds)
     if creds is None or not creds.valid:
+        _ensure_token_slot_writable(slug)
         creds = _run_flow(headless)
         _save_token_to_keyring(slug, creds)
         add_to_index(slug)
@@ -102,9 +104,11 @@ def authorize_profile(slug: str, headless: bool = False) -> Credentials:
         The freshly authorized credentials.
 
     Raises:
-        MgdioAuthError: If the slug is invalid.
+        MgdioAuthError: If the slug is invalid, or the keyring slot for
+            it cannot be written (checked before the consent flow runs).
     """
     validate_slug(slug)
+    _ensure_token_slot_writable(slug)
     creds = _run_flow(headless)
     _save_token_to_keyring(slug, creds)
     add_to_index(slug)
@@ -117,13 +121,12 @@ def clear_stored_token(profile: str) -> None:
 
     Args:
         profile: The profile slug to remove.
+
+    Raises:
+        MgdioKeyringError: If the token exists but the keyring refuses
+            to delete it (after stale-item recovery).
     """
-    try:
-        keyring.delete_password(
-            google_keyring_service(profile), GOOGLE_KEYRING_USERNAME
-        )
-    except keyring.errors.PasswordDeleteError:
-        pass
+    _keyring.delete_password(google_keyring_service(profile), GOOGLE_KEYRING_USERNAME)
     remove_from_index(profile)
     reset_credentials_cache(profile)
 
@@ -134,10 +137,7 @@ def clear_legacy_token() -> None:
     No-op if absent. The legacy token has no profile slug, so
     :func:`clear_stored_token` can't target it.
     """
-    try:
-        keyring.delete_password(LEGACY_GOOGLE_KEYRING_SERVICE, GOOGLE_KEYRING_USERNAME)
-    except keyring.errors.PasswordDeleteError:
-        pass
+    _keyring.delete_password(LEGACY_GOOGLE_KEYRING_SERVICE, GOOGLE_KEYRING_USERNAME)
 
 
 def reset_credentials_cache(profile: str | None = None) -> None:
@@ -166,6 +166,15 @@ def _load_token_from_keyring(slug: str) -> Credentials | None:
 
 
 def _save_token_to_keyring(slug: str, creds: Credentials) -> None:
-    keyring.set_password(
+    _keyring.set_password(
         google_keyring_service(slug), GOOGLE_KEYRING_USERNAME, creds.to_json()
     )
+
+
+def _ensure_token_slot_writable(slug: str) -> None:
+    """Fail fast if the profile's keyring slot can't be overwritten.
+
+    Runs before the interactive consent flow so a stale/broken vault
+    entry surfaces immediately instead of after the user has authorized.
+    """
+    _keyring.ensure_writable(google_keyring_service(slug), GOOGLE_KEYRING_USERNAME)

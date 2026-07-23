@@ -4,6 +4,6 @@ from __future__ import annotations
 
 from mgdio import settings  # noqa: F401  (triggers logging + dotenv on import)
 
-__version__: str = "0.3.5"
+__version__: str = "0.4.0"
 
 __all__ = ["__version__"]

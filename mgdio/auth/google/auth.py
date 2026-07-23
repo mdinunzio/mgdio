@@ -21,10 +21,12 @@ import json
 import logging
 
 import keyring
+from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 
 from mgdio.auth import _keyring
+from mgdio.auth._interactive import require_interactive
 from mgdio.auth.google._headless_flow import run_headless_flow
 from mgdio.auth.google._profiles import (
     add_to_index,
@@ -33,6 +35,7 @@ from mgdio.auth.google._profiles import (
     validate_slug,
 )
 from mgdio.auth.google._setup_server import run_setup_flow
+from mgdio.exceptions import MgdioAPIError
 from mgdio.settings import (
     GOOGLE_CLIENT_SECRET_PATH,
     GOOGLE_KEYRING_USERNAME,
@@ -77,9 +80,30 @@ def get_credentials(profile: str | None = None, headless: bool = False) -> Crede
     creds = _load_token_from_keyring(slug)
     if creds is not None and creds.expired and creds.refresh_token:
         logger.debug("Refreshing expired Google OAuth token for %r", slug)
-        creds.refresh(Request())
-        _save_token_to_keyring(slug, creds)
+        try:
+            creds.refresh(Request())
+            _save_token_to_keyring(slug, creds)
+        except RefreshError as exc:
+            if _is_definitive_rejection(exc):
+                logger.warning(
+                    "Google rejected the refresh token for %r (%s); "
+                    "re-authorization required",
+                    slug,
+                    exc,
+                )
+                creds = None
+            else:
+                raise MgdioAPIError(
+                    f"Google token refresh failed for profile {slug!r} "
+                    f"(transient -- the stored token is likely still "
+                    f"valid): {exc}"
+                ) from exc
     if creds is None or not creds.valid:
+        require_interactive(
+            "Google",
+            f"mgdio auth google --profile {slug}",
+            f"no usable stored token for profile {slug!r}",
+        )
         _ensure_token_slot_writable(slug)
         creds = _run_flow(headless)
         _save_token_to_keyring(slug, creds)
@@ -169,6 +193,20 @@ def _save_token_to_keyring(slug: str, creds: Credentials) -> None:
     _keyring.set_password(
         google_keyring_service(slug), GOOGLE_KEYRING_USERNAME, creds.to_json()
     )
+
+
+def _is_definitive_rejection(exc: RefreshError) -> bool:
+    """True when Google's response means the refresh token is dead.
+
+    ``invalid_grant`` covers expired and revoked tokens -- the cases
+    where only a fresh consent flow helps. Anything else (server-side
+    hiccups, quota) is treated as transient so the stored token isn't
+    abandoned over a blip; google-auth marks retryable failures via
+    ``exc.retryable`` where available.
+    """
+    if getattr(exc, "retryable", False):
+        return False
+    return "invalid_grant" in str(exc).lower()
 
 
 def _ensure_token_slot_writable(slug: str) -> None:

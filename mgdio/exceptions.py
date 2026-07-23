@@ -15,6 +15,23 @@ class MgdioKeyringError(MgdioAuthError):
     """The OS credential vault refused to store or delete an entry."""
 
 
+class MgdioInteractionRequiredError(MgdioAuthError):
+    """An interactive auth flow is needed but this session can't run one.
+
+    Raised instead of starting a setup flow that would block forever on
+    an unattended host (cron, systemd, CI). The message names the exact
+    ``mgdio auth ...`` command to run in a terminal.
+    """
+
+
+class MgdioTokenRejectedError(MgdioAuthError):
+    """The provider definitively rejected a stored refresh token.
+
+    Distinct from transient failures (network, 5xx): rejection means the
+    token is dead and re-authorization is genuinely required.
+    """
+
+
 class MissingClientSecretError(MgdioAuthError):
     """The OAuth client_secret.json file is not present on disk."""
 

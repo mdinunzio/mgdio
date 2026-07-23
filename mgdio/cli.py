@@ -286,7 +286,15 @@ def auth_ynab(reset: bool, headless: bool) -> None:
     is_flag=True,
     help="Delete the stored token before running, forcing re-authorization.",
 )
-def auth_whoop(reset: bool) -> None:
+@click.option(
+    "--headless",
+    is_flag=True,
+    help=(
+        "Use the copy-paste flow instead of the localhost setup page. "
+        "For machines without a browser (e.g. a Linux VPS)."
+    ),
+)
+def auth_whoop(reset: bool, headless: bool) -> None:
     """Run (or re-run) the Whoop OAuth onboarding flow.
 
     Opens a localhost setup page in your browser: paste your Whoop app's
@@ -294,13 +302,17 @@ def auth_whoop(reset: bool) -> None:
     resulting token bundle is saved to your OS keyring under
     ``mgdio:whoop`` and refreshed automatically on expiry.
 
+    Pass ``--headless`` on machines without a browser (e.g. a Linux VPS):
+    mgdio prints the auth URL to open elsewhere and prompts for the
+    resulting redirect URL to be pasted back.
+
     The redirect URI defaults to ``http://localhost:8765/callback`` and
     can be overridden with the ``MGDIO_WHOOP_REDIRECT_URI`` env var (must
     match what's registered in your Whoop app).
     """
     if reset:
         clear_whoop_token()
-    get_whoop_token()
+    get_whoop_token(headless=headless)
     click.echo("Authenticated.")
 
 

@@ -9,7 +9,12 @@ from unittest.mock import MagicMock
 import pytest
 
 from mgdio.auth.whoop import auth as whoop_auth
-from mgdio.exceptions import MgdioAuthError
+from mgdio.exceptions import (
+    MgdioAPIError,
+    MgdioAuthError,
+    MgdioInteractionRequiredError,
+    MgdioTokenRejectedError,
+)
 from mgdio.settings import (
     WHOOP_KEYRING_SERVICE,
     WHOOP_KEYRING_USERNAME_APP,
@@ -64,12 +69,14 @@ class TestGetAccessToken:
         run_setup.assert_not_called()
         assert json.loads(fake_keyring[_TOKEN_KEY])["access_token"] == "access-2"
 
-    def test_refresh_failure_falls_through_to_setup(self, fake_keyring, monkeypatch):
+    def test_rejected_refresh_token_falls_through_to_setup(
+        self, fake_keyring, monkeypatch
+    ):
         fake_keyring[_TOKEN_KEY] = json.dumps(_valid_bundle(expires_in=-10))
         monkeypatch.setattr(
             whoop_auth,
             "_refresh",
-            MagicMock(side_effect=MgdioAuthError("refresh dead")),
+            MagicMock(side_effect=MgdioTokenRejectedError("HTTP 400: invalid_grant")),
         )
         new_bundle = _valid_bundle()
         new_bundle["access_token"] = "access-fresh"
@@ -79,6 +86,47 @@ class TestGetAccessToken:
         assert whoop_auth.get_access_token() == "access-fresh"
         run_setup.assert_called_once()
         assert json.loads(fake_keyring[_TOKEN_KEY])["access_token"] == "access-fresh"
+
+    def test_transient_refresh_failure_propagates_and_keeps_stored_token(
+        self, fake_keyring, monkeypatch
+    ):
+        stale = json.dumps(_valid_bundle(expires_in=-10))
+        fake_keyring[_TOKEN_KEY] = stale
+        monkeypatch.setattr(
+            whoop_auth,
+            "_refresh",
+            MagicMock(side_effect=MgdioAPIError("transport error: timeout")),
+        )
+        run_setup = MagicMock()
+        monkeypatch.setattr(whoop_auth, "run_setup_flow", run_setup)
+
+        with pytest.raises(MgdioAPIError):
+            whoop_auth.get_access_token()
+
+        run_setup.assert_not_called()
+        assert fake_keyring[_TOKEN_KEY] == stale
+
+    def test_noninteractive_session_errors_instead_of_setup_flow(
+        self, fake_keyring, monkeypatch
+    ):
+        monkeypatch.setenv("MGDIO_NONINTERACTIVE", "1")
+        run_setup = MagicMock()
+        monkeypatch.setattr(whoop_auth, "run_setup_flow", run_setup)
+
+        with pytest.raises(MgdioInteractionRequiredError, match="mgdio auth whoop"):
+            whoop_auth.get_access_token()
+        run_setup.assert_not_called()
+
+    def test_headless_dispatches_to_headless_flow(self, fake_keyring, monkeypatch):
+        new_bundle = _valid_bundle()
+        run_headless = MagicMock(return_value=new_bundle)
+        run_setup = MagicMock()
+        monkeypatch.setattr(whoop_auth, "run_headless_flow", run_headless)
+        monkeypatch.setattr(whoop_auth, "run_setup_flow", run_setup)
+
+        assert whoop_auth.get_access_token(headless=True) == "access-1"
+        run_headless.assert_called_once()
+        run_setup.assert_not_called()
 
     def test_empty_keyring_runs_setup_and_persists(self, fake_keyring, monkeypatch):
         new_bundle = _valid_bundle()
@@ -137,13 +185,39 @@ class TestRefresh:
         with pytest.raises(MgdioAuthError, match="app credentials missing"):
             whoop_auth._refresh({"refresh_token": "x"})
 
-    def test_non_200_raises(self, fake_keyring, monkeypatch):
+    @pytest.mark.parametrize("status", [400, 401])
+    def test_definitive_rejection_raises_token_rejected(
+        self, fake_keyring, monkeypatch, status
+    ):
         fake_keyring[_APP_KEY] = json.dumps({"client_id": "c", "client_secret": "s"})
         resp = MagicMock()
-        resp.status_code = 401
-        resp.text = "unauthorized"
+        resp.status_code = status
+        resp.text = "invalid_grant"
         monkeypatch.setattr(whoop_auth.requests, "post", MagicMock(return_value=resp))
-        with pytest.raises(MgdioAuthError, match="HTTP 401"):
+        with pytest.raises(MgdioTokenRejectedError, match=f"HTTP {status}"):
+            whoop_auth._refresh({"refresh_token": "x"})
+
+    def test_server_error_raises_transient_api_error(self, fake_keyring, monkeypatch):
+        fake_keyring[_APP_KEY] = json.dumps({"client_id": "c", "client_secret": "s"})
+        resp = MagicMock()
+        resp.status_code = 503
+        resp.text = "unavailable"
+        monkeypatch.setattr(whoop_auth.requests, "post", MagicMock(return_value=resp))
+        with pytest.raises(MgdioAPIError, match="HTTP 503"):
+            whoop_auth._refresh({"refresh_token": "x"})
+
+    def test_transport_error_raises_transient_api_error(
+        self, fake_keyring, monkeypatch
+    ):
+        import requests as requests_lib
+
+        fake_keyring[_APP_KEY] = json.dumps({"client_id": "c", "client_secret": "s"})
+        monkeypatch.setattr(
+            whoop_auth.requests,
+            "post",
+            MagicMock(side_effect=requests_lib.ConnectionError("boom")),
+        )
+        with pytest.raises(MgdioAPIError, match="transport error"):
             whoop_auth._refresh({"refresh_token": "x"})
 
 

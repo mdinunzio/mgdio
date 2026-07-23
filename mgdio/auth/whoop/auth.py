@@ -29,8 +29,13 @@ import keyring
 import requests
 
 from mgdio.auth import _keyring
-from mgdio.auth.whoop._setup_server import run_setup_flow
-from mgdio.exceptions import MgdioAuthError
+from mgdio.auth._interactive import require_interactive
+from mgdio.auth.whoop._setup_server import run_headless_flow, run_setup_flow
+from mgdio.exceptions import (
+    MgdioAPIError,
+    MgdioTokenRejectedError,
+    MissingWhoopCredentialsError,
+)
 from mgdio.settings import (
     WHOOP_KEYRING_SERVICE,
     WHOOP_KEYRING_USERNAME_APP,
@@ -47,15 +52,32 @@ _EXPIRY_SAFETY_MARGIN_SECONDS = 60
 _token: dict | None = None
 
 
-def get_access_token() -> str:
+def get_access_token(headless: bool = False) -> str:
     """Return a valid Whoop access token, refreshing or onboarding as needed.
 
     Resolution order: in-process cache -> keyring (refresh if expired) ->
-    full browser setup flow. The result is cached in-process and persisted
+    interactive setup flow. The result is cached in-process and persisted
     to the keyring.
+
+    Transient refresh failures (network errors, Whoop 5xx) propagate as
+    :class:`MgdioAPIError` without touching the stored token -- retry
+    later. Only a definitive rejection of the refresh token (HTTP
+    400/401) or missing app credentials fall through to the setup flow.
+
+    Args:
+        headless: If True, use the copy-paste OAuth flow instead of the
+            browser-based localhost setup page (for hosts without a
+            browser). Only used if a fresh flow is needed.
 
     Returns:
         A currently-valid Whoop access token string.
+
+    Raises:
+        MgdioAPIError: On a transient refresh failure; the stored
+            refresh token is likely still valid.
+        MgdioInteractionRequiredError: If re-authorization is needed but
+            this session can't run an interactive flow (no tty, or
+            ``MGDIO_NONINTERACTIVE=1``).
     """
     global _token
     if _token is not None and not _is_expired(_token):
@@ -66,17 +88,27 @@ def get_access_token() -> str:
         logger.debug("Refreshing expired Whoop access token")
         try:
             stored = _refresh(stored)
+            # Whoop rotates refresh tokens: the old one is dead server-side
+            # the moment _refresh succeeds, so persist immediately. A crash
+            # between these two lines strands the keyring copy permanently
+            # -- that window is inherent to rotation, keep it minimal.
             _save_token_to_keyring(stored)
-        except MgdioAuthError:
-            logger.warning("Whoop token refresh failed; re-running setup flow")
+        except (MgdioTokenRejectedError, MissingWhoopCredentialsError) as exc:
+            logger.warning(
+                "Whoop re-authorization required (%s); falling back to the "
+                "setup flow",
+                exc,
+            )
             stored = None
 
     if stored is None:
+        require_interactive("Whoop", "mgdio auth whoop", "no usable stored token")
         # The setup flow writes both keyring slots; verify they can be
         # overwritten before asking the user to authorize.
         _keyring.ensure_writable(WHOOP_KEYRING_SERVICE, WHOOP_KEYRING_USERNAME_TOKEN)
         _keyring.ensure_writable(WHOOP_KEYRING_SERVICE, WHOOP_KEYRING_USERNAME_APP)
-        stored = run_setup_flow()
+        flow = run_headless_flow if headless else run_setup_flow
+        stored = flow()
         _save_token_to_keyring(stored)
 
     _token = stored
@@ -111,12 +143,16 @@ def _refresh(token: dict) -> dict:
     """Exchange the stored refresh token for a fresh access token.
 
     Raises:
-        MgdioAuthError: If app credentials are missing or Whoop rejects
-            the refresh request.
+        MissingWhoopCredentialsError: If app credentials are absent
+            (permanent: the setup flow re-collects them).
+        MgdioTokenRejectedError: If Whoop definitively rejects the
+            refresh token (HTTP 400/401 -- re-authorization needed).
+        MgdioAPIError: On transient failures (transport errors, 5xx,
+            malformed body) -- the stored token is likely still valid.
     """
     app = _load_app_credentials()
     if not app:
-        raise MgdioAuthError(
+        raise MissingWhoopCredentialsError(
             "Whoop app credentials missing; re-run `mgdio auth whoop`."
         )
     try:
@@ -132,17 +168,22 @@ def _refresh(token: dict) -> dict:
             timeout=30,
         )
     except requests.RequestException as exc:
-        raise MgdioAuthError(f"Whoop token refresh transport error: {exc}") from exc
+        raise MgdioAPIError(f"Whoop token refresh transport error: {exc}") from exc
 
+    if resp.status_code in (400, 401):
+        raise MgdioTokenRejectedError(
+            f"Whoop rejected the refresh token (HTTP {resp.status_code}): "
+            f"{resp.text[:200]}"
+        )
     if resp.status_code != 200:
-        raise MgdioAuthError(
+        raise MgdioAPIError(
             f"Whoop token refresh failed (HTTP {resp.status_code}): "
             f"{resp.text[:200]}"
         )
     try:
         payload = resp.json()
     except ValueError as exc:
-        raise MgdioAuthError("Whoop refresh returned non-JSON body") from exc
+        raise MgdioAPIError("Whoop refresh returned non-JSON body") from exc
 
     return _bundle_from_token_response(
         payload,

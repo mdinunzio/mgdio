@@ -18,6 +18,13 @@ from the user's Whoop account via the `mgdio` CLI.
 The user must have authenticated once: `mgdio auth whoop`. This opens a
 local page where they paste their Whoop app's Client ID + Secret and
 authorize. If a command fails with an auth error, tell them to run that.
+On a browserless machine (VPS, SSH session), `mgdio auth whoop --headless`
+prints the auth URL to open elsewhere and prompts for the redirect URL to
+be pasted back. If a command fails with `MgdioInteractionRequiredError`
+("cannot run an interactive auth flow"), the stored refresh token was
+rejected on a non-interactive host -- the user must re-run
+`mgdio auth whoop` in a terminal on that machine; transient network
+failures instead surface as `MgdioAPIError` and resolve on retry.
 The redirect URI defaults to `http://localhost:8765/callback` and can be
 overridden with the `MGDIO_WHOOP_REDIRECT_URI` env var (must match the
 Whoop app registration).

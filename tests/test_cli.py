@@ -1122,3 +1122,23 @@ class TestMainEntryPoint:
             cli_module.main()
 
         assert excinfo.value.code == 2
+
+
+class TestAuthWhoopHeadless:
+    def test_headless_flag_passes_through(self, monkeypatch):
+        get_tok = MagicMock()
+        monkeypatch.setattr(cli_module, "get_whoop_token", get_tok)
+
+        result = CliRunner().invoke(cli_module.cli, ["auth", "whoop", "--headless"])
+
+        assert result.exit_code == 0, result.output
+        assert get_tok.call_args.kwargs["headless"] is True
+
+    def test_default_is_not_headless(self, monkeypatch):
+        get_tok = MagicMock()
+        monkeypatch.setattr(cli_module, "get_whoop_token", get_tok)
+
+        result = CliRunner().invoke(cli_module.cli, ["auth", "whoop"])
+
+        assert result.exit_code == 0, result.output
+        assert get_tok.call_args.kwargs["headless"] is False

@@ -84,3 +84,16 @@ class TestSettingsConsistency:
     def test_keyring_identifiers_namespace_under_mgdio_ynab(self):
         assert YNAB_KEYRING_SERVICE == "mgdio:ynab"
         assert YNAB_KEYRING_USERNAME == "personal_access_token"
+
+
+class TestNonInteractiveGuard:
+    def test_implicit_flow_blocked(self, fake_keyring, monkeypatch):
+        from mgdio.exceptions import MgdioInteractionRequiredError
+
+        monkeypatch.setenv("MGDIO_NONINTERACTIVE", "1")
+        run_setup = MagicMock()
+        monkeypatch.setattr(ynab_auth, "run_setup_flow", run_setup)
+
+        with pytest.raises(MgdioInteractionRequiredError, match="mgdio auth ynab"):
+            ynab_auth.get_token()
+        run_setup.assert_not_called()

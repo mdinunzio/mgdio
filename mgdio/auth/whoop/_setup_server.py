@@ -27,6 +27,7 @@ from __future__ import annotations
 import json
 import logging
 import secrets
+import sys
 import threading
 import time
 import webbrowser
@@ -118,6 +119,110 @@ def run_setup_flow() -> dict:
     if result.token is None:
         raise MgdioAuthError(result.error or "Whoop setup flow did not complete.")
     return result.token
+
+
+def run_headless_flow() -> dict:
+    """Copy-paste OAuth flow for machines without a browser.
+
+    Same contract as :func:`run_setup_flow`, but nothing listens locally:
+    we print the authorization URL, the user opens it on a device that
+    *does* have a browser, and after consent their browser is redirected
+    to the registered ``localhost`` callback -- which fails to load on
+    *their* machine. That's expected: they copy the full failed-redirect
+    URL from the address bar and paste it back into this terminal, and we
+    parse the code out of it.
+
+    If app credentials (Client ID / Secret) aren't stored yet, they're
+    prompted for on the terminal first and saved to the keyring.
+
+    Returns:
+        A token bundle dict: ``{access_token, refresh_token, expires_at,
+        scope, token_type}``.
+
+    Raises:
+        MgdioAuthError: If nothing is pasted, the state doesn't match,
+            Whoop reports an error, or the exchange/validation fails.
+    """
+    app = _load_app_credentials_or_empty()
+    if not app.get("client_id") or not app.get("client_secret"):
+        _prompt_and_save_app_credentials()
+
+    state = secrets.token_urlsafe(24)
+    _print_headless_instructions(_build_authorization_url(state))
+    pasted = input("paste redirect URL > ").strip()
+    if not pasted:
+        raise MgdioAuthError("No URL pasted; aborting.")
+
+    code = _parse_redirect_url(pasted, state)
+    token = _exchange_code(code)
+    ok, message = _validate_access_token(token["access_token"])
+    if not ok:
+        raise MgdioAuthError(f"Whoop token validation failed: {message}")
+    return token
+
+
+def _parse_redirect_url(pasted: str, expected_state: str) -> str:
+    """Extract the authorization code from a pasted redirect URL.
+
+    Raises:
+        MgdioAuthError: If Whoop reported an error, the state doesn't
+            match this session, or no code is present.
+    """
+    params = parse_qs(urlparse(pasted).query)
+    if params.get("error"):
+        raise MgdioAuthError(f"Whoop returned an error: {params['error'][0]}")
+    state = (params.get("state") or [""])[0]
+    if state != expected_state:
+        raise MgdioAuthError(
+            "State mismatch: the pasted URL came from a different session. "
+            "Run `mgdio auth whoop --headless` again and use the SAME "
+            "session for both the auth URL and the paste."
+        )
+    code = (params.get("code") or [""])[0]
+    if not code:
+        raise MgdioAuthError(
+            "No authorization code in the pasted URL. Copy the FULL "
+            "failed-redirect URL from the address bar (it contains "
+            "'code=...')."
+        )
+    return code
+
+
+def _prompt_and_save_app_credentials() -> None:
+    """Prompt for the Whoop app's Client ID / Secret and save them.
+
+    Raises:
+        MgdioAuthError: If either value is left empty.
+    """
+    msg = (
+        "\nNo Whoop app credentials stored. Create an app at\n"
+        "https://developer.whoop.com (Dashboard -> Create app) with\n"
+        f"redirect URI exactly: {WHOOP_REDIRECT_URI}\n"
+        "then paste its credentials below.\n"
+    )
+    print(msg, file=sys.stderr, flush=True)
+    client_id = input("Client ID > ").strip()
+    client_secret = input("Client Secret > ").strip()
+    if not client_id or not client_secret:
+        raise MgdioAuthError("Client ID and Secret are both required; aborting.")
+    _save_app_credentials(client_id, client_secret)
+
+
+def _print_headless_instructions(auth_url: str) -> None:
+    """Print the auth URL + copy-paste steps to stderr."""
+    msg = (
+        "\n=== mgdio headless Whoop auth ===\n\n"
+        "1. On a machine WITH a browser, open this URL:\n\n"
+        f"   {auth_url}\n\n"
+        "2. Sign in to Whoop and approve the requested access.\n"
+        "3. Your browser will be redirected to a URL starting with\n"
+        f"   '{WHOOP_REDIRECT_URI}?...' that FAILS to load -- that's\n"
+        "   EXPECTED (nothing is listening on YOUR machine either).\n"
+        "4. Copy the FULL URL from the address bar, paste it below,\n"
+        "   and press Enter.\n"
+    )
+    # stderr so stdout stays clean for callers that might pipe output.
+    print(msg, file=sys.stderr, flush=True)
 
 
 def _build_authorization_url(state: str) -> str:

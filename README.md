@@ -266,6 +266,17 @@ prefer, `scp` it ahead of time to:
 
 Once authenticated, every subsequent `mgdio gmail / sheets / calendar / drive`
 call reads the cached token from the keyring — no further interaction.
+The same `--headless` flag exists for `mgdio auth ynab`, `mgdio auth maps`,
+and `mgdio auth whoop`.
+
+> **Unattended jobs never hang on auth.** If a token goes stale on a
+> host where no one can complete an auth flow, mgdio raises
+> `MgdioInteractionRequiredError` — naming the exact `mgdio auth ...`
+> command to run — instead of silently blocking forever waiting for a
+> browser. By default interactive flows are allowed only when stdin is a
+> tty; override with `MGDIO_NONINTERACTIVE=1` (never interactive, even
+> in a terminal) or `MGDIO_NONINTERACTIVE=0` (always allow, e.g. a
+> GUI-launched process with no tty but a working browser).
 
 > **Linux keyring — handled automatically.** A minimal VPS image often
 > has no Secret Service daemon (`gnome-keyring`, `kwallet`,
@@ -833,7 +844,18 @@ and a localhost setup page walks you through it.
 Then `mgdio auth whoop` opens a page where you paste the Client ID +
 Secret (saved to the keyring under `mgdio:whoop`), click **Authorize with
 Whoop**, and approve. The resulting access+refresh token bundle is stored
-and **refreshed automatically** on expiry — no further interaction.
+and **refreshed automatically** on expiry — no further interaction. On a
+browserless machine (a Linux VPS, SSH-only), use
+`mgdio auth whoop --headless`: mgdio prints the auth URL to open on any
+device with a browser, and you paste the failed-redirect URL back into
+the terminal (same copy-paste pattern as `mgdio auth google --headless`).
+
+> **Stale refresh tokens.** Whoop rotates refresh tokens on every use
+> and rejects a token that has fallen out of rotation. When that happens
+> mgdio distinguishes it from a network blip: a definitive rejection
+> (HTTP 400/401) asks for re-authorization, while transient failures
+> raise `MgdioAPIError` and leave the stored token alone so the next run
+> can retry.
 
 > **Redirect URI override.** The callback defaults to
 > `http://localhost:8765/callback`. To use a different port/path, set

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from mgdio.auth.maps import auth as maps_auth
 from mgdio.settings import MAPS_KEYRING_SERVICE, MAPS_KEYRING_USERNAME
 
@@ -53,3 +55,16 @@ class TestClearStoredToken:
     def test_swallows_missing_entry(self, fake_keyring):
         maps_auth.clear_stored_token()  # must not raise
         assert maps_auth._api_key is None
+
+
+class TestNonInteractiveGuard:
+    def test_implicit_flow_blocked(self, fake_keyring, monkeypatch):
+        from mgdio.exceptions import MgdioInteractionRequiredError
+
+        monkeypatch.setenv("MGDIO_NONINTERACTIVE", "1")
+        run_setup = MagicMock()
+        monkeypatch.setattr(maps_auth, "run_setup_flow", run_setup)
+
+        with pytest.raises(MgdioInteractionRequiredError, match="mgdio auth maps"):
+            maps_auth.get_api_key()
+        run_setup.assert_not_called()

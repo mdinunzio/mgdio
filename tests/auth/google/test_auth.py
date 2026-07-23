@@ -226,3 +226,89 @@ class TestSettingsConsistency:
     def test_client_secret_path_lives_under_google_subdir(self):
         assert GOOGLE_CLIENT_SECRET_PATH.parent.name == "google"
         assert GOOGLE_CLIENT_SECRET_PATH.name == "client_secret.json"
+
+
+class TestRefreshErrorHandling:
+    def _expired_creds(self, monkeypatch, refresh_exc):
+        loaded = _make_creds(valid=False, expired=True)
+        loaded.refresh.side_effect = refresh_exc
+        monkeypatch.setattr(
+            "mgdio.auth.google.auth.Credentials.from_authorized_user_info",
+            MagicMock(return_value=loaded),
+        )
+        return loaded
+
+    def test_invalid_grant_falls_through_to_consent_flow(
+        self, tmp_appdata, fake_keyring, monkeypatch
+    ):
+        from google.auth.exceptions import RefreshError
+
+        _seed_token(fake_keyring, tmp_appdata)
+        self._expired_creds(
+            monkeypatch,
+            RefreshError("invalid_grant: Token has been expired or revoked."),
+        )
+        fresh = _make_creds(valid=True)
+        run_setup = MagicMock(return_value=fresh)
+        monkeypatch.setattr(google_auth, "run_setup_flow", run_setup)
+
+        assert google_auth.get_credentials(SLUG) is fresh
+        run_setup.assert_called_once()
+
+    def test_transient_refresh_error_propagates_without_flow(
+        self, tmp_appdata, fake_keyring, monkeypatch
+    ):
+        from google.auth.exceptions import RefreshError
+
+        from mgdio.exceptions import MgdioAPIError
+
+        _seed_token(fake_keyring, tmp_appdata)
+        self._expired_creds(monkeypatch, RefreshError("internal_failure"))
+        run_setup = MagicMock()
+        monkeypatch.setattr(google_auth, "run_setup_flow", run_setup)
+
+        with pytest.raises(MgdioAPIError, match="transient"):
+            google_auth.get_credentials(SLUG)
+        run_setup.assert_not_called()
+
+    def test_retryable_refresh_error_is_transient_even_with_invalid_grant(
+        self, tmp_appdata, fake_keyring, monkeypatch
+    ):
+        from google.auth.exceptions import RefreshError
+
+        from mgdio.exceptions import MgdioAPIError
+
+        _seed_token(fake_keyring, tmp_appdata)
+        exc = RefreshError("invalid_grant-ish flake", retryable=True)
+        self._expired_creds(monkeypatch, exc)
+        run_setup = MagicMock()
+        monkeypatch.setattr(google_auth, "run_setup_flow", run_setup)
+
+        with pytest.raises(MgdioAPIError):
+            google_auth.get_credentials(SLUG)
+        run_setup.assert_not_called()
+
+
+class TestNonInteractiveGuard:
+    def test_implicit_flow_blocked_without_tty(
+        self, tmp_appdata, fake_keyring, monkeypatch
+    ):
+        from mgdio.exceptions import MgdioInteractionRequiredError
+
+        _seed_token(fake_keyring, tmp_appdata)
+        # Stored token loads but is unusable (invalid, not refreshable),
+        # forcing the implicit-flow fallback.
+        dead = _make_creds(valid=False, expired=False)
+        monkeypatch.setattr(
+            "mgdio.auth.google.auth.Credentials.from_authorized_user_info",
+            MagicMock(return_value=dead),
+        )
+        monkeypatch.setenv("MGDIO_NONINTERACTIVE", "1")
+        run_setup = MagicMock()
+        monkeypatch.setattr(google_auth, "run_setup_flow", run_setup)
+
+        with pytest.raises(
+            MgdioInteractionRequiredError, match="mgdio auth google --profile svc"
+        ):
+            google_auth.get_credentials(SLUG)
+        run_setup.assert_not_called()

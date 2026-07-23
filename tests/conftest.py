@@ -25,6 +25,16 @@ from mgdio.ynab import client as ynab_client
 
 
 @pytest.fixture(autouse=True)
+def allow_interactive_auth(monkeypatch) -> None:
+    """Pytest has no tty; don't let the non-interactive guard trip.
+
+    Tests exercising the guard itself override MGDIO_NONINTERACTIVE
+    with their own monkeypatch.setenv, which wins over this fixture.
+    """
+    monkeypatch.setenv("MGDIO_NONINTERACTIVE", "0")
+
+
+@pytest.fixture(autouse=True)
 def reset_caches() -> None:
     """Reset module-level credential and service caches between tests."""
     google_auth.reset_credentials_cache()

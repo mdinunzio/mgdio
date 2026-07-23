@@ -14,6 +14,7 @@ import logging
 import keyring
 
 from mgdio.auth import _keyring
+from mgdio.auth._interactive import require_interactive
 from mgdio.auth.ynab._setup_server import run_headless_flow, run_setup_flow
 from mgdio.settings import YNAB_KEYRING_SERVICE, YNAB_KEYRING_USERNAME
 
@@ -48,6 +49,7 @@ def get_token(headless: bool = False) -> str:
         _token = stored
         return _token
 
+    require_interactive("YNAB", "mgdio auth ynab", "no stored token")
     _keyring.ensure_writable(YNAB_KEYRING_SERVICE, YNAB_KEYRING_USERNAME)
     flow = run_headless_flow if headless else run_setup_flow
     _token = flow()

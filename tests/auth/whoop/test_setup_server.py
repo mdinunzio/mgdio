@@ -126,3 +126,107 @@ class _FakeKeyringFrom:
 
     def set_password(self, service, username, password):
         self._store[(service, username)] = password
+
+
+class TestParseRedirectUrl:
+    def test_extracts_code_when_state_matches(self):
+        url = f"{WHOOP_REDIRECT_URI}?code=abc123&state=st-1"
+        assert _setup_server._parse_redirect_url(url, "st-1") == "abc123"
+
+    def test_state_mismatch_raises(self):
+        url = f"{WHOOP_REDIRECT_URI}?code=abc&state=other"
+        with pytest.raises(MgdioAuthError, match="State mismatch"):
+            _setup_server._parse_redirect_url(url, "st-1")
+
+    def test_provider_error_param_raises(self):
+        url = f"{WHOOP_REDIRECT_URI}?error=access_denied&state=st-1"
+        with pytest.raises(MgdioAuthError, match="access_denied"):
+            _setup_server._parse_redirect_url(url, "st-1")
+
+    def test_missing_code_raises(self):
+        url = f"{WHOOP_REDIRECT_URI}?state=st-1"
+        with pytest.raises(MgdioAuthError, match="No authorization code"):
+            _setup_server._parse_redirect_url(url, "st-1")
+
+
+class TestRunHeadlessFlow:
+    def _arrange(self, fake_keyring, monkeypatch, *, inputs, with_app_creds=True):
+        import json
+
+        from mgdio.settings import (
+            WHOOP_KEYRING_SERVICE,
+            WHOOP_KEYRING_USERNAME_APP,
+        )
+
+        if with_app_creds:
+            fake_keyring[(WHOOP_KEYRING_SERVICE, WHOOP_KEYRING_USERNAME_APP)] = (
+                json.dumps({"client_id": "cid", "client_secret": "csec"})
+            )
+        monkeypatch.setattr(_setup_server, "keyring", _FakeKeyringFrom(fake_keyring))
+        monkeypatch.setattr(
+            _setup_server, "secrets", MagicMock(token_urlsafe=lambda n=24: "st-1")
+        )
+        monkeypatch.setattr("builtins.input", MagicMock(side_effect=inputs))
+
+    def test_happy_path_exchanges_pasted_url(self, fake_keyring, monkeypatch):
+        pasted = f"{WHOOP_REDIRECT_URI}?code=the-code&state=st-1"
+        self._arrange(fake_keyring, monkeypatch, inputs=[pasted])
+        bundle = {"access_token": "acc", "refresh_token": "ref"}
+        exchange = MagicMock(return_value=bundle)
+        monkeypatch.setattr(_setup_server, "_exchange_code", exchange)
+        monkeypatch.setattr(
+            _setup_server, "_validate_access_token", lambda t: (True, "Authorized.")
+        )
+
+        assert _setup_server.run_headless_flow() is bundle
+        exchange.assert_called_once_with("the-code")
+
+    def test_prompts_for_app_credentials_when_missing(self, fake_keyring, monkeypatch):
+        import json
+
+        from mgdio.settings import (
+            WHOOP_KEYRING_SERVICE,
+            WHOOP_KEYRING_USERNAME_APP,
+        )
+
+        pasted = f"{WHOOP_REDIRECT_URI}?code=c&state=st-1"
+        self._arrange(
+            fake_keyring,
+            monkeypatch,
+            inputs=["new-cid", "new-csec", pasted],
+            with_app_creds=False,
+        )
+        monkeypatch.setattr(
+            _setup_server,
+            "_exchange_code",
+            MagicMock(return_value={"access_token": "a"}),
+        )
+        monkeypatch.setattr(
+            _setup_server, "_validate_access_token", lambda t: (True, "Authorized.")
+        )
+
+        _setup_server.run_headless_flow()
+
+        saved = json.loads(
+            fake_keyring[(WHOOP_KEYRING_SERVICE, WHOOP_KEYRING_USERNAME_APP)]
+        )
+        assert saved == {"client_id": "new-cid", "client_secret": "new-csec"}
+
+    def test_empty_paste_raises(self, fake_keyring, monkeypatch):
+        self._arrange(fake_keyring, monkeypatch, inputs=["   "])
+        with pytest.raises(MgdioAuthError, match="No URL pasted"):
+            _setup_server.run_headless_flow()
+
+    def test_validation_failure_raises(self, fake_keyring, monkeypatch):
+        pasted = f"{WHOOP_REDIRECT_URI}?code=c&state=st-1"
+        self._arrange(fake_keyring, monkeypatch, inputs=[pasted])
+        monkeypatch.setattr(
+            _setup_server,
+            "_exchange_code",
+            MagicMock(return_value={"access_token": "a"}),
+        )
+        monkeypatch.setattr(
+            _setup_server, "_validate_access_token", lambda t: (False, "401")
+        )
+        with pytest.raises(MgdioAuthError, match="validation failed"):
+            _setup_server.run_headless_flow()

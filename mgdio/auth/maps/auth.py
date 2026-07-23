@@ -14,6 +14,7 @@ import logging
 import keyring
 
 from mgdio.auth import _keyring
+from mgdio.auth._interactive import require_interactive
 from mgdio.auth.maps._setup_server import run_headless_flow, run_setup_flow
 from mgdio.settings import MAPS_KEYRING_SERVICE, MAPS_KEYRING_USERNAME
 
@@ -47,6 +48,7 @@ def get_api_key(headless: bool = False) -> str:
         _api_key = stored
         return _api_key
 
+    require_interactive("Google Maps", "mgdio auth maps", "no stored API key")
     _keyring.ensure_writable(MAPS_KEYRING_SERVICE, MAPS_KEYRING_USERNAME)
     flow = run_headless_flow if headless else run_setup_flow
     _api_key = flow()

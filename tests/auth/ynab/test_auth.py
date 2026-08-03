@@ -97,3 +97,13 @@ class TestNonInteractiveGuard:
         with pytest.raises(MgdioInteractionRequiredError, match="mgdio auth ynab"):
             ynab_auth.get_token()
         run_setup.assert_not_called()
+
+
+class TestAuthorize:
+    def test_bypasses_noninteractive_guard(self, fake_keyring, monkeypatch):
+        monkeypatch.setenv("MGDIO_NONINTERACTIVE", "1")
+        run_setup = MagicMock(return_value="pasted-token")
+        monkeypatch.setattr(ynab_auth, "run_setup_flow", run_setup)
+
+        assert ynab_auth.authorize() == "pasted-token"
+        run_setup.assert_called_once()

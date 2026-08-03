@@ -274,9 +274,15 @@ and `mgdio auth whoop`.
 > `MgdioInteractionRequiredError` — naming the exact `mgdio auth ...`
 > command to run — instead of silently blocking forever waiting for a
 > browser. By default interactive flows are allowed only when stdin is a
-> tty; override with `MGDIO_NONINTERACTIVE=1` (never interactive, even
-> in a terminal) or `MGDIO_NONINTERACTIVE=0` (always allow, e.g. a
-> GUI-launched process with no tty but a working browser).
+> tty; override with `MGDIO_NONINTERACTIVE=1` (library calls never go
+> interactive) or `MGDIO_NONINTERACTIVE=0` (always allow, e.g. a
+> GUI-launched process with no tty but a working browser). Explicit
+> `mgdio auth <provider>` commands are **exempt from the guard** —
+> running one *is* the request for an interactive flow — so it's safe to
+> export `MGDIO_NONINTERACTIVE=1` host-wide on a server. The guard error
+> (and `mgdio --version`) prints the running install's version and path,
+> so a stale parallel install (an old `uv tool` shim shadowing your
+> project venv) is identifiable at a glance.
 
 > **Linux keyring — handled automatically.** A minimal VPS image often
 > has no Secret Service daemon (`gnome-keyring`, `kwallet`,

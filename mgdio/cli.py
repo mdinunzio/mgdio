@@ -17,12 +17,12 @@ from mgdio.auth.google import (
     detect_legacy_token,
     live_profiles,
 )
+from mgdio.auth.maps import authorize as authorize_maps
 from mgdio.auth.maps import clear_stored_token as clear_maps_key
-from mgdio.auth.maps import get_api_key as get_maps_key
+from mgdio.auth.whoop import authorize as authorize_whoop
 from mgdio.auth.whoop import clear_stored_token as clear_whoop_token
-from mgdio.auth.whoop import get_access_token as get_whoop_token
+from mgdio.auth.ynab import authorize as authorize_ynab
 from mgdio.auth.ynab import clear_stored_token as clear_ynab_token
-from mgdio.auth.ynab import get_token as get_ynab_token
 from mgdio.calendar import (
     create_event,
     delete_event,
@@ -79,6 +79,12 @@ from mgdio.ynab import (
 
 
 @click.group()
+@click.version_option(
+    None,
+    "--version",
+    package_name="mgdio",
+    message=f"%(prog)s %(version)s @ {Path(__file__).resolve().parent}",
+)
 def cli() -> None:
     """mgdio: personal connectivity tools."""
 
@@ -276,7 +282,7 @@ def auth_ynab(reset: bool, headless: bool) -> None:
     """
     if reset:
         clear_ynab_token()
-    get_ynab_token(headless=headless)
+    authorize_ynab(headless=headless)
     click.echo("Authenticated.")
 
 
@@ -312,7 +318,7 @@ def auth_whoop(reset: bool, headless: bool) -> None:
     """
     if reset:
         clear_whoop_token()
-    get_whoop_token(headless=headless)
+    authorize_whoop(headless=headless)
     click.echo("Authenticated.")
 
 
@@ -341,7 +347,7 @@ def auth_maps(reset: bool, headless: bool) -> None:
     """
     if reset:
         clear_maps_key()
-    get_maps_key(headless=headless)
+    authorize_maps(headless=headless)
     click.echo("Authenticated.")
 
 

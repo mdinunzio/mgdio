@@ -23,7 +23,23 @@ logger = logging.getLogger(__name__)
 _api_key: str | None = None
 
 
-def get_api_key(headless: bool = False) -> str:
+def authorize(headless: bool = False) -> str:
+    """Ensure a usable API key for ``mgdio auth maps`` -- guard bypassed.
+
+    Identical to :func:`get_api_key`, except the non-interactive guard
+    (``MGDIO_NONINTERACTIVE=1`` / no tty) does not apply: an explicit
+    auth command *is* the user's request for an interactive flow.
+
+    Args:
+        headless: If True, prompt for the key on the terminal.
+
+    Returns:
+        The Google Maps Platform API key string.
+    """
+    return get_api_key(headless=headless, _explicit=True)
+
+
+def get_api_key(headless: bool = False, *, _explicit: bool = False) -> str:
     """Return the cached Google Maps API key.
 
     On first call (or after :func:`clear_stored_token`) the setup flow
@@ -48,7 +64,8 @@ def get_api_key(headless: bool = False) -> str:
         _api_key = stored
         return _api_key
 
-    require_interactive("Google Maps", "mgdio auth maps", "no stored API key")
+    if not _explicit:
+        require_interactive("Google Maps", "mgdio auth maps", "no stored API key")
     _keyring.ensure_writable(MAPS_KEYRING_SERVICE, MAPS_KEYRING_USERNAME)
     flow = run_headless_flow if headless else run_setup_flow
     _api_key = flow()

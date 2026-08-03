@@ -61,3 +61,21 @@ class TestRequireInteractive:
         assert "Whoop" in message
         assert "token refresh was rejected" in message
         assert "mgdio auth whoop" in message
+
+
+class TestInstallFingerprint:
+    def test_error_names_the_running_install(self, monkeypatch):
+        import mgdio
+
+        monkeypatch.setenv("MGDIO_NONINTERACTIVE", "1")
+        with pytest.raises(MgdioInteractionRequiredError) as excinfo:
+            _interactive.require_interactive("Whoop", "mgdio auth whoop", "no token")
+        message = str(excinfo.value)
+        assert f"mgdio {mgdio.__version__} @ " in message
+
+    def test_fingerprint_contains_version_and_path(self):
+        import mgdio
+
+        fp = _interactive.install_fingerprint()
+        assert mgdio.__version__ in fp
+        assert "mgdio" in fp.split("@")[1]

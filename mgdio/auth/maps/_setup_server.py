@@ -102,7 +102,13 @@ def run_headless_flow() -> str:
         RuntimeError: If nothing was pasted or the key failed validation.
     """
     _print_headless_instructions()
-    api_key = input("paste Google Maps API key > ").strip()
+    try:
+        api_key = input("paste Google Maps API key > ").strip()
+    except EOFError as exc:
+        raise RuntimeError(
+            "stdin closed before a key was pasted -- run this command in "
+            "an interactive terminal."
+        ) from exc
     if not api_key:
         raise RuntimeError("No API key pasted; aborting.")
     ok, message = _validate_key(api_key)

@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 
 from mgdio.exceptions import MgdioInteractionRequiredError
 
@@ -64,5 +65,19 @@ def require_interactive(provider: str, auth_command: str, reason: str) -> None:
     raise MgdioInteractionRequiredError(
         f"{provider}: {reason}, and this session cannot run an interactive "
         f"auth flow (no tty, or MGDIO_NONINTERACTIVE=1). Run "
-        f"`{auth_command}` in a terminal on this machine to re-authorize."
+        f"`{auth_command}` in a terminal on this machine to re-authorize. "
+        f"[{install_fingerprint()}]"
     )
+
+
+def install_fingerprint() -> str:
+    """``mgdio <version> @ <package dir>`` -- which install produced an error.
+
+    Stale parallel installs (e.g. an old ``uv tool`` shim shadowing a
+    project venv on PATH) make missing features masquerade as bugs; one
+    line of provenance in errors and ``--version`` pins down which mgdio
+    actually ran.
+    """
+    import mgdio
+
+    return f"mgdio {mgdio.__version__} @ {Path(mgdio.__file__).parent}"

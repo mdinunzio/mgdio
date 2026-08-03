@@ -52,7 +52,26 @@ _EXPIRY_SAFETY_MARGIN_SECONDS = 60
 _token: dict | None = None
 
 
-def get_access_token(headless: bool = False) -> str:
+def authorize(headless: bool = False) -> str:
+    """Ensure a usable token for ``mgdio auth whoop`` -- guard bypassed.
+
+    Identical to :func:`get_access_token`, except it never raises
+    :class:`MgdioInteractionRequiredError`: an explicit auth command *is*
+    the user's request for an interactive flow, so the non-interactive
+    guard (``MGDIO_NONINTERACTIVE=1`` / no tty) does not apply. In a
+    context with no usable stdin the flow fails with a clean
+    ``MgdioAuthError`` instead.
+
+    Args:
+        headless: If True, use the copy-paste OAuth flow.
+
+    Returns:
+        A currently-valid Whoop access token string.
+    """
+    return get_access_token(headless=headless, _explicit=True)
+
+
+def get_access_token(headless: bool = False, *, _explicit: bool = False) -> str:
     """Return a valid Whoop access token, refreshing or onboarding as needed.
 
     Resolution order: in-process cache -> keyring (refresh if expired) ->
@@ -102,7 +121,8 @@ def get_access_token(headless: bool = False) -> str:
             stored = None
 
     if stored is None:
-        require_interactive("Whoop", "mgdio auth whoop", "no usable stored token")
+        if not _explicit:
+            require_interactive("Whoop", "mgdio auth whoop", "no usable stored token")
         # The setup flow writes both keyring slots; verify they can be
         # overwritten before asking the user to authorize.
         _keyring.ensure_writable(WHOOP_KEYRING_SERVICE, WHOOP_KEYRING_USERNAME_TOKEN)

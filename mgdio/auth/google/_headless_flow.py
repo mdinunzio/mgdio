@@ -166,7 +166,13 @@ def _print_instructions(auth_url: str) -> None:
 
 def _read_pasted_response() -> str:
     """Read the redirect URL from stdin. Raises if empty."""
-    pasted = input("paste redirect URL > ").strip()
+    try:
+        pasted = input("paste redirect URL > ").strip()
+    except EOFError as exc:
+        raise RuntimeError(
+            "stdin closed before a URL was pasted -- run this command in "
+            "an interactive terminal."
+        ) from exc
     if not pasted:
         raise RuntimeError("No URL pasted; aborting.")
     return pasted

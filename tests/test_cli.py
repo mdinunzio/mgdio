@@ -199,7 +199,7 @@ class TestAuthYnab:
     def test_runs_get_token_and_prints_authenticated(self, monkeypatch):
         get_token = MagicMock()
         clear = MagicMock()
-        monkeypatch.setattr(cli_module, "get_ynab_token", get_token)
+        monkeypatch.setattr(cli_module, "authorize_ynab", get_token)
         monkeypatch.setattr(cli_module, "clear_ynab_token", clear)
 
         result = CliRunner().invoke(cli_module.cli, ["auth", "ynab"])
@@ -212,7 +212,7 @@ class TestAuthYnab:
     def test_reset_clears_before_get_token(self, monkeypatch):
         parent = MagicMock()
         monkeypatch.setattr(cli_module, "clear_ynab_token", parent.clear)
-        monkeypatch.setattr(cli_module, "get_ynab_token", parent.get)
+        monkeypatch.setattr(cli_module, "authorize_ynab", parent.get)
 
         result = CliRunner().invoke(cli_module.cli, ["auth", "ynab", "--reset"])
 
@@ -221,7 +221,7 @@ class TestAuthYnab:
 
     def test_headless_flag_passes_through(self, monkeypatch):
         get_token = MagicMock()
-        monkeypatch.setattr(cli_module, "get_ynab_token", get_token)
+        monkeypatch.setattr(cli_module, "authorize_ynab", get_token)
         monkeypatch.setattr(cli_module, "clear_ynab_token", MagicMock())
 
         result = CliRunner().invoke(cli_module.cli, ["auth", "ynab", "--headless"])
@@ -234,7 +234,7 @@ class TestAuthWhoop:
     def test_runs_get_token_and_prints_authenticated(self, monkeypatch):
         get_token = MagicMock()
         clear = MagicMock()
-        monkeypatch.setattr(cli_module, "get_whoop_token", get_token)
+        monkeypatch.setattr(cli_module, "authorize_whoop", get_token)
         monkeypatch.setattr(cli_module, "clear_whoop_token", clear)
 
         result = CliRunner().invoke(cli_module.cli, ["auth", "whoop"])
@@ -247,7 +247,7 @@ class TestAuthWhoop:
     def test_reset_clears_before_get_token(self, monkeypatch):
         parent = MagicMock()
         monkeypatch.setattr(cli_module, "clear_whoop_token", parent.clear)
-        monkeypatch.setattr(cli_module, "get_whoop_token", parent.get)
+        monkeypatch.setattr(cli_module, "authorize_whoop", parent.get)
 
         result = CliRunner().invoke(cli_module.cli, ["auth", "whoop", "--reset"])
 
@@ -952,7 +952,7 @@ class TestAuthMaps:
     def test_runs_get_api_key_and_prints_authenticated(self, monkeypatch):
         get_key = MagicMock()
         clear = MagicMock()
-        monkeypatch.setattr(cli_module, "get_maps_key", get_key)
+        monkeypatch.setattr(cli_module, "authorize_maps", get_key)
         monkeypatch.setattr(cli_module, "clear_maps_key", clear)
 
         result = CliRunner().invoke(cli_module.cli, ["auth", "maps"])
@@ -965,7 +965,7 @@ class TestAuthMaps:
     def test_reset_clears_before_get_key(self, monkeypatch):
         parent = MagicMock()
         monkeypatch.setattr(cli_module, "clear_maps_key", parent.clear)
-        monkeypatch.setattr(cli_module, "get_maps_key", parent.get)
+        monkeypatch.setattr(cli_module, "authorize_maps", parent.get)
 
         result = CliRunner().invoke(cli_module.cli, ["auth", "maps", "--reset"])
 
@@ -974,7 +974,7 @@ class TestAuthMaps:
 
     def test_headless_flag_passes_through(self, monkeypatch):
         get_key = MagicMock()
-        monkeypatch.setattr(cli_module, "get_maps_key", get_key)
+        monkeypatch.setattr(cli_module, "authorize_maps", get_key)
         monkeypatch.setattr(cli_module, "clear_maps_key", MagicMock())
 
         result = CliRunner().invoke(cli_module.cli, ["auth", "maps", "--headless"])
@@ -1127,7 +1127,7 @@ class TestMainEntryPoint:
 class TestAuthWhoopHeadless:
     def test_headless_flag_passes_through(self, monkeypatch):
         get_tok = MagicMock()
-        monkeypatch.setattr(cli_module, "get_whoop_token", get_tok)
+        monkeypatch.setattr(cli_module, "authorize_whoop", get_tok)
 
         result = CliRunner().invoke(cli_module.cli, ["auth", "whoop", "--headless"])
 
@@ -1136,9 +1136,21 @@ class TestAuthWhoopHeadless:
 
     def test_default_is_not_headless(self, monkeypatch):
         get_tok = MagicMock()
-        monkeypatch.setattr(cli_module, "get_whoop_token", get_tok)
+        monkeypatch.setattr(cli_module, "authorize_whoop", get_tok)
 
         result = CliRunner().invoke(cli_module.cli, ["auth", "whoop"])
 
         assert result.exit_code == 0, result.output
         assert get_tok.call_args.kwargs["headless"] is False
+
+
+class TestVersionOption:
+    def test_version_prints_version_and_install_path(self):
+        from mgdio import __version__
+
+        result = CliRunner().invoke(cli_module.cli, ["--version"])
+
+        assert result.exit_code == 0, result.output
+        assert __version__ in result.output
+        assert "mgdio" in result.output
+        assert "@" in result.output

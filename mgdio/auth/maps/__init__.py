@@ -9,9 +9,10 @@ keyring under ``mgdio:maps`` and exposes the standard provider triple
 from __future__ import annotations
 
 from mgdio.auth.maps.auth import (
+    authorize,
     clear_stored_token,
     get_api_key,
     reset_key_cache,
 )
 
-__all__ = ["clear_stored_token", "get_api_key", "reset_key_cache"]
+__all__ = ["authorize", "clear_stored_token", "get_api_key", "reset_key_cache"]

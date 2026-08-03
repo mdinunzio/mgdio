@@ -236,3 +236,23 @@ class TestClearStoredToken:
     def test_swallows_missing_entry(self, fake_keyring):
         whoop_auth.clear_stored_token()
         assert whoop_auth._token is None
+
+
+class TestAuthorize:
+    def test_bypasses_noninteractive_guard(self, fake_keyring, monkeypatch):
+        monkeypatch.setenv("MGDIO_NONINTERACTIVE", "1")
+        new_bundle = _valid_bundle()
+        run_setup = MagicMock(return_value=new_bundle)
+        monkeypatch.setattr(whoop_auth, "run_setup_flow", run_setup)
+
+        assert whoop_auth.authorize() == "access-1"
+        run_setup.assert_called_once()
+
+    def test_headless_passes_through(self, fake_keyring, monkeypatch):
+        monkeypatch.setenv("MGDIO_NONINTERACTIVE", "1")
+        new_bundle = _valid_bundle()
+        run_headless = MagicMock(return_value=new_bundle)
+        monkeypatch.setattr(whoop_auth, "run_headless_flow", run_headless)
+
+        assert whoop_auth.authorize(headless=True) == "access-1"
+        run_headless.assert_called_once()

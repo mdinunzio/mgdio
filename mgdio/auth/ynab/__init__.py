@@ -10,9 +10,10 @@ provider triple (:func:`get_token`, :func:`clear_stored_token`,
 from __future__ import annotations
 
 from mgdio.auth.ynab.auth import (
+    authorize,
     clear_stored_token,
     get_token,
     reset_token_cache,
 )
 
-__all__ = ["clear_stored_token", "get_token", "reset_token_cache"]
+__all__ = ["authorize", "clear_stored_token", "get_token", "reset_token_cache"]

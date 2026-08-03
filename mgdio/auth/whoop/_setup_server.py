@@ -173,15 +173,32 @@ _MAX_PASTE_ATTEMPTS = 3
 _PASTE_PROMPT = "paste the FULL address-bar URL from the failed/blank page > "
 
 
+def _read_line(prompt: str) -> str:
+    """``input()`` that turns a closed stdin into an actionable error.
+
+    Raises:
+        MgdioAuthError: On EOF -- e.g. the command was run without a
+            usable stdin (piped, orphaned session).
+    """
+    try:
+        return input(prompt)
+    except EOFError as exc:
+        raise MgdioAuthError(
+            "stdin closed before input was provided -- run this command in "
+            "an interactive terminal."
+        ) from exc
+
+
 def _prompt_for_code(state: str) -> str:
     """Read pastes from stdin until one yields an auth code (or give up).
 
     Raises:
         MgdioAuthError: After ``_MAX_PASTE_ATTEMPTS`` unusable pastes
-            (the last parse error propagates when there was input).
+            (the last parse error propagates when there was input), or
+            immediately if stdin is closed.
     """
     for attempts_left in range(_MAX_PASTE_ATTEMPTS - 1, -1, -1):
-        pasted = input(_PASTE_PROMPT)
+        pasted = _read_line(_PASTE_PROMPT)
         if not pasted.strip():
             if attempts_left == 0:
                 break
@@ -261,8 +278,8 @@ def _prompt_and_save_app_credentials() -> None:
         "then paste its credentials below.\n"
     )
     print(msg, file=sys.stderr, flush=True)
-    client_id = input("Client ID > ").strip()
-    client_secret = input("Client Secret > ").strip()
+    client_id = _read_line("Client ID > ").strip()
+    client_secret = _read_line("Client Secret > ").strip()
     if not client_id or not client_secret:
         raise MgdioAuthError("Client ID and Secret are both required; aborting.")
     _save_app_credentials(client_id, client_secret)

@@ -5,6 +5,31 @@ Notable changes to mgdio. The format follows
 [Semantic Versioning](https://semver.org/). Releases before 0.3.5 predate
 this file — see the git history.
 
+## [0.4.2] - 2026-08-03
+
+### Fixed
+
+- **Explicit `mgdio auth <provider>` commands bypass the non-interactive
+  guard.** The 0.4.0 guard also fired on the explicit auth CLI (which
+  routes through the same getters), so under `MGDIO_NONINTERACTIVE=1` or
+  without a tty, `mgdio auth whoop --headless` refused with advice to
+  run the very command being run. Whoop/YNAB/Maps gain an
+  `authorize(headless=False)` entry point (mirroring Google's
+  `authorize_profile`) that skips the guard — an explicit auth command
+  *is* the user's request for an interactive flow — and the CLI now uses
+  it. Library calls via the getters keep the guard unchanged.
+- Headless prompts (`input()`) in all four providers now turn a closed
+  stdin (`EOFError`) into a clean, actionable error instead of a
+  traceback.
+
+### Added
+
+- **Install provenance diagnostics** (stale-shim antidote): `mgdio
+  --version` prints the version *and* install path, and the
+  non-interactive guard error appends `[mgdio <version> @ <path>]` — one
+  line that exposes an old parallel install (e.g. a forgotten `uv tool`
+  shim shadowing a project venv) masquerading as a missing feature.
+
 ## [0.4.1] - 2026-08-03
 
 UX/robustness pass on `mgdio auth whoop --headless`, from field feedback

@@ -298,3 +298,14 @@ class TestRunHeadlessFlow:
         )
         with pytest.raises(MgdioAuthError, match="validation failed"):
             _setup_server.run_headless_flow()
+
+
+class TestClosedStdin:
+    def test_eof_at_paste_prompt_raises_actionable_error(
+        self, fake_keyring, monkeypatch
+    ):
+        self._arrange = TestRunHeadlessFlow._arrange
+        self._arrange(self, fake_keyring, monkeypatch, inputs=[])
+        monkeypatch.setattr("builtins.input", MagicMock(side_effect=EOFError))
+        with pytest.raises(MgdioAuthError, match="stdin closed"):
+            _setup_server.run_headless_flow()

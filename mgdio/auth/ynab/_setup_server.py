@@ -102,7 +102,13 @@ def run_headless_flow() -> str:
         RuntimeError: If nothing was pasted or the token failed validation.
     """
     _print_headless_instructions()
-    token = input("paste YNAB personal access token > ").strip()
+    try:
+        token = input("paste YNAB personal access token > ").strip()
+    except EOFError as exc:
+        raise RuntimeError(
+            "stdin closed before a token was pasted -- run this command in "
+            "an interactive terminal."
+        ) from exc
     if not token:
         raise RuntimeError("No token pasted; aborting.")
     ok, message = _validate_token(token)

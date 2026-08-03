@@ -23,7 +23,23 @@ logger = logging.getLogger(__name__)
 _token: str | None = None
 
 
-def get_token(headless: bool = False) -> str:
+def authorize(headless: bool = False) -> str:
+    """Ensure a usable token for ``mgdio auth ynab`` -- guard bypassed.
+
+    Identical to :func:`get_token`, except the non-interactive guard
+    (``MGDIO_NONINTERACTIVE=1`` / no tty) does not apply: an explicit
+    auth command *is* the user's request for an interactive flow.
+
+    Args:
+        headless: If True, prompt for the token on the terminal.
+
+    Returns:
+        The personal access token string.
+    """
+    return get_token(headless=headless, _explicit=True)
+
+
+def get_token(headless: bool = False, *, _explicit: bool = False) -> str:
     """Return the cached YNAB personal access token.
 
     On first call (or after :func:`clear_stored_token`) the setup flow
@@ -49,7 +65,8 @@ def get_token(headless: bool = False) -> str:
         _token = stored
         return _token
 
-    require_interactive("YNAB", "mgdio auth ynab", "no stored token")
+    if not _explicit:
+        require_interactive("YNAB", "mgdio auth ynab", "no stored token")
     _keyring.ensure_writable(YNAB_KEYRING_SERVICE, YNAB_KEYRING_USERNAME)
     flow = run_headless_flow if headless else run_setup_flow
     _token = flow()

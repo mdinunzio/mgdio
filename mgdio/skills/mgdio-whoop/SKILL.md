@@ -20,7 +20,12 @@ local page where they paste their Whoop app's Client ID + Secret and
 authorize. If a command fails with an auth error, tell them to run that.
 On a browserless machine (VPS, SSH session), `mgdio auth whoop --headless`
 prints the auth URL to open elsewhere and prompts for the redirect URL to
-be pasted back. If a command fails with `MgdioInteractionRequiredError`
+be pasted back. Warn the user up front: after approving, the browser lands
+on a page that fails to load **or renders blank** -- that is expected, and
+the URL to paste is in that dead page's address bar (it starts with the
+registered redirect URI, `http://localhost:8765/callback` by default). A
+blank page just means something local (VS Code port-forwarding, an
+orphaned `ssh -L`) is listening on the callback port; harmless. If a command fails with `MgdioInteractionRequiredError`
 ("cannot run an interactive auth flow"), the stored refresh token was
 rejected on a non-interactive host -- the user must re-run
 `mgdio auth whoop` in a terminal on that machine; transient network

@@ -135,13 +135,18 @@ def run_headless_flow() -> dict:
     If app credentials (Client ID / Secret) aren't stored yet, they're
     prompted for on the terminal first and saved to the keyring.
 
+    A bad paste (empty, wrong state, no code) re-prompts up to
+    ``_MAX_PASTE_ATTEMPTS`` times with a specific hint rather than
+    aborting -- the ``state`` is minted once per run, so the auth URL
+    printed above stays valid across retries.
+
     Returns:
         A token bundle dict: ``{access_token, refresh_token, expires_at,
         scope, token_type}``.
 
     Raises:
-        MgdioAuthError: If nothing is pasted, the state doesn't match,
-            Whoop reports an error, or the exchange/validation fails.
+        MgdioAuthError: If no usable URL is pasted after all attempts,
+            or the exchange/validation fails.
     """
     app = _load_app_credentials_or_empty()
     if not app.get("client_id") or not app.get("client_secret"):
@@ -149,41 +154,96 @@ def run_headless_flow() -> dict:
 
     state = secrets.token_urlsafe(24)
     _print_headless_instructions(_build_authorization_url(state))
-    pasted = input("paste redirect URL > ").strip()
-    if not pasted:
-        raise MgdioAuthError("No URL pasted; aborting.")
-
-    code = _parse_redirect_url(pasted, state)
+    code = _prompt_for_code(state)
     token = _exchange_code(code)
     ok, message = _validate_access_token(token["access_token"])
     if not ok:
         raise MgdioAuthError(f"Whoop token validation failed: {message}")
+    # Confirm WHICH account was authorized (e.g. "Authorized as Jane Doe
+    # (jane@x.com).") so a wrong-account consent is caught immediately.
+    print(message, file=sys.stderr, flush=True)
     return token
+
+
+# Bad pastes re-prompt (the state survives retries); aborting instead would
+# mint a new state on the re-run, invalidating a consent the user already
+# completed and compounding the confusion.
+_MAX_PASTE_ATTEMPTS = 3
+
+_PASTE_PROMPT = "paste the FULL address-bar URL from the failed/blank page > "
+
+
+def _prompt_for_code(state: str) -> str:
+    """Read pastes from stdin until one yields an auth code (or give up).
+
+    Raises:
+        MgdioAuthError: After ``_MAX_PASTE_ATTEMPTS`` unusable pastes
+            (the last parse error propagates when there was input).
+    """
+    for attempts_left in range(_MAX_PASTE_ATTEMPTS - 1, -1, -1):
+        pasted = input(_PASTE_PROMPT)
+        if not pasted.strip():
+            if attempts_left == 0:
+                break
+            _print_reprompt_hint("Nothing pasted.", attempts_left)
+            continue
+        try:
+            return _parse_redirect_url(pasted, state)
+        except MgdioAuthError as exc:
+            if attempts_left == 0:
+                raise
+            _print_reprompt_hint(str(exc), attempts_left)
+    raise MgdioAuthError(
+        f"No redirect URL pasted after {_MAX_PASTE_ATTEMPTS} attempts; aborting."
+    )
+
+
+def _print_reprompt_hint(problem: str, attempts_left: int) -> None:
+    print(
+        f"\n{problem}\n{attempts_left} attempt(s) left -- the auth URL "
+        "printed above is still valid.",
+        file=sys.stderr,
+        flush=True,
+    )
 
 
 def _parse_redirect_url(pasted: str, expected_state: str) -> str:
     """Extract the authorization code from a pasted redirect URL.
 
+    Tolerant of real-world paste shapes: whitespace and line-wraps that
+    terminal copying introduces are collapsed, and a bare query fragment
+    (``code=...&state=...``, or just ``code=...``) is accepted alongside
+    a full URL. A missing ``state`` is allowed with a warning (a
+    hand-trimmed paste); a *wrong* one is still rejected.
+
     Raises:
         MgdioAuthError: If Whoop reported an error, the state doesn't
             match this session, or no code is present.
     """
-    params = parse_qs(urlparse(pasted).query)
+    cleaned = "".join(pasted.split())
+    query = urlparse(cleaned).query
+    if not query and "=" in cleaned and "://" not in cleaned:
+        query = cleaned.lstrip("?")
+    params = parse_qs(query)
     if params.get("error"):
         raise MgdioAuthError(f"Whoop returned an error: {params['error'][0]}")
     state = (params.get("state") or [""])[0]
-    if state != expected_state:
+    if state and state != expected_state:
         raise MgdioAuthError(
-            "State mismatch: the pasted URL came from a different session. "
-            "Run `mgdio auth whoop --headless` again and use the SAME "
-            "session for both the auth URL and the paste."
+            "State mismatch: that URL is from an earlier attempt or "
+            "session. Redo the consent from the auth URL printed above, "
+            "then paste the fresh address-bar URL."
         )
     code = (params.get("code") or [""])[0]
     if not code:
         raise MgdioAuthError(
-            "No authorization code in the pasted URL. Copy the FULL "
-            "failed-redirect URL from the address bar (it contains "
+            "No authorization code found. Copy the FULL address-bar URL "
+            "from the failed/blank post-consent page (it contains "
             "'code=...')."
+        )
+    if not state:
+        logger.warning(
+            "Pasted value had no 'state' parameter; proceeding with the " "code alone."
         )
     return code
 
@@ -209,17 +269,34 @@ def _prompt_and_save_app_credentials() -> None:
 
 
 def _print_headless_instructions(auth_url: str) -> None:
-    """Print the auth URL + copy-paste steps to stderr."""
+    """Print the copy-paste steps + auth URL to stderr, warning FIRST.
+
+    The dead-page warning deliberately comes *before* the auth URL:
+    users open the URL the moment they see it and never read past it,
+    then mistake the failed post-consent page for breakage.
+    """
     msg = (
         "\n=== mgdio headless Whoop auth ===\n\n"
+        "READ THIS FIRST: after you approve, your browser lands on a page\n"
+        "that FAILS to load or renders BLANK. That is EXPECTED -- the\n"
+        "address bar of that dead page holds the URL you paste back here.\n"
+        "It starts with:\n\n"
+        f"   {WHOOP_REDIRECT_URI}?...\n\n"
+        "(the redirect URI registered in your Whoop app -- the default\n"
+        "unless you set MGDIO_WHOOP_REDIRECT_URI).\n\n"
         "1. On a machine WITH a browser, open this URL:\n\n"
         f"   {auth_url}\n\n"
         "2. Sign in to Whoop and approve the requested access.\n"
-        "3. Your browser will be redirected to a URL starting with\n"
-        f"   '{WHOOP_REDIRECT_URI}?...' that FAILS to load -- that's\n"
-        "   EXPECTED (nothing is listening on YOUR machine either).\n"
-        "4. Copy the FULL URL from the address bar, paste it below,\n"
-        "   and press Enter.\n"
+        "3. Copy the FULL address-bar URL from the failed/blank page.\n"
+        "4. Paste it below and press Enter.\n\n"
+        "Troubleshooting:\n"
+        "* Page is BLANK instead of a connection error: something on that\n"
+        "  machine is listening on the callback port (VS Code\n"
+        "  port-forwarding, an orphaned `ssh -L`, another dev server).\n"
+        "  Harmless -- the address-bar URL is still all that matters.\n"
+        f"  `lsof -nP -i :{_BIND_PORT}` names the listener.\n"
+        "* Browser never leaves the consent page after approving: retry\n"
+        "  in a private window with extensions/ad-blockers disabled.\n"
     )
     # stderr so stdout stays clean for callers that might pipe output.
     print(msg, file=sys.stderr, flush=True)
@@ -290,10 +367,32 @@ def _validate_access_token(access_token: str) -> tuple[bool, str]:
     except requests.RequestException as exc:
         return False, f"Could not reach Whoop: {exc}"
     if resp.status_code == 200:
-        return True, "Authorized."
+        return True, _authorized_message(resp)
     if resp.status_code == 401:
         return False, "Whoop rejected the access token (401)."
     return False, f"Whoop returned HTTP {resp.status_code}: {resp.text[:200]}"
+
+
+def _authorized_message(resp: requests.Response) -> str:
+    """``"Authorized as First Last (email)."`` when the profile body allows.
+
+    Naming the verified account confirms the *right* one was authorized
+    without a follow-up ``mgdio whoop profile``.
+    """
+    try:
+        profile = resp.json()
+    except ValueError:
+        return "Authorized."
+    if not isinstance(profile, dict):
+        return "Authorized."
+    name = " ".join(
+        part
+        for part in [profile.get("first_name", ""), profile.get("last_name", "")]
+        if part
+    )
+    email = profile.get("email", "")
+    who = f"{name} ({email})" if name and email else name or email
+    return f"Authorized as {who}." if who else "Authorized."
 
 
 def _save_app_credentials(client_id: str, client_secret: str) -> None:
@@ -443,7 +542,7 @@ def _make_handler_class(result: SetupResult):
                 return
 
             result.token = bundle
-            self._send_html(_render_done(True, "Authorized! You can close this tab."))
+            self._send_html(_render_done(True, f"{message} You can close this tab."))
             result.done_event.set()
 
         def _handle_cancel(self) -> None:

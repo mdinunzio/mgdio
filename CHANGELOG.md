@@ -5,6 +5,39 @@ Notable changes to mgdio. The format follows
 [Semantic Versioning](https://semver.org/). Releases before 0.3.5 predate
 this file — see the git history.
 
+## [0.4.1] - 2026-08-03
+
+UX/robustness pass on `mgdio auth whoop --headless`, from field feedback
+of a real re-auth session (VPS + Mac browser).
+
+### Changed
+
+- **Instructions warn about the dead page *before* the auth URL.** Users
+  open the URL the moment they see it and never read further, then
+  mistake the failed post-consent page for breakage. The warning now
+  leads, covers the page rendering **blank** (not just failing), names
+  the expected address-bar prefix (the registered redirect URI, default
+  `http://localhost:8765/callback` unless `MGDIO_WHOOP_REDIRECT_URI` is
+  set), and the input prompt itself repeats the instruction.
+- **Troubleshooting is printed with the instructions**: a blank page
+  means something local is listening on the callback port (VS Code
+  port-forwarding, an orphaned `ssh -L`, another dev server) — harmless,
+  `lsof -nP -i :<port>` names it; a browser stuck on the consent screen
+  suggests retrying in a private window without extensions.
+- **Tolerant paste parsing.** Whitespace/line-wraps from terminal
+  copying are collapsed; a bare `code=...&state=...` (or `code=...`)
+  fragment is accepted alongside a full URL. A missing `state` is
+  allowed with a warning; a wrong one is still rejected.
+- **Bad pastes re-prompt instead of aborting** (up to 3 attempts, with a
+  specific hint). The `state` is minted once per run, so the printed
+  auth URL — and any consent already completed from it — stays valid
+  across retries; previously an abort minted a new state on re-run,
+  invalidating the URL the user had already used.
+- **Successful auth names the account**: `Authorized as First Last
+  (email).` — from the `/v2/user/profile/basic` validation call that
+  already runs — so a wrong-account consent is caught immediately (also
+  shown on the browser flow's result page).
+
 ## [0.4.0] - 2026-07-23
 
 ### Added

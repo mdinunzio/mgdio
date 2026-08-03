@@ -849,6 +849,16 @@ browserless machine (a Linux VPS, SSH-only), use
 `mgdio auth whoop --headless`: mgdio prints the auth URL to open on any
 device with a browser, and you paste the failed-redirect URL back into
 the terminal (same copy-paste pattern as `mgdio auth google --headless`).
+After you approve, the browser lands on a page that **fails to load or
+renders blank — that's expected**: the URL to paste is in that dead
+page's address bar, and it starts with your registered redirect URI
+(`http://localhost:8765/callback` by default). A *blank* page (rather
+than a connection error) just means something local is listening on the
+callback port — VS Code port-forwarding, an orphaned `ssh -L`, another
+dev server; harmless, only the address-bar URL matters
+(`lsof -nP -i :8765` names the listener). Bad or empty pastes re-prompt
+(the printed auth URL stays valid), and success prints which Whoop
+account was authorized.
 
 > **Stale refresh tokens.** Whoop rotates refresh tokens on every use
 > and rejects a token that has fallen out of rotation. When that happens

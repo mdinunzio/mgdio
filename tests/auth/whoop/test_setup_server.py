@@ -88,6 +88,28 @@ class TestValidateAccessToken:
         ok, _msg = _setup_server._validate_access_token("acc")
         assert ok is True
 
+    def test_200_names_the_authorized_account(self, monkeypatch):
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {
+            "first_name": "Jane",
+            "last_name": "Doe",
+            "email": "jane@example.com",
+        }
+        monkeypatch.setattr(_setup_server.requests, "get", MagicMock(return_value=resp))
+        ok, msg = _setup_server._validate_access_token("acc")
+        assert ok is True
+        assert msg == "Authorized as Jane Doe (jane@example.com)."
+
+    def test_200_with_unparseable_body_still_authorizes(self, monkeypatch):
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.side_effect = ValueError("no json")
+        monkeypatch.setattr(_setup_server.requests, "get", MagicMock(return_value=resp))
+        ok, msg = _setup_server._validate_access_token("acc")
+        assert ok is True
+        assert msg == "Authorized."
+
     def test_401_returns_not_ok(self, monkeypatch):
         resp = MagicMock()
         resp.status_code = 401
@@ -132,6 +154,18 @@ class TestParseRedirectUrl:
     def test_extracts_code_when_state_matches(self):
         url = f"{WHOOP_REDIRECT_URI}?code=abc123&state=st-1"
         assert _setup_server._parse_redirect_url(url, "st-1") == "abc123"
+
+    def test_accepts_bare_query_fragment(self):
+        assert _setup_server._parse_redirect_url("code=abc&state=st-1", "st-1") == "abc"
+
+    def test_accepts_bare_code_without_state(self):
+        # A hand-trimmed paste: allowed (with a logged warning).
+        assert _setup_server._parse_redirect_url("code=abc", "st-1") == "abc"
+
+    def test_state_mismatch_hint_mentions_earlier_attempt(self):
+        url = f"{WHOOP_REDIRECT_URI}?code=abc&state=other"
+        with pytest.raises(MgdioAuthError, match="earlier attempt"):
+            _setup_server._parse_redirect_url(url, "st-1")
 
     def test_state_mismatch_raises(self):
         url = f"{WHOOP_REDIRECT_URI}?code=abc&state=other"
@@ -212,10 +246,44 @@ class TestRunHeadlessFlow:
         )
         assert saved == {"client_id": "new-cid", "client_secret": "new-csec"}
 
-    def test_empty_paste_raises(self, fake_keyring, monkeypatch):
-        self._arrange(fake_keyring, monkeypatch, inputs=["   "])
-        with pytest.raises(MgdioAuthError, match="No URL pasted"):
+    def test_all_empty_pastes_raise_after_max_attempts(self, fake_keyring, monkeypatch):
+        self._arrange(fake_keyring, monkeypatch, inputs=["   ", "", " "])
+        with pytest.raises(MgdioAuthError, match="after 3 attempts"):
             _setup_server.run_headless_flow()
+
+    def test_bad_paste_reprompts_then_succeeds(self, fake_keyring, monkeypatch):
+        good = f"{WHOOP_REDIRECT_URI}?code=the-code&state=st-1"
+        stale = f"{WHOOP_REDIRECT_URI}?code=old&state=stale-state"
+        self._arrange(fake_keyring, monkeypatch, inputs=["", stale, good])
+        bundle = {"access_token": "acc"}
+        exchange = MagicMock(return_value=bundle)
+        monkeypatch.setattr(_setup_server, "_exchange_code", exchange)
+        monkeypatch.setattr(
+            _setup_server, "_validate_access_token", lambda t: (True, "Authorized.")
+        )
+
+        assert _setup_server.run_headless_flow() is bundle
+        exchange.assert_called_once_with("the-code")
+
+    def test_persistently_stale_state_raises_mismatch(self, fake_keyring, monkeypatch):
+        stale = f"{WHOOP_REDIRECT_URI}?code=old&state=stale-state"
+        self._arrange(fake_keyring, monkeypatch, inputs=[stale, stale, stale])
+        with pytest.raises(MgdioAuthError, match="State mismatch"):
+            _setup_server.run_headless_flow()
+
+    def test_line_wrapped_paste_is_accepted(self, fake_keyring, monkeypatch):
+        # Terminal copying wraps long URLs; whitespace inside the paste
+        # must not break parsing.
+        wrapped = f"{WHOOP_REDIRECT_URI}?code=the-\n  code&state=st-1  "
+        self._arrange(fake_keyring, monkeypatch, inputs=[wrapped])
+        exchange = MagicMock(return_value={"access_token": "a"})
+        monkeypatch.setattr(_setup_server, "_exchange_code", exchange)
+        monkeypatch.setattr(
+            _setup_server, "_validate_access_token", lambda t: (True, "Authorized.")
+        )
+
+        _setup_server.run_headless_flow()
+        exchange.assert_called_once_with("the-code")
 
     def test_validation_failure_raises(self, fake_keyring, monkeypatch):
         pasted = f"{WHOOP_REDIRECT_URI}?code=c&state=st-1"

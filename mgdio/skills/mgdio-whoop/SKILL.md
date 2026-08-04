@@ -21,11 +21,15 @@ authorize. If a command fails with an auth error, tell them to run that.
 On a browserless machine (VPS, SSH session), `mgdio auth whoop --headless`
 prints the auth URL to open elsewhere and prompts for the redirect URL to
 be pasted back. Warn the user up front: after approving, the browser lands
-on a page that fails to load **or renders blank** -- that is expected, and
-the URL to paste is in that dead page's address bar (it starts with the
-registered redirect URI, `http://localhost:8765/callback` by default). A
-blank page just means something local (VS Code port-forwarding, an
-orphaned `ssh -L`) is listening on the callback port; harmless. If a command fails with `MgdioInteractionRequiredError`
+on a page that fails to load -- that is expected, and the URL to paste is
+in that dead page's address bar (it starts with the registered redirect
+URI, `http://localhost:8765/callback` by default). If the callback URL
+never appears in the address bar (a local listener such as VS Code
+port-forwarding can hang the redirect), have the user pull it from
+DevTools instead: Network panel -> tick 'Preserve log' -> click GRANT
+again -> copy the `Location` response header off the 302
+`auth?client_id=...` request, and paste it quickly (the code expires
+within minutes). If a command fails with `MgdioInteractionRequiredError`
 ("cannot run an interactive auth flow"), the stored refresh token was
 rejected on a non-interactive host -- the user must re-run
 `mgdio auth whoop` in a terminal on that machine; transient network

@@ -5,6 +5,24 @@ Notable changes to mgdio. The format follows
 [Semantic Versioning](https://semver.org/). Releases before 0.3.5 predate
 this file — see the git history.
 
+## [0.4.3] - 2026-08-03
+
+### Changed
+
+- **Whoop headless troubleshooting rewritten from live field debugging.**
+  Removed the blank-page ("harmless, use the address bar") and
+  try-incognito bullets — both proved unhelpful or counterproductive: a
+  local listener that *hangs* the redirect (VS Code Remote-SSH
+  auto-forwarding, which re-arms itself because it forwards any
+  `localhost:<port>` URL printed in an integrated terminal — including
+  the callback URI these very instructions print) keeps the callback URL
+  out of the address bar until the one-time auth code has expired.
+  Replaced with the capture method that works regardless: DevTools →
+  Network → Preserve log → GRANT again → copy the `Location` response
+  header off the 302 — with a note to paste quickly. README and the
+  whoop skill carry the same guidance, plus the
+  `"remote.autoForwardPorts": false` fix for the VS Code loop.
+
 ## [0.4.2] - 2026-08-03
 
 ### Fixed

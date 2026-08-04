@@ -309,3 +309,67 @@ class TestClosedStdin:
         monkeypatch.setattr("builtins.input", MagicMock(side_effect=EOFError))
         with pytest.raises(MgdioAuthError, match="stdin closed"):
             _setup_server.run_headless_flow()
+
+
+class TestCatchServer:
+    def _start(self, monkeypatch):
+        """Bind the catcher on an ephemeral port; return (server, port)."""
+        import threading
+
+        monkeypatch.setattr(_setup_server, "_BIND_PORT", 0)
+        server = _setup_server._make_catch_server()
+        port = server.server_address[1]
+        # The handler echoes _BIND_PORT in the URL; align it with reality.
+        monkeypatch.setattr(_setup_server, "_BIND_PORT", port)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        return server, port
+
+    def test_echoes_callback_url_on_page_and_terminal(self, monkeypatch, capsys):
+        import requests
+
+        server, port = self._start(monkeypatch)
+        try:
+            resp = requests.get(
+                f"http://localhost:{port}/callback?code=abc123&state=st-9",
+                timeout=5,
+            )
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        assert resp.status_code == 200
+        assert "Callback caught" in resp.text
+        assert "code=abc123" in resp.text
+        assert "state=st-9" in resp.text
+        err = capsys.readouterr().err
+        assert "code=abc123" in err
+
+    def test_404s_non_callback_paths(self, monkeypatch):
+        import requests
+
+        server, port = self._start(monkeypatch)
+        try:
+            resp = requests.get(f"http://localhost:{port}/favicon.ico", timeout=5)
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        assert resp.status_code == 404
+
+    def test_bind_failure_raises_actionable_error(self, monkeypatch):
+        monkeypatch.setattr(
+            _setup_server,
+            "ThreadingHTTPServer",
+            MagicMock(side_effect=OSError("address already in use")),
+        )
+        with pytest.raises(MgdioAuthError, match="lsof"):
+            _setup_server._make_catch_server()
+
+
+class TestRenderCaught:
+    def test_escapes_html_in_url(self):
+        page = _setup_server._render_caught(
+            "http://localhost:8765/callback?code=a<b>&state=c"
+        )
+        assert "a<b>" not in page
+        assert "a&lt;b&gt;" in page

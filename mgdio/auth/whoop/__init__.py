@@ -8,6 +8,7 @@ stores it in the OS keyring. Access tokens auto-refresh on expiry.
 
 from __future__ import annotations
 
+from mgdio.auth.whoop._setup_server import run_catch_server
 from mgdio.auth.whoop.auth import (
     authorize,
     clear_stored_token,
@@ -15,4 +16,10 @@ from mgdio.auth.whoop.auth import (
     reset_token_cache,
 )
 
-__all__ = ["authorize", "clear_stored_token", "get_access_token", "reset_token_cache"]
+__all__ = [
+    "authorize",
+    "clear_stored_token",
+    "get_access_token",
+    "reset_token_cache",
+    "run_catch_server",
+]

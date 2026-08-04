@@ -5,6 +5,25 @@ Notable changes to mgdio. The format follows
 [Semantic Versioning](https://semver.org/). Releases before 0.3.5 predate
 this file — see the git history.
 
+## [0.5.0] - 2026-08-03
+
+### Added
+
+- **`mgdio auth whoop --catch`** — the callback catcher, run on the
+  machine *with* the browser while `--headless` waits on the other
+  machine. It binds the redirect URI locally, so the post-consent
+  redirect lands on a real page that displays the full callback URL
+  (with a copy button; also printed in the catcher's terminal) instead
+  of a dead page whose address bar must be scavenged. This flips the
+  headless flow's fragile contract — "the redirect must fail fast" —
+  to "the redirect is served," making local listeners, port-forward
+  hangs, and browser localhost policies irrelevant. The catcher never
+  sees app credentials and stores nothing; it only relays the URL,
+  which still gets pasted into the waiting prompt. Runs until Ctrl-C
+  so a re-consent after an expired code is caught too. The headless
+  instructions now mention it, and `run_catch_server` is exported from
+  `mgdio.auth.whoop`.
+
 ## [0.4.3] - 2026-08-03
 
 ### Changed

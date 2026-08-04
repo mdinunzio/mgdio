@@ -21,6 +21,7 @@ from mgdio.auth.maps import authorize as authorize_maps
 from mgdio.auth.maps import clear_stored_token as clear_maps_key
 from mgdio.auth.whoop import authorize as authorize_whoop
 from mgdio.auth.whoop import clear_stored_token as clear_whoop_token
+from mgdio.auth.whoop import run_catch_server as run_whoop_catch_server
 from mgdio.auth.ynab import authorize as authorize_ynab
 from mgdio.auth.ynab import clear_stored_token as clear_ynab_token
 from mgdio.calendar import (
@@ -300,7 +301,17 @@ def auth_ynab(reset: bool, headless: bool) -> None:
         "For machines without a browser (e.g. a Linux VPS)."
     ),
 )
-def auth_whoop(reset: bool, headless: bool) -> None:
+@click.option(
+    "--catch",
+    "catch",
+    is_flag=True,
+    help=(
+        "Run the callback catcher on the machine WITH the browser while "
+        "--headless waits on the other machine: serves the redirect URI "
+        "locally so the post-consent page shows the URL to paste."
+    ),
+)
+def auth_whoop(reset: bool, headless: bool, catch: bool) -> None:
     """Run (or re-run) the Whoop OAuth onboarding flow.
 
     Opens a localhost setup page in your browser: paste your Whoop app's
@@ -310,12 +321,24 @@ def auth_whoop(reset: bool, headless: bool) -> None:
 
     Pass ``--headless`` on machines without a browser (e.g. a Linux VPS):
     mgdio prints the auth URL to open elsewhere and prompts for the
-    resulting redirect URL to be pasted back.
+    resulting redirect URL to be pasted back. On the machine where you
+    open that URL, run ``mgdio auth whoop --catch`` first -- the
+    post-consent page then displays the URL to paste instead of failing
+    to load.
 
     The redirect URI defaults to ``http://localhost:8765/callback`` and
     can be overridden with the ``MGDIO_WHOOP_REDIRECT_URI`` env var (must
     match what's registered in your Whoop app).
     """
+    if catch:
+        if reset or headless:
+            raise click.UsageError(
+                "--catch runs alone on the browser machine; don't combine "
+                "it with --reset/--headless (those belong on the machine "
+                "being authorized)."
+            )
+        run_whoop_catch_server()
+        return
     if reset:
         clear_whoop_token()
     authorize_whoop(headless=headless)

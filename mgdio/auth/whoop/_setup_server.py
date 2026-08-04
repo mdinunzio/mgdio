@@ -24,6 +24,7 @@ registered in their Whoop app. Override the URI via
 
 from __future__ import annotations
 
+import html
 import json
 import logging
 import secrets
@@ -173,6 +174,100 @@ _MAX_PASTE_ATTEMPTS = 3
 _PASTE_PROMPT = "paste the FULL address-bar URL from the failed/blank page > "
 
 
+def run_catch_server() -> None:
+    """Serve the OAuth callback locally and display the URL to paste.
+
+    The ``--catch`` companion to :func:`run_headless_flow`: run this on
+    the machine WITH the browser while the headless prompt waits on the
+    other machine. It binds the redirect URI's host/port, so the
+    post-consent redirect lands on a real page showing the full
+    callback URL to paste -- no dead page, no address-bar spelunking,
+    and immune to port-forward hangs (the design stops depending on the
+    redirect *failing* and serves it instead).
+
+    Nothing is exchanged or stored here: the catcher never sees app
+    credentials, only relays the redirect URL. Runs until Ctrl-C so a
+    re-consent after an expired code is caught too.
+
+    Raises:
+        MgdioAuthError: If the redirect URI's port can't be bound.
+    """
+    server = _make_catch_server()
+    print(
+        f"\n=== mgdio Whoop callback catcher ===\n\n"
+        f"Listening at {WHOOP_REDIRECT_URI}\n\n"
+        f"1. On the OTHER machine, run `mgdio auth whoop --headless`.\n"
+        f"2. Open the auth URL it prints in a browser on THIS machine.\n"
+        f"3. Approve -- the post-consent page here will show the full\n"
+        f"   callback URL (also printed below). Paste it into the\n"
+        f"   waiting prompt quickly; its code expires within minutes.\n\n"
+        f"Press Ctrl-C to stop.\n",
+        file=sys.stderr,
+        flush=True,
+    )
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nStopped.", file=sys.stderr, flush=True)
+    finally:
+        server.server_close()
+
+
+def _make_catch_server() -> ThreadingHTTPServer:
+    """Bind the redirect URI's host/port with the catch handler.
+
+    Raises:
+        MgdioAuthError: If the port is taken (names the usual suspects).
+    """
+    try:
+        return ThreadingHTTPServer(
+            (_BIND_HOST, _BIND_PORT), _make_catch_handler_class()
+        )
+    except OSError as exc:
+        raise MgdioAuthError(
+            f"Could not bind {_BIND_HOST}:{_BIND_PORT} for the catcher "
+            f"({exc}). Something already holds that port -- VS Code "
+            f"port-forwarding is a common culprit "
+            f"(`lsof -nP -i :{_BIND_PORT}` names it). Free the port, or "
+            f"set MGDIO_WHOOP_REDIRECT_URI to a different host/port (and "
+            f"update your Whoop app to match)."
+        ) from exc
+
+
+def _make_catch_handler_class():
+    """Request handler that echoes the callback URL instead of using it."""
+
+    class _CatchHandler(BaseHTTPRequestHandler):
+        def log_message(self, format: str, *args) -> None:  # noqa: A002
+            logger.debug(
+                "whoop-catch-server %s - %s", self.address_string(), format % args
+            )
+
+        def do_GET(self) -> None:  # noqa: N802
+            if urlparse(self.path).path != _CALLBACK_PATH:
+                self.send_error(404)
+                return
+            url = f"http://{_BIND_HOST}:{_BIND_PORT}{self.path}"
+            print(
+                f"\nCaught callback -- paste this into the waiting prompt:\n\n"
+                f"{url}\n",
+                file=sys.stderr,
+                flush=True,
+            )
+            body = _render_caught(url).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    return _CatchHandler
+
+
+def _render_caught(url: str) -> str:
+    return _CAUGHT_TEMPLATE.format(url=html.escape(url, quote=True))
+
+
 def _read_line(prompt: str) -> str:
     """``input()`` that turns a closed stdin into an actionable error.
 
@@ -306,6 +401,9 @@ def _print_headless_instructions(auth_url: str) -> None:
         "2. Sign in to Whoop and approve the requested access.\n"
         "3. Copy the FULL address-bar URL from the failed/blank page.\n"
         "4. Paste it below and press Enter.\n\n"
+        "Tip: if mgdio is installed on the browser machine, run\n"
+        "`mgdio auth whoop --catch` there FIRST -- the post-consent page\n"
+        "then displays the URL to paste instead of failing to load.\n\n"
         "Troubleshooting -- approved, but the address bar never shows the\n"
         "callback URL (or takes minutes)? Something on that machine is\n"
         "intercepting the redirect (VS Code port-forwarding is a common\n"
@@ -776,6 +874,54 @@ _DONE_TEMPLATE = """\
 <div class="icon">{icon}</div>
 <h1 class="{cls}">{message}</h1>
 <p>Return to your terminal.</p>
+</body>
+</html>
+"""
+
+_CAUGHT_TEMPLATE = """\
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>mgdio - Whoop callback caught</title>
+<style>
+  :root {{ color-scheme: light dark; }}
+  body {{
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    max-width: 760px; margin: 4rem auto; padding: 0 1.25rem;
+    text-align: center; line-height: 1.55;
+  }}
+  .icon {{ font-size: 3rem; }}
+  h1 {{ color: #16a34a; font-size: 1.6rem; }}
+  code {{
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    background: rgba(127,127,127,0.12); padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+  }}
+  textarea {{
+    width: 100%; min-height: 7rem; margin-top: 1rem; padding: 0.6rem;
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: 0.85rem; border-radius: 8px; box-sizing: border-box;
+  }}
+  button {{
+    margin-top: 0.75rem; padding: 0.55rem 1.4rem; font-size: 1rem;
+    border-radius: 8px; cursor: pointer;
+  }}
+  .hint {{ opacity: 0.7; font-size: 0.9rem; margin-top: 1rem; }}
+</style>
+</head>
+<body>
+<div class="icon">&#x1F3AF;</div>
+<h1>Callback caught</h1>
+<p>Paste this into the waiting <code>mgdio auth whoop --headless</code>
+prompt on the other machine:</p>
+<textarea readonly onclick="this.select()">{url}</textarea>
+<div><button onclick="
+  navigator.clipboard.writeText(document.querySelector('textarea').value)
+    .then(() => this.textContent = 'Copied!');
+">Copy to clipboard</button></div>
+<p class="hint">Move quickly &mdash; the code in this URL expires within
+minutes. The URL was also printed in the catcher's terminal.</p>
 </body>
 </html>
 """

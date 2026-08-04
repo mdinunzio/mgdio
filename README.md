@@ -855,9 +855,18 @@ browserless machine (a Linux VPS, SSH-only), use
 `mgdio auth whoop --headless`: mgdio prints the auth URL to open on any
 device with a browser, and you paste the failed-redirect URL back into
 the terminal (same copy-paste pattern as `mgdio auth google --headless`).
-After you approve, the browser lands on a page that **fails to load —
-that's expected**: the URL to paste is in that dead page's address bar,
-and it starts with your registered redirect URI
+**Best experience — pair it with `--catch`.** If mgdio is installed on
+the machine where you'll open the browser (e.g. your laptop), run
+`mgdio auth whoop --catch` there first. It serves the callback URI
+locally, so after you approve, the browser lands on a page that
+**displays the full callback URL** (copy button included; it's printed
+in the catcher's terminal too) — paste that into the waiting
+`--headless` prompt and you're done. The catcher never sees your app
+credentials and stores nothing.
+
+Without `--catch`, the browser instead lands on a page that **fails to
+load — that's expected**: the URL to paste is in that dead page's
+address bar, and it starts with your registered redirect URI
 (`http://localhost:8765/callback` by default). Bad or empty pastes
 re-prompt (the printed auth URL stays valid), and success prints which
 Whoop account was authorized.

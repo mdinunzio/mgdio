@@ -1154,3 +1154,28 @@ class TestVersionOption:
         assert __version__ in result.output
         assert "mgdio" in result.output
         assert "@" in result.output
+
+
+class TestAuthWhoopCatch:
+    def test_catch_runs_catcher_only(self, monkeypatch):
+        catcher = MagicMock()
+        authorize = MagicMock()
+        monkeypatch.setattr(cli_module, "run_whoop_catch_server", catcher)
+        monkeypatch.setattr(cli_module, "authorize_whoop", authorize)
+
+        result = CliRunner().invoke(cli_module.cli, ["auth", "whoop", "--catch"])
+
+        assert result.exit_code == 0, result.output
+        catcher.assert_called_once()
+        authorize.assert_not_called()
+
+    @pytest.mark.parametrize("extra", ["--headless", "--reset"])
+    def test_catch_rejects_other_flags(self, monkeypatch, extra):
+        catcher = MagicMock()
+        monkeypatch.setattr(cli_module, "run_whoop_catch_server", catcher)
+
+        result = CliRunner().invoke(cli_module.cli, ["auth", "whoop", "--catch", extra])
+
+        assert result.exit_code != 0
+        assert "--catch runs alone" in result.output
+        catcher.assert_not_called()

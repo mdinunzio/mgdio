@@ -101,3 +101,12 @@ The API reference is generated from docstrings by
 [mkdocstrings](https://mkdocstrings.github.io/), so keeping docstrings
 accurate keeps the reference accurate. The site deploys to GitHub Pages from
 `main` via `.github/workflows/docs.yml`.
+
+!!! note "The MkDocs 2.0 banner"
+    Material for MkDocs prints a warning about the unreleased MkDocs 2.0 on
+    every build. It is an advisory from the Material team, not a sign that
+    anything here is outdated; mgdio pins MkDocs 1.x. Set
+    `NO_MKDOCS_2_WARNING=1` in your shell to silence it (CI already does).
+
+The site follows your OS light/dark preference and has a toggle in the header
+to override it.

@@ -9,6 +9,11 @@ on:
 permissions:
   contents: write
 
+env:
+  # Material prints an advisory banner about the unreleased MkDocs 2.0 on
+  # every run; it is informational only. Keep CI logs quiet.
+  NO_MKDOCS_2_WARNING: "1"
+
 jobs:
   docs:
     runs-on: ubuntu-latest

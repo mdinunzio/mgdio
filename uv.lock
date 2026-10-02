@@ -1583,7 +1583,7 @@ requires-dist = [
     { name = "keyring", specifier = ">=25.0" },
     { name = "keyrings-alt", marker = "sys_platform == 'linux'", specifier = ">=5.0" },
     { name = "keyrings-alt", marker = "extra == 'dev'", specifier = ">=5.0" },
-    { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.6" },
+    { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.6,<2" },
     { name = "mkdocs-click", marker = "extra == 'docs'", specifier = ">=0.8" },
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.5" },
     { name = "mkdocstrings", extras = ["python"], marker = "extra == 'docs'", specifier = ">=0.26" },

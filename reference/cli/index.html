@@ -1,0 +1,5503 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Personal connectivity tools for Gmail, Calendar, Sheets, Drive, Maps, YNAB, and Whoop.">
+      
+      
+      
+        <link rel="canonical" href="https://mdinunzio.github.io/mgdio/reference/cli/">
+      
+      
+        <link rel="prev" href="../">
+      
+      
+        <link rel="next" href="../auth/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Command line - mgdio</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#command-line" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="mgdio" class="md-header__button md-logo" aria-label="mgdio" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            mgdio
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Command line
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mdinunzio/mgdio" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mdinunzio/mgdio
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../install/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  API reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../changelog/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../roadmap/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Roadmap
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="mgdio" class="md-nav__button md-logo" aria-label="mgdio" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    mgdio
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mdinunzio/mgdio" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mdinunzio/mgdio
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../auth/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authentication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Services
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Services
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../services/gmail/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gmail
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../services/sheets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sheets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../services/calendar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calendar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../services/drive/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Drive
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../services/maps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../services/ynab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YNAB
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../services/whoop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Whoop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../claude-skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Claude Code skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command line
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command line
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#mgdio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mgdio
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="mgdio">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-auth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        auth
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="auth">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-auth-google" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        google
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="google">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-auth-google-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        profiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-auth-google-remove" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        remove
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-auth-maps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        maps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-auth-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        status
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-auth-whoop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        whoop
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-auth-ynab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ynab
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-calendar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calendar
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="calendar">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-calendar-create" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        create
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-calendar-delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        delete
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-calendar-get" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-calendar-list-cals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        list-cals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-calendar-list-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        list-events
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-calendar-quick-add" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        quick-add
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-calendar-update" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        update
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        drive
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="drive">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-copy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        copy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        delete
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-download" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        download
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-empty-trash" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        empty-trash
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        export
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-get" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        list
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-mkdir" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mkdir
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-move" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        move
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-perms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        perms
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-rename" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rename
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-share" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        share
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-trash" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        trash
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-unshare" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        unshare
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-upload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        upload
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-gmail" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        gmail
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="gmail">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-gmail-get" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-gmail-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        list
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-gmail-send" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        send
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-maps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        maps
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="maps">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-maps-directions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        directions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-maps-distance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        distance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-maps-duration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        duration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-maps-geocode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        geocode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-maps-reverse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        reverse
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-sheets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sheets
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="sheets">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-sheets-append" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        append
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-sheets-clear" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        clear
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-sheets-create" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        create
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-sheets-info" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        info
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-sheets-read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        read
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-sheets-write" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        write
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-skills" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        skills
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="skills">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-skills-deploy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        deploy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-skills-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        list
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-whoop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        whoop
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="whoop">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-whoop-body" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        body
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-whoop-cycles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cycles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-whoop-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        profile
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-whoop-recoveries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        recoveries
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-whoop-sleeps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sleeps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-whoop-workouts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        workouts
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-ynab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ynab
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ynab">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-ynab-accounts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        accounts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-ynab-budgets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        budgets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-ynab-categories" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        categories
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-ynab-transactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        transactions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-ynab-update-tx" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        update-tx
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../auth/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mgdio.auth
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gmail/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mgdio.gmail
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sheets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mgdio.sheets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../calendar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mgdio.calendar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../drive/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mgdio.drive
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../maps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mgdio.maps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ynab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mgdio.ynab
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../whoop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mgdio.whoop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mgdio.settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../exceptions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mgdio.exceptions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#mgdio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mgdio
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="mgdio">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-auth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        auth
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="auth">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-auth-google" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        google
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="google">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-auth-google-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        profiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-auth-google-remove" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        remove
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-auth-maps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        maps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-auth-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        status
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-auth-whoop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        whoop
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-auth-ynab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ynab
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-calendar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calendar
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="calendar">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-calendar-create" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        create
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-calendar-delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        delete
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-calendar-get" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-calendar-list-cals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        list-cals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-calendar-list-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        list-events
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-calendar-quick-add" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        quick-add
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-calendar-update" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        update
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        drive
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="drive">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-copy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        copy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        delete
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-download" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        download
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-empty-trash" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        empty-trash
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        export
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-get" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        list
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-mkdir" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mkdir
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-move" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        move
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-perms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        perms
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-rename" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rename
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-share" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        share
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-trash" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        trash
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-unshare" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        unshare
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-drive-upload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        upload
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-gmail" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        gmail
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="gmail">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-gmail-get" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-gmail-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        list
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-gmail-send" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        send
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-maps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        maps
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="maps">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-maps-directions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        directions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-maps-distance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        distance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-maps-duration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        duration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-maps-geocode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        geocode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-maps-reverse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        reverse
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-sheets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sheets
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="sheets">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-sheets-append" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        append
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-sheets-clear" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        clear
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-sheets-create" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        create
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-sheets-info" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        info
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-sheets-read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        read
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-sheets-write" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        write
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-skills" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        skills
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="skills">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-skills-deploy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        deploy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-skills-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        list
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-whoop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        whoop
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="whoop">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-whoop-body" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        body
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-whoop-cycles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cycles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-whoop-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        profile
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-whoop-recoveries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        recoveries
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-whoop-sleeps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sleeps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-whoop-workouts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        workouts
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-ynab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ynab
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ynab">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-ynab-accounts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        accounts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-ynab-budgets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        budgets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-ynab-categories" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        categories
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-ynab-transactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        transactions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mgdio-ynab-update-tx" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        update-tx
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/mdinunzio/mgdio/edit/main/docs/reference/cli.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="command-line">Command line<a class="headerlink" href="#command-line" title="Permanent link">&para;</a></h1>
+<p>The <code>mgdio</code> console script (also <code>python -m mgdio</code>) exposes every service as a
+command group. The sections below are generated from the click definitions in
+<code>mgdio.cli</code>, so they always match <code>--help</code>.</p>
+<p>Google service commands accept <code>--profile &lt;slug&gt;</code>; see
+<a href="../../auth/#multiple-google-accounts-profiles">profiles</a>.</p>
+<h2 id="mgdio">mgdio<a class="headerlink" href="#mgdio" title="Permanent link">&para;</a></h2>
+<p>mgdio: personal connectivity tools.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mgdio [OPTIONS] COMMAND [ARGS]...
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--version</code></td>
+<td>boolean</td>
+<td>Show the version and exit.</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="mgdio-auth">mgdio auth<a class="headerlink" href="#mgdio-auth" title="Permanent link">&para;</a></h3>
+<p>Authentication commands.</p>
+<p>Future providers will land as siblings:</p>
+<p>mgdio auth twilio   # planned</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mgdio auth [OPTIONS] COMMAND [ARGS]...
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-auth-google">mgdio auth google<a class="headerlink" href="#mgdio-auth-google" title="Permanent link">&para;</a></h4>
+<p>Run (or re-run) the Google OAuth onboarding flow for a profile.</p>
+<p>Requests Gmail + Calendar + Sheets + Drive scopes in a single consent
+screen. The token is stored in your OS keyring under
+<code>mgdio:google:&lt;profile&gt;</code>. <code>--profile</code> is required.</p>
+<p>Pass <code>--headless</code> on machines without a browser (e.g. a Linux VPS):
+mgdio will print the auth URL and prompt for the resulting redirect
+URL to be pasted back, instead of opening a localhost setup page.</p>
+<p>Run <code>mgdio auth google profiles</code> to list configured profiles.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mgdio auth google [OPTIONS] COMMAND [ARGS]...
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Account profile slug to authorize, e.g. mdinunziosvc.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--reset</code></td>
+<td>boolean</td>
+<td>Delete this profile's stored token before running.</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--headless</code></td>
+<td>boolean</td>
+<td>Use the copy-paste flow instead of the localhost setup page. For machines without a browser (e.g. a Linux VPS).</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h5 id="mgdio-auth-google-profiles">mgdio auth google profiles<a class="headerlink" href="#mgdio-auth-google-profiles" title="Permanent link">&para;</a></h5>
+<p>List configured Google account profiles.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mgdio auth google profiles [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h5 id="mgdio-auth-google-remove">mgdio auth google remove<a class="headerlink" href="#mgdio-auth-google-remove" title="Permanent link">&para;</a></h5>
+<p>Delete stored Google credentials (a profile, the legacy token, or all).</p>
+<p>Examples: <code>mgdio auth google remove --profile personal</code>,
+<code>--legacy</code> (the old token), or <code>--all</code>.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mgdio auth google remove [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Profile slug to remove.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--legacy</code></td>
+<td>boolean</td>
+<td>Remove the pre-profiles token at the bare 'mgdio:google' service.</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--all</code></td>
+<td>boolean</td>
+<td>Remove every profile (+ legacy).</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--yes</code>, <code>-y</code></td>
+<td>boolean</td>
+<td>Skip the confirmation prompt (for scripts).</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-auth-maps">mgdio auth maps<a class="headerlink" href="#mgdio-auth-maps" title="Permanent link">&para;</a></h4>
+<p>Run (or re-run) the Google Maps API-key onboarding flow.</p>
+<p>Maps uses an API key, not the shared Google login. Opens a localhost
+setup page with Cloud Console instructions (enable the Geocoding +
+Directions APIs, create a key); paste the key there and it's verified
+with a test geocode and saved to your OS keyring under <code>mgdio:maps</code>.</p>
+<p>Pass <code>--headless</code> on machines without a browser (e.g. a Linux VPS):
+mgdio prints the instructions and reads the key from the terminal
+instead of opening a localhost page.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mgdio auth maps [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--reset</code></td>
+<td>boolean</td>
+<td>Delete the stored API key before running, forcing a fresh paste flow.</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--headless</code></td>
+<td>boolean</td>
+<td>Paste the key on the terminal instead of a browser page (Linux VPS).</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-auth-status">mgdio auth status<a class="headerlink" href="#mgdio-auth-status" title="Permanent link">&para;</a></h4>
+<p>Show which providers are authenticated on this machine.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mgdio auth status [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-auth-whoop">mgdio auth whoop<a class="headerlink" href="#mgdio-auth-whoop" title="Permanent link">&para;</a></h4>
+<p>Run (or re-run) the Whoop OAuth onboarding flow.</p>
+<p>Opens a localhost setup page in your browser: paste your Whoop app's
+Client ID + Secret, click "Authorize with Whoop", and approve. The
+resulting token bundle is saved to your OS keyring under
+<code>mgdio:whoop</code> and refreshed automatically on expiry.</p>
+<p>Pass <code>--headless</code> on machines without a browser (e.g. a Linux VPS):
+mgdio prints the auth URL to open elsewhere and prompts for the
+resulting redirect URL to be pasted back. On the machine where you
+open that URL, run <code>mgdio auth whoop --catch</code> first -- the
+post-consent page then displays the URL to paste instead of failing
+to load.</p>
+<p>The redirect URI defaults to <code>http://localhost:8765/callback</code> and
+can be overridden with the <code>MGDIO_WHOOP_REDIRECT_URI</code> env var (must
+match what's registered in your Whoop app).</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>mgdio auth whoop [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--reset</code></td>
+<td>boolean</td>
+<td>Delete the stored token before running, forcing re-authorization.</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--headless</code></td>
+<td>boolean</td>
+<td>Use the copy-paste flow instead of the localhost setup page. For machines without a browser (e.g. a Linux VPS).</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--catch</code></td>
+<td>boolean</td>
+<td>Run the callback catcher on the machine WITH the browser while --headless waits on the other machine: serves the redirect URI locally so the post-consent page shows the URL to paste.</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-auth-ynab">mgdio auth ynab<a class="headerlink" href="#mgdio-auth-ynab" title="Permanent link">&para;</a></h4>
+<p>Run (or re-run) the YNAB personal-access-token onboarding flow.</p>
+<p>Opens a localhost setup page in your browser with instructions to
+mint a token at app.ynab.com/settings/developer; paste the token
+there and it's validated and saved to your OS keyring under
+<code>mgdio:ynab</code>.</p>
+<p>Pass <code>--headless</code> on machines without a browser (e.g. a Linux VPS):
+mgdio prints the instructions and reads the token from the terminal
+instead of opening a localhost page.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>mgdio auth ynab [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--reset</code></td>
+<td>boolean</td>
+<td>Delete the stored token before running, forcing a fresh paste flow.</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--headless</code></td>
+<td>boolean</td>
+<td>Paste the token on the terminal instead of a browser page (Linux VPS).</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="mgdio-calendar">mgdio calendar<a class="headerlink" href="#mgdio-calendar" title="Permanent link">&para;</a></h3>
+<p>Google Calendar commands.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>mgdio calendar [OPTIONS] COMMAND [ARGS]...
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-calendar-create">mgdio calendar create<a class="headerlink" href="#mgdio-calendar-create" title="Permanent link">&para;</a></h4>
+<p>Create a new event.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>mgdio calendar create [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--summary</code></td>
+<td>text</td>
+<td>N/A</td>
+<td><code>Sentinel.UNSET</code></td>
+</tr>
+<tr>
+<td><code>--start</code></td>
+<td>text</td>
+<td>ISO datetime, e.g. 2026-05-12T14:00:00-04:00.</td>
+<td><code>Sentinel.UNSET</code></td>
+</tr>
+<tr>
+<td><code>--end</code></td>
+<td>text</td>
+<td>ISO datetime, e.g. 2026-05-12T15:00:00-04:00.</td>
+<td><code>Sentinel.UNSET</code></td>
+</tr>
+<tr>
+<td><code>--description</code></td>
+<td>text</td>
+<td>N/A</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--location</code></td>
+<td>text</td>
+<td>N/A</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--attendee</code></td>
+<td>text</td>
+<td>Attendee email. Repeatable.</td>
+<td><code>Sentinel.UNSET</code></td>
+</tr>
+<tr>
+<td><code>--all-day</code></td>
+<td>boolean</td>
+<td>Treat start/end as date-only (time-of-day ignored).</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--calendar</code></td>
+<td>text</td>
+<td>N/A</td>
+<td><code>primary</code></td>
+</tr>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-calendar-delete">mgdio calendar delete<a class="headerlink" href="#mgdio-calendar-delete" title="Permanent link">&para;</a></h4>
+<p>Delete an event.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>mgdio calendar delete [OPTIONS] EVENT_ID
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--calendar</code></td>
+<td>text</td>
+<td>N/A</td>
+<td><code>primary</code></td>
+</tr>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-calendar-get">mgdio calendar get<a class="headerlink" href="#mgdio-calendar-get" title="Permanent link">&para;</a></h4>
+<p>Print a single event's details.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>mgdio calendar get [OPTIONS] EVENT_ID
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--calendar</code></td>
+<td>text</td>
+<td>N/A</td>
+<td><code>primary</code></td>
+</tr>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-calendar-list-cals">mgdio calendar list-cals<a class="headerlink" href="#mgdio-calendar-list-cals" title="Permanent link">&para;</a></h4>
+<p>List every calendar the authenticated user has access to.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>mgdio calendar list-cals [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-calendar-list-events">mgdio calendar list-events<a class="headerlink" href="#mgdio-calendar-list-events" title="Permanent link">&para;</a></h4>
+<p>List upcoming events on a calendar.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>mgdio calendar list-events [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--calendar</code></td>
+<td>text</td>
+<td>Calendar id (use list-cals to find non-primary ids).</td>
+<td><code>primary</code></td>
+</tr>
+<tr>
+<td><code>--max</code></td>
+<td>integer</td>
+<td>N/A</td>
+<td><code>10</code></td>
+</tr>
+<tr>
+<td><code>--query</code>, <code>-q</code></td>
+<td>text</td>
+<td>Free-text search.</td>
+<td>``</td>
+</tr>
+<tr>
+<td><code>--time-min</code></td>
+<td>text</td>
+<td>ISO datetime lower bound, e.g. 2026-05-09T00:00:00-04:00.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--time-max</code></td>
+<td>text</td>
+<td>ISO datetime upper bound, e.g. 2026-05-16T00:00:00-04:00.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-calendar-quick-add">mgdio calendar quick-add<a class="headerlink" href="#mgdio-calendar-quick-add" title="Permanent link">&para;</a></h4>
+<p>Create an event from a natural-language string (Google parses it).</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>mgdio calendar quick-add [OPTIONS] TEXT
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--calendar</code></td>
+<td>text</td>
+<td>N/A</td>
+<td><code>primary</code></td>
+</tr>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-calendar-update">mgdio calendar update<a class="headerlink" href="#mgdio-calendar-update" title="Permanent link">&para;</a></h4>
+<p>PATCH an event. Only options you pass are changed.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>mgdio calendar update [OPTIONS] EVENT_ID
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--calendar</code></td>
+<td>text</td>
+<td>N/A</td>
+<td><code>primary</code></td>
+</tr>
+<tr>
+<td><code>--summary</code></td>
+<td>text</td>
+<td>N/A</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--start</code></td>
+<td>text</td>
+<td>N/A</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--end</code></td>
+<td>text</td>
+<td>N/A</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--description</code></td>
+<td>text</td>
+<td>N/A</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--location</code></td>
+<td>text</td>
+<td>N/A</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--all-day</code></td>
+<td>boolean</td>
+<td>Mark new start/end as all-day. Required when updating times of an existing all-day event.</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="mgdio-drive">mgdio drive<a class="headerlink" href="#mgdio-drive" title="Permanent link">&para;</a></h3>
+<p>Google Drive commands (files, folders, sharing).</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>mgdio drive [OPTIONS] COMMAND [ARGS]...
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-drive-copy">mgdio drive copy<a class="headerlink" href="#mgdio-drive-copy" title="Permanent link">&para;</a></h4>
+<p>Copy a file.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>mgdio drive copy [OPTIONS] FILE_ID
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--name</code></td>
+<td>text</td>
+<td>Name for the copy.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--parent</code></td>
+<td>text</td>
+<td>Destination folder id.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-drive-delete">mgdio drive delete<a class="headerlink" href="#mgdio-drive-delete" title="Permanent link">&para;</a></h4>
+<p>Permanently delete a file (skips the trash -- irreversible).</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>mgdio drive delete [OPTIONS] FILE_ID
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-drive-download">mgdio drive download<a class="headerlink" href="#mgdio-drive-download" title="Permanent link">&para;</a></h4>
+<p>Download a binary file's content to LOCAL_PATH.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>mgdio drive download [OPTIONS] FILE_ID LOCAL_PATH
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-drive-empty-trash">mgdio drive empty-trash<a class="headerlink" href="#mgdio-drive-empty-trash" title="Permanent link">&para;</a></h4>
+<p>Permanently delete every trashed file (irreversible).</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>mgdio drive empty-trash [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-drive-export">mgdio drive export<a class="headerlink" href="#mgdio-drive-export" title="Permanent link">&para;</a></h4>
+<p>Export a Google-native doc (Docs/Sheets/Slides) to LOCAL_PATH.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>mgdio drive export [OPTIONS] FILE_ID LOCAL_PATH
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--mime</code></td>
+<td>text</td>
+<td>Export MIME type, e.g. application/pdf or text/csv.</td>
+<td><code>Sentinel.UNSET</code></td>
+</tr>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-drive-get">mgdio drive get<a class="headerlink" href="#mgdio-drive-get" title="Permanent link">&para;</a></h4>
+<p>Print a file's metadata.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>mgdio drive get [OPTIONS] FILE_ID
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-drive-list">mgdio drive list<a class="headerlink" href="#mgdio-drive-list" title="Permanent link">&para;</a></h4>
+<p>List / search files and folders.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>mgdio drive list [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--query</code>, <code>-q</code></td>
+<td>text</td>
+<td>Drive query (the <code>q</code> param).</td>
+<td>``</td>
+</tr>
+<tr>
+<td><code>--parent</code></td>
+<td>text</td>
+<td>Restrict to a folder id.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--order</code></td>
+<td>text</td>
+<td>Sort, e.g. 'modifiedTime desc'.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--trashed</code></td>
+<td>boolean</td>
+<td>Include trashed files (default excludes them).</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--max</code></td>
+<td>integer</td>
+<td>N/A</td>
+<td><code>25</code></td>
+</tr>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-drive-mkdir">mgdio drive mkdir<a class="headerlink" href="#mgdio-drive-mkdir" title="Permanent link">&para;</a></h4>
+<p>Create a folder.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>mgdio drive mkdir [OPTIONS] NAME
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--parent</code></td>
+<td>text</td>
+<td>Parent folder id.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-drive-move">mgdio drive move<a class="headerlink" href="#mgdio-drive-move" title="Permanent link">&para;</a></h4>
+<p>Move a file into a different folder.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>mgdio drive move [OPTIONS] FILE_ID NEW_PARENT_ID
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-drive-perms">mgdio drive perms<a class="headerlink" href="#mgdio-drive-perms" title="Permanent link">&para;</a></h4>
+<p>List a file's sharing permissions.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>mgdio drive perms [OPTIONS] FILE_ID
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-drive-rename">mgdio drive rename<a class="headerlink" href="#mgdio-drive-rename" title="Permanent link">&para;</a></h4>
+<p>Rename a file or folder.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>mgdio drive rename [OPTIONS] FILE_ID NEW_NAME
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-drive-share">mgdio drive share<a class="headerlink" href="#mgdio-drive-share" title="Permanent link">&para;</a></h4>
+<p>Grant a sharing permission on a file.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>mgdio drive share [OPTIONS] FILE_ID
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--role</code></td>
+<td>text</td>
+<td>N/A</td>
+<td><code>reader</code></td>
+</tr>
+<tr>
+<td><code>--email</code></td>
+<td>text</td>
+<td>Share with a person/group email.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--domain</code></td>
+<td>text</td>
+<td>Share with a Workspace domain.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--anyone</code></td>
+<td>boolean</td>
+<td>Share with anyone who has the link.</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--notify</code></td>
+<td>boolean</td>
+<td>Email the grantee (user/group only).</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-drive-trash">mgdio drive trash<a class="headerlink" href="#mgdio-drive-trash" title="Permanent link">&para;</a></h4>
+<p>Move a file to the trash (or --restore it).</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>mgdio drive trash [OPTIONS] FILE_ID
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--restore</code></td>
+<td>boolean</td>
+<td>Restore from trash instead.</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-drive-unshare">mgdio drive unshare<a class="headerlink" href="#mgdio-drive-unshare" title="Permanent link">&para;</a></h4>
+<p>Revoke a sharing permission (id from <code>drive perms</code>).</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>mgdio drive unshare [OPTIONS] FILE_ID PERMISSION_ID
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-drive-upload">mgdio drive upload<a class="headerlink" href="#mgdio-drive-upload" title="Permanent link">&para;</a></h4>
+<p>Upload a local file to Drive.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>mgdio drive upload [OPTIONS] LOCAL_PATH
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--name</code></td>
+<td>text</td>
+<td>Name in Drive (default: local name).</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--parent</code></td>
+<td>text</td>
+<td>Parent folder id.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="mgdio-gmail">mgdio gmail<a class="headerlink" href="#mgdio-gmail" title="Permanent link">&para;</a></h3>
+<p>Gmail commands (read, list, send).</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a>mgdio gmail [OPTIONS] COMMAND [ARGS]...
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-gmail-get">mgdio gmail get<a class="headerlink" href="#mgdio-gmail-get" title="Permanent link">&para;</a></h4>
+<p>Print one message's headers, snippet, and plain-text body.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a>mgdio gmail get [OPTIONS] MESSAGE_ID
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-gmail-list">mgdio gmail list<a class="headerlink" href="#mgdio-gmail-list" title="Permanent link">&para;</a></h4>
+<p>List recent inbox messages (subject + sender + date).</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a>mgdio gmail list [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--query</code>, <code>-q</code></td>
+<td>text</td>
+<td>Gmail search query.</td>
+<td>``</td>
+</tr>
+<tr>
+<td><code>--max</code></td>
+<td>integer</td>
+<td>Max messages to fetch.</td>
+<td><code>5</code></td>
+</tr>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-gmail-send">mgdio gmail send<a class="headerlink" href="#mgdio-gmail-send" title="Permanent link">&para;</a></h4>
+<p>Send an email.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a>mgdio gmail send [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--to</code></td>
+<td>text</td>
+<td>Recipient email address.</td>
+<td><code>Sentinel.UNSET</code></td>
+</tr>
+<tr>
+<td><code>--subject</code></td>
+<td>text</td>
+<td>N/A</td>
+<td><code>Sentinel.UNSET</code></td>
+</tr>
+<tr>
+<td><code>--body</code></td>
+<td>text</td>
+<td>Plain-text body.</td>
+<td><code>Sentinel.UNSET</code></td>
+</tr>
+<tr>
+<td><code>--cc</code></td>
+<td>text</td>
+<td>Optional cc address.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--bcc</code></td>
+<td>text</td>
+<td>Optional bcc address.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--html</code></td>
+<td>text</td>
+<td>Optional HTML body (sent as multipart/alternative).</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--attach</code></td>
+<td>file</td>
+<td>Attach a file. Repeatable.</td>
+<td><code>Sentinel.UNSET</code></td>
+</tr>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="mgdio-maps">mgdio maps<a class="headerlink" href="#mgdio-maps" title="Permanent link">&para;</a></h3>
+<p>Google Maps commands (geocoding, distance, directions).</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a>mgdio maps [OPTIONS] COMMAND [ARGS]...
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-maps-directions">mgdio maps directions<a class="headerlink" href="#mgdio-maps-directions" title="Permanent link">&para;</a></h4>
+<p>Print turn-by-turn directions between two locations.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a>mgdio maps directions [OPTIONS] ORIGIN DESTINATION
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--mode</code></td>
+<td>choice (<code>driving</code> &#x7C; <code>walking</code> &#x7C; <code>bicycling</code> &#x7C; <code>transit</code>)</td>
+<td>Travel mode.</td>
+<td><code>driving</code></td>
+</tr>
+<tr>
+<td><code>--units</code></td>
+<td>choice (<code>imperial</code> &#x7C; <code>metric</code>)</td>
+<td>Units for the distance/duration text.</td>
+<td><code>imperial</code></td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-maps-distance">mgdio maps distance<a class="headerlink" href="#mgdio-maps-distance" title="Permanent link">&para;</a></h4>
+<p>Print the travel distance between two locations.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a>mgdio maps distance [OPTIONS] ORIGIN DESTINATION
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--mode</code></td>
+<td>choice (<code>driving</code> &#x7C; <code>walking</code> &#x7C; <code>bicycling</code> &#x7C; <code>transit</code>)</td>
+<td>Travel mode.</td>
+<td><code>driving</code></td>
+</tr>
+<tr>
+<td><code>--units</code></td>
+<td>choice (<code>imperial</code> &#x7C; <code>metric</code>)</td>
+<td>Units for the distance/duration text.</td>
+<td><code>imperial</code></td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-maps-duration">mgdio maps duration<a class="headerlink" href="#mgdio-maps-duration" title="Permanent link">&para;</a></h4>
+<p>Print the travel time between two locations.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a>mgdio maps duration [OPTIONS] ORIGIN DESTINATION
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--mode</code></td>
+<td>choice (<code>driving</code> &#x7C; <code>walking</code> &#x7C; <code>bicycling</code> &#x7C; <code>transit</code>)</td>
+<td>Travel mode.</td>
+<td><code>driving</code></td>
+</tr>
+<tr>
+<td><code>--units</code></td>
+<td>choice (<code>imperial</code> &#x7C; <code>metric</code>)</td>
+<td>Units for the distance/duration text.</td>
+<td><code>imperial</code></td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-maps-geocode">mgdio maps geocode<a class="headerlink" href="#mgdio-maps-geocode" title="Permanent link">&para;</a></h4>
+<p>Geocode an address / place to its formatted address + coordinates.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-41-1" name="__codelineno-41-1" href="#__codelineno-41-1"></a>mgdio maps geocode [OPTIONS] ADDRESS
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-maps-reverse">mgdio maps reverse<a class="headerlink" href="#mgdio-maps-reverse" title="Permanent link">&para;</a></h4>
+<p>Reverse-geocode a coordinate to a postal address.</p>
+<p>LATLNG is a single "latitude,longitude" string, e.g.
+"40.714,-74.006" (a single token so the negative longitude isn't
+parsed as an option).</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a>mgdio maps reverse [OPTIONS] LATLNG
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="mgdio-sheets">mgdio sheets<a class="headerlink" href="#mgdio-sheets" title="Permanent link">&para;</a></h3>
+<p>Google Sheets commands.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-43-1" name="__codelineno-43-1" href="#__codelineno-43-1"></a>mgdio sheets [OPTIONS] COMMAND [ARGS]...
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-sheets-append">mgdio sheets append<a class="headerlink" href="#mgdio-sheets-append" title="Permanent link">&para;</a></h4>
+<p>Append --row values to the end of the table at range_.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a>mgdio sheets append [OPTIONS] SPREADSHEET_ID RANGE_
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--row</code></td>
+<td>text</td>
+<td>One row of comma-separated cells. Repeatable.</td>
+<td><code>Sentinel.UNSET</code></td>
+</tr>
+<tr>
+<td><code>--raw</code></td>
+<td>boolean</td>
+<td>N/A</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-sheets-clear">mgdio sheets clear<a class="headerlink" href="#mgdio-sheets-clear" title="Permanent link">&para;</a></h4>
+<p>Clear all values in range_ (formatting preserved).</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a>mgdio sheets clear [OPTIONS] SPREADSHEET_ID RANGE_
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-sheets-create">mgdio sheets create<a class="headerlink" href="#mgdio-sheets-create" title="Permanent link">&para;</a></h4>
+<p>Create a new spreadsheet.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-46-1" name="__codelineno-46-1" href="#__codelineno-46-1"></a>mgdio sheets create [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--title</code></td>
+<td>text</td>
+<td>New spreadsheet title.</td>
+<td><code>Sentinel.UNSET</code></td>
+</tr>
+<tr>
+<td><code>--tab</code></td>
+<td>text</td>
+<td>Initial tab name. Repeatable.</td>
+<td><code>Sentinel.UNSET</code></td>
+</tr>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-sheets-info">mgdio sheets info<a class="headerlink" href="#mgdio-sheets-info" title="Permanent link">&para;</a></h4>
+<p>Print metadata about a spreadsheet (title, tabs, url).</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-47-1" name="__codelineno-47-1" href="#__codelineno-47-1"></a>mgdio sheets info [OPTIONS] SPREADSHEET_ID
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-sheets-read">mgdio sheets read<a class="headerlink" href="#mgdio-sheets-read" title="Permanent link">&para;</a></h4>
+<p>Print a tab-separated dump of a range.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-48-1" name="__codelineno-48-1" href="#__codelineno-48-1"></a>mgdio sheets read [OPTIONS] SPREADSHEET_ID RANGE_
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-sheets-write">mgdio sheets write<a class="headerlink" href="#mgdio-sheets-write" title="Permanent link">&para;</a></h4>
+<p>Overwrite a range with --row values (comma-separated cells).</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-49-1" name="__codelineno-49-1" href="#__codelineno-49-1"></a>mgdio sheets write [OPTIONS] SPREADSHEET_ID RANGE_
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--row</code></td>
+<td>text</td>
+<td>One row of comma-separated cells. Repeatable.</td>
+<td><code>Sentinel.UNSET</code></td>
+</tr>
+<tr>
+<td><code>--raw</code></td>
+<td>boolean</td>
+<td>Use valueInputOption=RAW (no formula/date/number parsing).</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>Google account profile slug. Omit to use $MGDIO_GOOGLE_PROFILE or the sole configured profile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="mgdio-skills">mgdio skills<a class="headerlink" href="#mgdio-skills" title="Permanent link">&para;</a></h3>
+<p>Manage bundled Claude Code skills.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-50-1" name="__codelineno-50-1" href="#__codelineno-50-1"></a>mgdio skills [OPTIONS] COMMAND [ARGS]...
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-skills-deploy">mgdio skills deploy<a class="headerlink" href="#mgdio-skills-deploy" title="Permanent link">&para;</a></h4>
+<p>Copy bundled mgdio skills into a Claude Code skills directory.</p>
+<p>Default target: <code>./.claude/skills/</code> (the current project).
+With <code>--global</code>: <code>~/.claude/skills/</code> (every project).</p>
+<p>Existing skill directories are skipped unless <code>--force</code> is passed.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-51-1" name="__codelineno-51-1" href="#__codelineno-51-1"></a>mgdio skills deploy [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--global</code></td>
+<td>boolean</td>
+<td>Install to ~/.claude/skills/ (cross-project). Default: current project's .claude/skills/.</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--force</code></td>
+<td>boolean</td>
+<td>Overwrite existing skill directories instead of skipping.</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-skills-list">mgdio skills list<a class="headerlink" href="#mgdio-skills-list" title="Permanent link">&para;</a></h4>
+<p>List the Claude Code skills bundled with this mgdio version.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-52-1" name="__codelineno-52-1" href="#__codelineno-52-1"></a>mgdio skills list [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="mgdio-whoop">mgdio whoop<a class="headerlink" href="#mgdio-whoop" title="Permanent link">&para;</a></h3>
+<p>Whoop commands (recovery, sleep, workouts, cycles, profile).</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-53-1" name="__codelineno-53-1" href="#__codelineno-53-1"></a>mgdio whoop [OPTIONS] COMMAND [ARGS]...
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-whoop-body">mgdio whoop body<a class="headerlink" href="#mgdio-whoop-body" title="Permanent link">&para;</a></h4>
+<p>Print the authenticated user's body measurements.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-54-1" name="__codelineno-54-1" href="#__codelineno-54-1"></a>mgdio whoop body [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-whoop-cycles">mgdio whoop cycles<a class="headerlink" href="#mgdio-whoop-cycles" title="Permanent link">&para;</a></h4>
+<p>List physiological cycles (day strain).</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-55-1" name="__codelineno-55-1" href="#__codelineno-55-1"></a>mgdio whoop cycles [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--max</code></td>
+<td>integer</td>
+<td>Max records to fetch.</td>
+<td><code>10</code></td>
+</tr>
+<tr>
+<td><code>--start</code></td>
+<td>text</td>
+<td>ISO lower bound, e.g. 2026-05-01T00:00:00-04:00.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--end</code></td>
+<td>text</td>
+<td>ISO upper bound, e.g. 2026-05-12T00:00:00-04:00.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-whoop-profile">mgdio whoop profile<a class="headerlink" href="#mgdio-whoop-profile" title="Permanent link">&para;</a></h4>
+<p>Print the authenticated user's basic profile.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-56-1" name="__codelineno-56-1" href="#__codelineno-56-1"></a>mgdio whoop profile [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-whoop-recoveries">mgdio whoop recoveries<a class="headerlink" href="#mgdio-whoop-recoveries" title="Permanent link">&para;</a></h4>
+<p>List recovery records (recovery score, HRV, resting HR).</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-57-1" name="__codelineno-57-1" href="#__codelineno-57-1"></a>mgdio whoop recoveries [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--max</code></td>
+<td>integer</td>
+<td>Max records to fetch.</td>
+<td><code>10</code></td>
+</tr>
+<tr>
+<td><code>--start</code></td>
+<td>text</td>
+<td>ISO lower bound, e.g. 2026-05-01T00:00:00-04:00.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--end</code></td>
+<td>text</td>
+<td>ISO upper bound, e.g. 2026-05-12T00:00:00-04:00.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-whoop-sleeps">mgdio whoop sleeps<a class="headerlink" href="#mgdio-whoop-sleeps" title="Permanent link">&para;</a></h4>
+<p>List sleep records (performance %, respiratory rate).</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-58-1" name="__codelineno-58-1" href="#__codelineno-58-1"></a>mgdio whoop sleeps [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--max</code></td>
+<td>integer</td>
+<td>Max records to fetch.</td>
+<td><code>10</code></td>
+</tr>
+<tr>
+<td><code>--start</code></td>
+<td>text</td>
+<td>ISO lower bound, e.g. 2026-05-01T00:00:00-04:00.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--end</code></td>
+<td>text</td>
+<td>ISO upper bound, e.g. 2026-05-12T00:00:00-04:00.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-whoop-workouts">mgdio whoop workouts<a class="headerlink" href="#mgdio-whoop-workouts" title="Permanent link">&para;</a></h4>
+<p>List workout records (strain, avg HR, calories).</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-59-1" name="__codelineno-59-1" href="#__codelineno-59-1"></a>mgdio whoop workouts [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--max</code></td>
+<td>integer</td>
+<td>Max records to fetch.</td>
+<td><code>10</code></td>
+</tr>
+<tr>
+<td><code>--start</code></td>
+<td>text</td>
+<td>ISO lower bound, e.g. 2026-05-01T00:00:00-04:00.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--end</code></td>
+<td>text</td>
+<td>ISO upper bound, e.g. 2026-05-12T00:00:00-04:00.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="mgdio-ynab">mgdio ynab<a class="headerlink" href="#mgdio-ynab" title="Permanent link">&para;</a></h3>
+<p>YNAB commands (budgets, accounts, categories, transactions).</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-60-1" name="__codelineno-60-1" href="#__codelineno-60-1"></a>mgdio ynab [OPTIONS] COMMAND [ARGS]...
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-ynab-accounts">mgdio ynab accounts<a class="headerlink" href="#mgdio-ynab-accounts" title="Permanent link">&para;</a></h4>
+<p>List accounts on a budget with balances.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-61-1" name="__codelineno-61-1" href="#__codelineno-61-1"></a>mgdio ynab accounts [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--budget</code></td>
+<td>text</td>
+<td>N/A</td>
+<td><code>last-used</code></td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-ynab-budgets">mgdio ynab budgets<a class="headerlink" href="#mgdio-ynab-budgets" title="Permanent link">&para;</a></h4>
+<p>List every budget the token can see.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-62-1" name="__codelineno-62-1" href="#__codelineno-62-1"></a>mgdio ynab budgets [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-ynab-categories">mgdio ynab categories<a class="headerlink" href="#mgdio-ynab-categories" title="Permanent link">&para;</a></h4>
+<p>List category groups with this month's budget/activity/balance.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-63-1" name="__codelineno-63-1" href="#__codelineno-63-1"></a>mgdio ynab categories [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--budget</code></td>
+<td>text</td>
+<td>N/A</td>
+<td><code>last-used</code></td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-ynab-transactions">mgdio ynab transactions<a class="headerlink" href="#mgdio-ynab-transactions" title="Permanent link">&para;</a></h4>
+<p>List transactions, optionally filtered by account/category/date.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-64-1" name="__codelineno-64-1" href="#__codelineno-64-1"></a>mgdio ynab transactions [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--budget</code></td>
+<td>text</td>
+<td>N/A</td>
+<td><code>last-used</code></td>
+</tr>
+<tr>
+<td><code>--since</code></td>
+<td>text</td>
+<td>ISO date lower bound, e.g. 2026-04-01.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--account</code></td>
+<td>text</td>
+<td>N/A</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--category</code></td>
+<td>text</td>
+<td>N/A</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--max</code></td>
+<td>integer</td>
+<td>Limit how many to print (client-side trim).</td>
+<td><code>20</code></td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="mgdio-ynab-update-tx">mgdio ynab update-tx<a class="headerlink" href="#mgdio-ynab-update-tx" title="Permanent link">&para;</a></h4>
+<p>PATCH a transaction. Most common: <code>--memo "&lt;new note&gt;"</code>.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-65-1" name="__codelineno-65-1" href="#__codelineno-65-1"></a>mgdio ynab update-tx [OPTIONS] TRANSACTION_ID
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--budget</code></td>
+<td>text</td>
+<td>N/A</td>
+<td><code>last-used</code></td>
+</tr>
+<tr>
+<td><code>--memo</code></td>
+<td>text</td>
+<td>New memo / note (use --clear-memo to clear).</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--clear-memo</code></td>
+<td>boolean</td>
+<td>Clear the memo (mutually exclusive with --memo).</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--cleared</code></td>
+<td>choice (<code>cleared</code> &#x7C; <code>uncleared</code> &#x7C; <code>reconciled</code>)</td>
+<td>N/A</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--approved</code> / <code>--unapproved</code></td>
+<td>boolean</td>
+<td>N/A</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--flag</code></td>
+<td>choice (<code>red</code> &#x7C; <code>orange</code> &#x7C; <code>yellow</code> &#x7C; <code>green</code> &#x7C; <code>blue</code> &#x7C; <code>purple</code>)</td>
+<td>N/A</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; Michael DiNunzio
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.indexes", "navigation.top", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

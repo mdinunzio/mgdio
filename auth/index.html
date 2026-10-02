@@ -1,0 +1,1957 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Personal connectivity tools for Gmail, Calendar, Sheets, Drive, Maps, YNAB, and Whoop.">
+      
+      
+      
+        <link rel="canonical" href="https://mdinunzio.github.io/mgdio/auth/">
+      
+      
+        <link rel="prev" href="../install/">
+      
+      
+        <link rel="next" href="../services/gmail/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Authentication - mgdio</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#authentication" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="mgdio" class="md-header__button md-logo" aria-label="mgdio" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            mgdio
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Authentication
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mdinunzio/mgdio" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mdinunzio/mgdio
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../install/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../reference/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  API reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../changelog/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../roadmap/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Roadmap
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="mgdio" class="md-nav__button md-logo" aria-label="mgdio" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    mgdio
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mdinunzio/mgdio" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mdinunzio/mgdio
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authentication
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authentication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#google-cloud-console-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Google Cloud Console setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#first-run-auth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        First-run auth
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="First-run auth">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#checking-whats-authenticated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checking what's authenticated
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#multiple-google-accounts-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multiple Google accounts (profiles)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#headless-auth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Headless auth
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Headless auth">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#unattended-jobs-never-hang" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unattended jobs never hang
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#linux-keyring-fallback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linux keyring fallback
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-credentials-live" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where credentials live
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#building-your-own-google-api-client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building your own Google API client
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Services
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Services
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../services/gmail/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gmail
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../services/sheets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sheets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../services/calendar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calendar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../services/drive/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Drive
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../services/maps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../services/ynab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YNAB
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../services/whoop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Whoop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../claude-skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Claude Code skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command line
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/auth/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mgdio.auth
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/gmail/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mgdio.gmail
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/sheets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mgdio.sheets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/calendar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mgdio.calendar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/drive/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mgdio.drive
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/maps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mgdio.maps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/ynab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mgdio.ynab
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/whoop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mgdio.whoop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mgdio.settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/exceptions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mgdio.exceptions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#google-cloud-console-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Google Cloud Console setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#first-run-auth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        First-run auth
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="First-run auth">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#checking-whats-authenticated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checking what's authenticated
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#multiple-google-accounts-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multiple Google accounts (profiles)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#headless-auth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Headless auth
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Headless auth">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#unattended-jobs-never-hang" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unattended jobs never hang
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#linux-keyring-fallback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linux keyring fallback
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-credentials-live" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where credentials live
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#building-your-own-google-api-client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building your own Google API client
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/mdinunzio/mgdio/edit/main/docs/auth.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="authentication">Authentication<a class="headerlink" href="#authentication" title="Permanent link">&para;</a></h1>
+<p>mgdio's auth subsystem exists so that every other module can be a plain
+function call. The design goals, in priority order:</p>
+<ul>
+<li><strong>Stable.</strong> OAuth refresh tokens that do not expire (Google consent screen
+  <em>Published</em>), long-lived personal tokens where the provider offers them.</li>
+<li><strong>Native.</strong> Official provider APIs, not SMTP or IMAP.</li>
+<li><strong>Free.</strong> Works against a personal <code>@gmail.com</code>; no Workspace account.</li>
+<li><strong>Vault-backed.</strong> Tokens live in Windows Credential Manager, macOS Keychain,
+  or Linux Secret Service. No plaintext token files.</li>
+<li><strong>Unattended-safe.</strong> A missing or dead token on a cron host raises a clear
+  error instead of blocking forever on a browser.</li>
+</ul>
+<p>Each provider exposes the same triple: <code>get_credentials()</code> (or the provider's
+equivalent such as <code>get_token()</code> / <code>get_api_key()</code>), <code>clear_stored_token()</code>,
+and <code>reset_credentials_cache()</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Flow</th>
+<th>Keyring service</th>
+<th>Command</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Google (Gmail, Sheets, Calendar, Drive)</td>
+<td>OAuth, one consent for all four</td>
+<td><code>mgdio:google:&lt;profile&gt;</code></td>
+<td><code>mgdio auth google --profile &lt;slug&gt;</code></td>
+</tr>
+<tr>
+<td>Google Maps</td>
+<td>API key pasted into a setup page</td>
+<td><code>mgdio:maps</code></td>
+<td><code>mgdio auth maps</code></td>
+</tr>
+<tr>
+<td>YNAB</td>
+<td>Personal access token pasted into a setup page</td>
+<td><code>mgdio:ynab</code></td>
+<td><code>mgdio auth ynab</code></td>
+</tr>
+<tr>
+<td>Whoop</td>
+<td>OAuth 2.0 code flow, auto-refresh</td>
+<td><code>mgdio:whoop</code></td>
+<td><code>mgdio auth whoop</code></td>
+</tr>
+</tbody>
+</table>
+<p>Maps, YNAB, and Whoop setup is described on their service pages. The rest of
+this page is about Google, which has the most moving parts.</p>
+<h2 id="google-cloud-console-setup">Google Cloud Console setup<a class="headerlink" href="#google-cloud-console-setup" title="Permanent link">&para;</a></h2>
+<p>You do this once per Google account.</p>
+<ol>
+<li><strong>Create or pick a project</strong> at <a href="https://console.cloud.google.com">https://console.cloud.google.com</a>.</li>
+<li><strong>Enable the APIs</strong> under <em>APIs &amp; Services → Library</em>: Gmail API, Google
+   Calendar API, Google Sheets API, Google Drive API.</li>
+<li><strong>Configure the app</strong> under <em>Google Auth Platform</em> in the left nav. (The
+   <em>Branding / Audience / Data Access</em> sidebar only appears once the project
+   has an OAuth client. If you do not see it, do step 4 first, then open the
+   client under <em>APIs &amp; Services → Credentials</em>.)<ul>
+<li><strong>Branding</strong>: app name and support email.</li>
+<li><strong>Audience</strong>: User type <strong>External</strong>, add yourself under <em>Test users</em>,
+  then click <strong>Publish app</strong>. <em>Critical:</em> apps left in <em>Testing</em> mode have
+  their refresh tokens revoked every 7 days.</li>
+<li><strong>Data Access</strong>: <em>Add or remove scopes</em> and add all four:<ul>
+<li><code>https://www.googleapis.com/auth/gmail.modify</code></li>
+<li><code>https://www.googleapis.com/auth/calendar</code></li>
+<li><code>https://www.googleapis.com/auth/spreadsheets</code></li>
+<li><code>https://www.googleapis.com/auth/drive</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Create an OAuth client ID</strong> under <em>Google Auth Platform → Clients →
+   Create client</em>. Application type <strong>Desktop app</strong>. Click <em>Download JSON</em>.</li>
+</ol>
+<details class="note">
+<summary>Already have a client but lost the JSON?</summary>
+<p>Google will not re-download the original secret, but you can mint a fresh
+one. Open the client under <em>APIs &amp; Services → Credentials → OAuth 2.0
+Client IDs</em>, then under <em>Client secrets</em> click <strong>Add secret</strong>. The new row
+has a download button that yields a ready-made <code>client_secret.json</code>.</p>
+</details>
+<h2 id="first-run-auth">First-run auth<a class="headerlink" href="#first-run-auth" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mgdio<span class="w"> </span>auth<span class="w"> </span>google<span class="w"> </span>--profile<span class="w"> </span>mdinunziosvc
+</code></pre></div>
+<p><code>--profile &lt;slug&gt;</code> names the Google account (lowercase letters, digits, <code>-</code>,
+<code>_</code>). A localhost setup page opens. Drag in the <code>client_secret.json</code> you
+downloaded, click <strong>Authorize</strong>, and approve the single consent screen covering
+all four scopes. The token is written to your OS vault under
+<code>mgdio:google:&lt;slug&gt;</code>; later calls read it from there and refresh silently.</p>
+<p>Force a fresh consent flow (after rotating credentials or when scopes change):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mgdio<span class="w"> </span>auth<span class="w"> </span>google<span class="w"> </span>--profile<span class="w"> </span>mdinunziosvc<span class="w"> </span>--reset
+</code></pre></div>
+<h3 id="checking-whats-authenticated">Checking what's authenticated<a class="headerlink" href="#checking-whats-authenticated" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mgdio<span class="w"> </span>auth<span class="w"> </span>status
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>[x] google  1 profile(s): mdinunziosvc
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>[x] ynab    token stored
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>[x] whoop   token stored
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>[ ] maps    not authenticated
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>To authenticate the remaining provider(s):
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>  mgdio auth maps
+</code></pre></div>
+<p>This only reads the keyring. It makes no network calls and triggers no setup
+flows.</p>
+<h2 id="multiple-google-accounts-profiles">Multiple Google accounts (profiles)<a class="headerlink" href="#multiple-google-accounts-profiles" title="Permanent link">&para;</a></h2>
+<p>mgdio holds one token per Google account, each named by a profile slug. There
+is no stored "default"; which profile an environment uses comes from the
+<code>MGDIO_GOOGLE_PROFILE</code> env var (for example in a project's <code>.env</code>).</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Authorize two accounts</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>uv<span class="w"> </span>run<span class="w"> </span>mgdio<span class="w"> </span>auth<span class="w"> </span>google<span class="w"> </span>--profile<span class="w"> </span>personal
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>uv<span class="w"> </span>run<span class="w"> </span>mgdio<span class="w"> </span>auth<span class="w"> </span>google<span class="w"> </span>--profile<span class="w"> </span>mdinunziosvc
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="c1"># List configured profiles</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>uv<span class="w"> </span>run<span class="w"> </span>mgdio<span class="w"> </span>auth<span class="w"> </span>google<span class="w"> </span>profiles
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="c1"># Remove credentials (confirms unless --yes)</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>uv<span class="w"> </span>run<span class="w"> </span>mgdio<span class="w"> </span>auth<span class="w"> </span>google<span class="w"> </span>remove<span class="w"> </span>--profile<span class="w"> </span>personal
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>uv<span class="w"> </span>run<span class="w"> </span>mgdio<span class="w"> </span>auth<span class="w"> </span>google<span class="w"> </span>remove<span class="w"> </span>--legacy<span class="w">    </span><span class="c1"># the pre-profiles mgdio:google token</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>uv<span class="w"> </span>run<span class="w"> </span>mgdio<span class="w"> </span>auth<span class="w"> </span>google<span class="w"> </span>remove<span class="w"> </span>--all
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="c1"># Use a specific profile for one command</span>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>uv<span class="w"> </span>run<span class="w"> </span>mgdio<span class="w"> </span>drive<span class="w"> </span>list<span class="w"> </span>--profile<span class="w"> </span>mdinunziosvc<span class="w"> </span>--max<span class="w"> </span><span class="m">5</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="c1"># Or set a default for the whole environment</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MGDIO_GOOGLE_PROFILE</span><span class="o">=</span>mdinunziosvc
+</code></pre></div>
+<p><strong>Resolution waterfall</strong>, applied to every Google call, most specific first:</p>
+<ol>
+<li>An explicit <code>--profile &lt;slug&gt;</code> (CLI) or <code>profile="&lt;slug&gt;"</code> (Python).</li>
+<li>The <code>MGDIO_GOOGLE_PROFILE</code> env var.</li>
+<li>The sole profile, if exactly one is configured. Single-account use is
+   zero-config.</li>
+<li>Otherwise an error telling you to pick one.</li>
+</ol>
+<p>A misspelled profile raises rather than silently using the wrong account. In
+Python every Google function takes an optional trailing <code>profile=</code> keyword:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mgdio.drive</span><span class="w"> </span><span class="kn">import</span> <span class="n">list_files</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mgdio.gmail</span><span class="w"> </span><span class="kn">import</span> <span class="n">send_email</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">list_files</span><span class="p">(</span><span class="n">max_results</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">profile</span><span class="o">=</span><span class="s2">&quot;mdinunziosvc&quot;</span><span class="p">)</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="n">send_email</span><span class="p">(</span><span class="n">to</span><span class="o">=</span><span class="s2">&quot;a@b.com&quot;</span><span class="p">,</span> <span class="n">subject</span><span class="o">=</span><span class="s2">&quot;hi&quot;</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span> <span class="n">profile</span><span class="o">=</span><span class="s2">&quot;personal&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="headless-auth">Headless auth<a class="headerlink" href="#headless-auth" title="Permanent link">&para;</a></h2>
+<p>On a machine without a browser (Linux VPS, container, SSH-only host):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mgdio<span class="w"> </span>auth<span class="w"> </span>google<span class="w"> </span>--profile<span class="w"> </span>mdinunziosvc<span class="w"> </span>--headless
+</code></pre></div>
+<p>mgdio prints the Google authorization URL. Open it on any device with a
+browser, grant consent, and Google redirects to
+<code>http://localhost/?state=...&amp;code=...</code>. That page <strong>fails to load</strong> on the
+browser device because nothing is listening there. That is expected. Copy the
+entire failed-redirect URL from the address bar, paste it into the VPS
+terminal, press Enter. mgdio exchanges the code and stores the token as usual.</p>
+<p>If <code>client_secret.json</code> is not on the VPS yet, mgdio prompts you to paste the
+JSON on stdin (end with a blank line). Or <code>scp</code> it ahead of time to the path
+listed under <a href="#where-credentials-live">Where credentials live</a>.</p>
+<p>The same <code>--headless</code> flag exists for <code>mgdio auth ynab</code>, <code>mgdio auth maps</code>,
+and <code>mgdio auth whoop</code>.</p>
+<h3 id="unattended-jobs-never-hang">Unattended jobs never hang<a class="headerlink" href="#unattended-jobs-never-hang" title="Permanent link">&para;</a></h3>
+<p>If a token goes stale on a host where nobody can complete an auth flow, mgdio
+raises <code>MgdioInteractionRequiredError</code> naming the exact <code>mgdio auth ...</code>
+command to run, instead of waiting on a browser forever.</p>
+<ul>
+<li>Interactive flows are allowed only when stdin is a TTY by default.</li>
+<li><code>MGDIO_NONINTERACTIVE=1</code> forbids them (library calls never go interactive).</li>
+<li><code>MGDIO_NONINTERACTIVE=0</code> always allows them (a GUI-launched process with a
+  working browser but no TTY).</li>
+<li>Explicit <code>mgdio auth &lt;provider&gt;</code> commands are exempt, so exporting
+  <code>MGDIO_NONINTERACTIVE=1</code> host-wide on a server is safe.</li>
+</ul>
+<h3 id="linux-keyring-fallback">Linux keyring fallback<a class="headerlink" href="#linux-keyring-fallback" title="Permanent link">&para;</a></h3>
+<p>A minimal VPS image often has no Secret Service daemon, so the OS <code>keyring</code>
+cannot store a token. mgdio detects this at startup and falls back to a
+file-based store on its own. No manual backend configuration.</p>
+<p>The default fallback is <strong>unencrypted</strong>: a <code>chmod 600</code> file at
+<code>~/.local/share/mgdio/keyring/mgdio_plaintext.cfg</code> inside a <code>chmod 700</code>
+directory. This is deliberate so cron jobs never hang on a password prompt.
+mgdio logs a one-time warning only when it <em>writes</em> a credential; read-only
+commands stay silent.</p>
+<ul>
+<li><code>MGDIO_KEYRING_PLAINTEXT=0</code> switches to an encrypted file backend, which
+  prompts for a password on every process (unsuitable for cron).</li>
+<li><code>PYTHON_KEYRING_BACKEND</code> or <code>MGDIO_KEYRING_BACKEND</code> forces a backend of your
+  choosing and mgdio will not override it.</li>
+</ul>
+<p>A cron entry is then just the absolute path to the binary, for example
+<code>*/15 * * * * /path/to/venv/bin/mgdio drive list --max 5</code>.</p>
+<h2 id="where-credentials-live">Where credentials live<a class="headerlink" href="#where-credentials-live" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>OAuth token</strong>: OS vault under service <code>mgdio:google:&lt;profile&gt;</code>, username
+  <code>oauth_token</code>. Windows: <em>Credential Manager → Windows Credentials</em>. macOS:
+  <em>Keychain</em>. Linux: <em>Secret Service</em>, or the file fallback above.</li>
+<li><strong>Profile index</strong>: the list of known slugs lives next to
+  <code>client_secret.json</code> as <code>google/profiles.json</code>. The keyring remains the
+  source of truth for the token bytes.</li>
+<li><strong><code>client_secret.json</code></strong>: one shared file (app identity, not per-account):</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>OS</th>
+<th>Path</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Windows</td>
+<td><code>%LOCALAPPDATA%\mgdio\mgdio\google\client_secret.json</code> (yes, <code>mgdio</code> twice)</td>
+</tr>
+<tr>
+<td>macOS</td>
+<td><code>~/Library/Application Support/mgdio/google/client_secret.json</code></td>
+</tr>
+<tr>
+<td>Linux</td>
+<td><code>~/.local/share/mgdio/google/client_secret.json</code></td>
+</tr>
+</tbody>
+</table>
+<p>Print the real path on your machine rather than guessing:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from mgdio.settings import GOOGLE_CLIENT_SECRET_PATH as p; print(p, p.exists())&quot;</span>
+</code></pre></div>
+<p><code>--reset</code> deletes only the token and reuses this file, so re-auth never
+requires re-downloading anything.</p>
+<details class="note">
+<summary>macOS Keychain: stale items are handled automatically</summary>
+<p>The Keychain binds each item's ACL to the binary that created it. After a
+<code>.venv</code> rebuild the new python cannot overwrite the old item (error
+<code>-25244</code>). mgdio deletes the stale item with Apple's <code>security</code> CLI and
+retries. If that ever fails, the error includes the manual fix:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>security<span class="w"> </span>delete-generic-password<span class="w"> </span>-s<span class="w"> </span><span class="s2">&quot;mgdio:google:&lt;profile&gt;&quot;</span><span class="w"> </span>-a<span class="w"> </span><span class="s2">&quot;oauth_token&quot;</span>
+</code></pre></div>
+<p>You may also see a one-time <em>"python wants to access your keychain"</em>
+dialog after a rebuild. Click <strong>Always Allow</strong>.</p>
+</details>
+<h2 id="building-your-own-google-api-client">Building your own Google API client<a class="headerlink" href="#building-your-own-google-api-client" title="Permanent link">&para;</a></h2>
+<p>Need a Google API that has no subpackage yet? The shared auth is one call away:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">googleapiclient.discovery</span><span class="w"> </span><span class="kn">import</span> <span class="n">build</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mgdio.auth.google</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_credentials</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="n">service</span> <span class="o">=</span> <span class="n">build</span><span class="p">(</span><span class="s2">&quot;docs&quot;</span><span class="p">,</span> <span class="s2">&quot;v1&quot;</span><span class="p">,</span> <span class="n">credentials</span><span class="o">=</span><span class="n">get_credentials</span><span class="p">(),</span> <span class="n">cache_discovery</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</code></pre></div>
+<p>No scopes argument, no per-service auth dance. See
+<a href="../reference/auth/"><code>mgdio.auth</code></a> for the full API.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; Michael DiNunzio
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.indexes", "navigation.top", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

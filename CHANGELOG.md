@@ -5,6 +5,24 @@ Notable changes to mgdio. The format follows
 [Semantic Versioning](https://semver.org/). Releases before 0.3.5 predate
 this file — see the git history.
 
+## [0.5.1] - 2026-10-02
+
+### Added
+
+- **Documentation site** built with MkDocs + Material + mkdocstrings
+  (`mkdocs.yml`, `docs/`): a quick-start landing page, installation and
+  authentication guides, one guide per service, the Claude Code skills,
+  troubleshooting, the changelog and roadmap, and an API reference generated
+  from the docstrings, plus the full CLI rendered from the click definitions
+  via `mkdocs-click`. Install the toolchain with `uv sync --extra docs` and
+  preview with `uv run mkdocs serve`. A `docs` GitHub Actions workflow builds
+  with `--strict` on every PR and deploys to GitHub Pages from `main`.
+- `scripts/griffe_sphinx_roles.py`: a small griffe extension that rewrites
+  the Sphinx-style `:func:` / `:mod:` / `:class:` cross-references used in
+  the docstrings into working links in the rendered reference (or plain
+  code when the target is third-party or private), so no docstrings had to
+  change.
+
 ## [0.5.0] - 2026-08-03
 
 ### Added

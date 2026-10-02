@@ -1,6 +1,6 @@
 [project]
 name = "mgdio"
-version = "0.5.0"
+version = "0.5.1"
 description = "Personal connectivity tools: Gmail, Calendar, Sheets, YNAB."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -56,6 +56,12 @@ dev = [
     # on any platform (the runtime dep is Linux-marker-scoped).
     "keyrings.alt>=5.0",
     "pycryptodomex>=3.20",
+]
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.26",
+    "mkdocs-click>=0.8",
 ]
 
 [project.scripts]

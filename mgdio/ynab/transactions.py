@@ -42,6 +42,10 @@ class _ClearType:
 
 
 CLEAR = _ClearType()
+"""Sentinel for :func:`update_transaction`: pass it to null a field on the server.
+
+``None`` (the default) leaves a field untouched; ``CLEAR`` explicitly clears it.
+"""
 
 
 @dataclass(frozen=True, slots=True)

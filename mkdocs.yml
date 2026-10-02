@@ -1,0 +1,120 @@
+site_name: mgdio
+site_description: Personal connectivity tools for Gmail, Calendar, Sheets, Drive, Maps, YNAB, and Whoop.
+site_url: https://mdinunzio.github.io/mgdio/
+repo_url: https://github.com/mdinunzio/mgdio
+repo_name: mdinunzio/mgdio
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; Michael DiNunzio
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+nav:
+  - Home: index.md
+  - Guide:
+      - Installation: install.md
+      - Authentication: auth.md
+      - Services:
+          - Gmail: services/gmail.md
+          - Sheets: services/sheets.md
+          - Calendar: services/calendar.md
+          - Drive: services/drive.md
+          - Maps: services/maps.md
+          - YNAB: services/ynab.md
+          - Whoop: services/whoop.md
+      - Claude Code skills: claude-skills.md
+      - Troubleshooting: troubleshooting.md
+  - API reference:
+      - reference/index.md
+      - Command line: reference/cli.md
+      - mgdio.auth: reference/auth.md
+      - mgdio.gmail: reference/gmail.md
+      - mgdio.sheets: reference/sheets.md
+      - mgdio.calendar: reference/calendar.md
+      - mgdio.drive: reference/drive.md
+      - mgdio.maps: reference/maps.md
+      - mgdio.ynab: reference/ynab.md
+      - mgdio.whoop: reference/whoop.md
+      - mgdio.settings: reference/settings.md
+      - mgdio.exceptions: reference/exceptions.md
+  - Changelog: changelog.md
+  - Roadmap: roadmap.md
+
+plugins:
+  - search
+  - autorefs
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [.]
+          options:
+            docstring_style: google
+            extensions:
+              - scripts/griffe_sphinx_roles.py
+            heading_level: 2
+            show_root_heading: false
+            show_root_toc_entry: false
+            show_source: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            show_bases: true
+            members_order: source
+            separate_signature: true
+            show_signature_annotations: true
+            signature_crossrefs: true
+            merge_init_into_class: true
+            docstring_section_style: table
+            show_submodules: false
+            inherited_members: false
+            filters: ["!^_"]
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - mkdocs-click
+
+watch:
+  - mgdio
+  - scripts
+  - CHANGELOG.md
+  - ROADMAP.md

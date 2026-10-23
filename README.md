@@ -14,6 +14,20 @@ so they can be `pip` / `uv add`-ed into any other project with a uniform API.
 > browser-based and headless (VPS-friendly) Google OAuth flows supported.
 > Twilio next.
 
+## Documentation
+
+The full docs, with a quick start, per-service guides, and an API reference
+generated from the docstrings, live at <https://mdinunzio.github.io/mgdio/>.
+This README is the long-form reference; the site is the fastest way in.
+
+Build the site locally:
+
+```powershell
+uv sync --extra docs
+uv run mkdocs serve          # live preview at http://127.0.0.1:8000
+uv run mkdocs build --strict
+```
+
 ## Why a dedicated auth subsystem
 
 - **Stable** — OAuth refresh tokens that don't expire (consent screen *Published*

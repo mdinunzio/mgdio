@@ -2,9 +2,9 @@
 
 Importing this module is idempotent and has these side effects:
 
-* loads ``.env`` (silent if absent) -- this is also how a project-local
-  ``MGDVAULT_PASSWORD`` reaches :mod:`mgdvault`, which reads the
-  environment lazily on first use and never loads ``.env`` itself,
+* loads ``.env`` (silent if absent); :mod:`mgdvault` also loads the
+  nearest ``.env`` on its own, so a project-local ``MGDVAULT_PASSWORD``
+  works for both the ``mgdio`` and ``mgdvault`` CLIs,
 * ensures :data:`APP_DATA_DIR` and :data:`GOOGLE_DATA_DIR` exist, and
 * configures root logging once, only if no handlers are present yet
   (so library users keep control of their root logger).

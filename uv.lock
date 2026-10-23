@@ -1782,7 +1782,7 @@ dev = [{ name = "jupyterlab", specifier = ">=4.5.7" }]
 [[package]]
 name = "mgdvault"
 version = "0.1.0"
-source = { git = "https://github.com/mdinunzio/mgdvault#43b9d34bd2a51d2b27328f3b007734dc6a61baec" }
+source = { git = "https://github.com/mdinunzio/mgdvault#e79c97e4a7bd639659e8dcd524db4686ec90a8b7" }
 dependencies = [
     { name = "click" },
     { name = "filelock", version = "4.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -1790,6 +1790,7 @@ dependencies = [
     { name = "keyring" },
     { name = "platformdirs" },
     { name = "pykeepass" },
+    { name = "python-dotenv" },
 ]
 
 [[package]]

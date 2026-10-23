@@ -1,18 +1,18 @@
-"""Google OAuth: per-profile keyring-backed token cache + setup flow.
+"""Google OAuth: per-profile vault-backed token cache + setup flow.
 
-Token storage uses the OS-native credential vault via :mod:`keyring`:
+Tokens are stored in the shared `mgdvault
+<https://github.com/mdinunzio/mgdvault>`_ credential vault (an encrypted
+KeePass file by default, unlocked by ``MGDVAULT_PASSWORD``; see the
+README). One OAuth client requests the union of every Google scope mgdio
+uses (see :data:`mgdio.settings.GOOGLE_SCOPES`); the ``client_secret.json``
+is shared. Each Google *account* is a named "profile" with its own token
+at vault key ``mgdio/google/<slug>``. A single consent flow per profile,
+shared by every Google service subpackage. Which profile a call uses is
+resolved by :func:`mgdio.auth.google._profiles.resolve_profile`.
 
-* Windows: Credential Manager (DPAPI-protected, current-user scoped).
-* macOS: Keychain.
-* Linux: Secret Service (gnome-keyring, kwallet, ...) or, on a headless
-  host, an auto-selected file backend (see :mod:`mgdio.keyring_backend`).
-
-One OAuth client requests the union of every Google scope mgdio uses
-(see :data:`mgdio.settings.GOOGLE_SCOPES`); the ``client_secret.json`` is
-shared. Each Google *account* is a named "profile" with its own token at
-keyring service ``mgdio:google:<slug>``. A single consent flow per
-profile, shared by every Google service subpackage. Which profile a call
-uses is resolved by :func:`mgdio.auth.google._profiles.resolve_profile`.
+Token refresh is written back through :func:`mgdvault.update`, which
+holds the vault's inter-process write lock across the refresh, so
+several processes sharing one profile cannot clobber each other.
 """
 
 from __future__ import annotations
@@ -20,29 +20,17 @@ from __future__ import annotations
 import json
 import logging
 
-import keyring
+import mgdvault
 from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 
-from mgdio.auth import _keyring
 from mgdio.auth._interactive import require_interactive
 from mgdio.auth.google._headless_flow import run_headless_flow
-from mgdio.auth.google._profiles import (
-    add_to_index,
-    remove_from_index,
-    resolve_profile,
-    validate_slug,
-)
+from mgdio.auth.google._profiles import resolve_profile, validate_slug
 from mgdio.auth.google._setup_server import run_setup_flow
 from mgdio.exceptions import MgdioAPIError
-from mgdio.settings import (
-    GOOGLE_CLIENT_SECRET_PATH,
-    GOOGLE_KEYRING_USERNAME,
-    GOOGLE_SCOPES,
-    LEGACY_GOOGLE_KEYRING_SERVICE,
-    google_keyring_service,
-)
+from mgdio.settings import GOOGLE_CLIENT_SECRET_PATH, GOOGLE_SCOPES, google_vault_key
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +43,7 @@ def get_credentials(profile: str | None = None, headless: bool = False) -> Crede
 
     The returned credentials are valid for every API listed in
     :data:`mgdio.settings.GOOGLE_SCOPES`. Cached in-process per profile;
-    persisted across runs in the OS keyring under ``mgdio:google:<slug>``.
+    persisted across runs in the vault under ``mgdio/google/<slug>``.
 
     Args:
         profile: Explicit profile slug, or None to resolve via the
@@ -71,18 +59,19 @@ def get_credentials(profile: str | None = None, headless: bool = False) -> Crede
     Raises:
         MgdioAuthError: If no profile can be resolved (see
             :func:`resolve_profile`).
+        MgdioAPIError: On a transient refresh failure; the stored token
+            is likely still valid.
     """
     slug = resolve_profile(profile)
     cached = _credentials.get(slug)
     if cached is not None and cached.valid:
         return cached
 
-    creds = _load_token_from_keyring(slug)
+    creds = _load_token(slug)
     if creds is not None and creds.expired and creds.refresh_token:
         logger.debug("Refreshing expired Google OAuth token for %r", slug)
         try:
-            creds.refresh(Request())
-            _save_token_to_keyring(slug, creds)
+            creds = _refresh_and_store(slug)
         except RefreshError as exc:
             if _is_definitive_rejection(exc):
                 logger.warning(
@@ -104,10 +93,8 @@ def get_credentials(profile: str | None = None, headless: bool = False) -> Crede
             f"mgdio auth google --profile {slug}",
             f"no usable stored token for profile {slug!r}",
         )
-        _ensure_token_slot_writable(slug)
         creds = _run_flow(headless)
-        _save_token_to_keyring(slug, creds)
-        add_to_index(slug)
+        _save_token(slug, creds)
 
     _credentials[slug] = creds
     return creds
@@ -128,40 +115,23 @@ def authorize_profile(slug: str, headless: bool = False) -> Credentials:
         The freshly authorized credentials.
 
     Raises:
-        MgdioAuthError: If the slug is invalid, or the keyring slot for
-            it cannot be written (checked before the consent flow runs).
+        MgdioAuthError: If the slug is invalid.
     """
     validate_slug(slug)
-    _ensure_token_slot_writable(slug)
     creds = _run_flow(headless)
-    _save_token_to_keyring(slug, creds)
-    add_to_index(slug)
+    _save_token(slug, creds)
     _credentials[slug] = creds
     return creds
 
 
 def clear_stored_token(profile: str) -> None:
-    """Delete one profile's keyring token, index entry, and cached creds.
+    """Delete one profile's vault token and cached creds (no-op if absent).
 
     Args:
         profile: The profile slug to remove.
-
-    Raises:
-        MgdioKeyringError: If the token exists but the keyring refuses
-            to delete it (after stale-item recovery).
     """
-    _keyring.delete_password(google_keyring_service(profile), GOOGLE_KEYRING_USERNAME)
-    remove_from_index(profile)
+    mgdvault.delete(google_vault_key(profile))
     reset_credentials_cache(profile)
-
-
-def clear_legacy_token() -> None:
-    """Delete the pre-profiles token at the bare ``mgdio:google`` service.
-
-    No-op if absent. The legacy token has no profile slug, so
-    :func:`clear_stored_token` can't target it.
-    """
-    _keyring.delete_password(LEGACY_GOOGLE_KEYRING_SERVICE, GOOGLE_KEYRING_USERNAME)
 
 
 def reset_credentials_cache(profile: str | None = None) -> None:
@@ -178,10 +148,7 @@ def _run_flow(headless: bool) -> Credentials:
     return flow_fn(GOOGLE_CLIENT_SECRET_PATH, list(GOOGLE_SCOPES))
 
 
-def _load_token_from_keyring(slug: str) -> Credentials | None:
-    raw = keyring.get_password(google_keyring_service(slug), GOOGLE_KEYRING_USERNAME)
-    if not raw:
-        return None
+def _creds_from_json(raw: str) -> Credentials:
     # Note: if the stored token's recorded scopes are a strict subset of
     # GOOGLE_SCOPES (e.g. after a release that adds a new service),
     # google-auth still returns Credentials here; the next refresh will
@@ -189,10 +156,44 @@ def _load_token_from_keyring(slug: str) -> Credentials | None:
     return Credentials.from_authorized_user_info(json.loads(raw), list(GOOGLE_SCOPES))
 
 
-def _save_token_to_keyring(slug: str, creds: Credentials) -> None:
-    _keyring.set_password(
-        google_keyring_service(slug), GOOGLE_KEYRING_USERNAME, creds.to_json()
-    )
+def _load_token(slug: str) -> Credentials | None:
+    raw = mgdvault.get(google_vault_key(slug), default=None)
+    if not raw:
+        return None
+    return _creds_from_json(raw)
+
+
+def _save_token(slug: str, creds: Credentials) -> None:
+    mgdvault.set(google_vault_key(slug), creds.to_json())
+
+
+def _refresh_and_store(slug: str) -> Credentials | None:
+    """Refresh the stored token under the vault's write lock and persist it.
+
+    The callback re-reads the stored value inside the lock, so if another
+    process refreshed the same profile a moment ago we simply adopt its
+    token instead of refreshing again. Returns None if the token was
+    removed from the vault in the meantime.
+
+    Raises:
+        RefreshError: Propagated from google-auth when Google rejects or
+            fails the refresh; the stored value is left untouched.
+    """
+    result: dict[str, Credentials] = {}
+
+    def _refresh(current: str | None) -> str | None:
+        if current is None:
+            return None
+        creds = _creds_from_json(current)
+        if creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+            result["creds"] = creds
+            return creds.to_json()
+        result["creds"] = creds  # already refreshed by another process
+        return current
+
+    mgdvault.update(google_vault_key(slug), _refresh)
+    return result.get("creds")
 
 
 def _is_definitive_rejection(exc: RefreshError) -> bool:
@@ -207,12 +208,3 @@ def _is_definitive_rejection(exc: RefreshError) -> bool:
     if getattr(exc, "retryable", False):
         return False
     return "invalid_grant" in str(exc).lower()
-
-
-def _ensure_token_slot_writable(slug: str) -> None:
-    """Fail fast if the profile's keyring slot can't be overwritten.
-
-    Runs before the interactive consent flow so a stale/broken vault
-    entry surfaces immediately instead of after the user has authorized.
-    """
-    _keyring.ensure_writable(google_keyring_service(slug), GOOGLE_KEYRING_USERNAME)

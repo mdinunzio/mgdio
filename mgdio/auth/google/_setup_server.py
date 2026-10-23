@@ -392,7 +392,7 @@ _PAGE_TEMPLATE = """\
 
 <h2>5. Authorize</h2>
 <p>After uploading, click below to open Google's consent screen in a new
-   tab. Once you approve, your token is stored in your OS keyring and
+   tab. Once you approve, your token is stored in your credential vault and
    this page closes itself.</p>
 <button id="authorize" disabled>Authorize with Google</button>
 <button id="cancel" style="background:#6b7280;border-color:#6b7280;
@@ -470,7 +470,7 @@ async function poll() {{
     const r = await fetch('/status');
     const data = await r.json();
     if (data.state === 'authorized') {{
-      setStatus('Authorized! Token saved to your OS keyring. '
+      setStatus('Authorized! Token saved to your credential vault. '
                 + 'You can close this tab.', 'ok');
       cancelBtn.disabled = true;
       return;
@@ -489,8 +489,8 @@ async function poll() {{
 </script>
 
 <p class="note">
-  Your OAuth token is stored in your OS credential vault (Windows
-  Credential Manager / macOS Keychain / Linux Secret Service). The
+  Your OAuth token is stored in your encrypted mgdvault credential
+  vault under <code>mgdio/google/&lt;profile&gt;</code>. The
   <code>client_secret.json</code> file you uploaded is application
   config, not a per-user secret.
 </p>

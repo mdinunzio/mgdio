@@ -30,20 +30,13 @@ class TestDerivedBinding:
 
 class TestExchangeCode:
     def test_posts_authorization_code_grant_with_redirect_uri(
-        self, fake_keyring, monkeypatch
+        self, fake_vault, monkeypatch
     ):
-        import json
+        from mgdio.settings import WHOOP_VAULT_KEY_APP
 
-        from mgdio.settings import (
-            WHOOP_KEYRING_SERVICE,
-            WHOOP_KEYRING_USERNAME_APP,
+        fake_vault.set_json(
+            WHOOP_VAULT_KEY_APP, {"client_id": "cid", "client_secret": "csec"}
         )
-
-        fake_keyring[(WHOOP_KEYRING_SERVICE, WHOOP_KEYRING_USERNAME_APP)] = json.dumps(
-            {"client_id": "cid", "client_secret": "csec"}
-        )
-        # patch the keyring the setup server imports
-        monkeypatch.setattr(_setup_server, "keyring", _FakeKeyringFrom(fake_keyring))
 
         resp = MagicMock()
         resp.status_code = 200
@@ -68,8 +61,7 @@ class TestExchangeCode:
         assert data["redirect_uri"] == WHOOP_REDIRECT_URI
         assert data["client_id"] == "cid"
 
-    def test_non_200_raises(self, fake_keyring, monkeypatch):
-        monkeypatch.setattr(_setup_server, "keyring", _FakeKeyringFrom(fake_keyring))
+    def test_non_200_raises(self, fake_vault, monkeypatch):
         resp = MagicMock()
         resp.status_code = 400
         resp.text = "bad code"
@@ -137,19 +129,6 @@ class TestPage:
         assert "MGDIO_WHOOP_REDIRECT_URI" in page
 
 
-class _FakeKeyringFrom:
-    """Adapt the conftest fake_keyring dict store to the keyring module API."""
-
-    def __init__(self, store: dict):
-        self._store = store
-
-    def get_password(self, service, username):
-        return self._store.get((service, username))
-
-    def set_password(self, service, username, password):
-        self._store[(service, username)] = password
-
-
 class TestParseRedirectUrl:
     def test_extracts_code_when_state_matches(self):
         url = f"{WHOOP_REDIRECT_URI}?code=abc123&state=st-1"
@@ -184,27 +163,21 @@ class TestParseRedirectUrl:
 
 
 class TestRunHeadlessFlow:
-    def _arrange(self, fake_keyring, monkeypatch, *, inputs, with_app_creds=True):
-        import json
-
-        from mgdio.settings import (
-            WHOOP_KEYRING_SERVICE,
-            WHOOP_KEYRING_USERNAME_APP,
-        )
+    def _arrange(self, fake_vault, monkeypatch, *, inputs, with_app_creds=True):
+        from mgdio.settings import WHOOP_VAULT_KEY_APP
 
         if with_app_creds:
-            fake_keyring[(WHOOP_KEYRING_SERVICE, WHOOP_KEYRING_USERNAME_APP)] = (
-                json.dumps({"client_id": "cid", "client_secret": "csec"})
+            fake_vault.set_json(
+                WHOOP_VAULT_KEY_APP, {"client_id": "cid", "client_secret": "csec"}
             )
-        monkeypatch.setattr(_setup_server, "keyring", _FakeKeyringFrom(fake_keyring))
         monkeypatch.setattr(
             _setup_server, "secrets", MagicMock(token_urlsafe=lambda n=24: "st-1")
         )
         monkeypatch.setattr("builtins.input", MagicMock(side_effect=inputs))
 
-    def test_happy_path_exchanges_pasted_url(self, fake_keyring, monkeypatch):
+    def test_happy_path_exchanges_pasted_url(self, fake_vault, monkeypatch):
         pasted = f"{WHOOP_REDIRECT_URI}?code=the-code&state=st-1"
-        self._arrange(fake_keyring, monkeypatch, inputs=[pasted])
+        self._arrange(fake_vault, monkeypatch, inputs=[pasted])
         bundle = {"access_token": "acc", "refresh_token": "ref"}
         exchange = MagicMock(return_value=bundle)
         monkeypatch.setattr(_setup_server, "_exchange_code", exchange)
@@ -215,17 +188,12 @@ class TestRunHeadlessFlow:
         assert _setup_server.run_headless_flow() is bundle
         exchange.assert_called_once_with("the-code")
 
-    def test_prompts_for_app_credentials_when_missing(self, fake_keyring, monkeypatch):
-        import json
-
-        from mgdio.settings import (
-            WHOOP_KEYRING_SERVICE,
-            WHOOP_KEYRING_USERNAME_APP,
-        )
+    def test_prompts_for_app_credentials_when_missing(self, fake_vault, monkeypatch):
+        from mgdio.settings import WHOOP_VAULT_KEY_APP
 
         pasted = f"{WHOOP_REDIRECT_URI}?code=c&state=st-1"
         self._arrange(
-            fake_keyring,
+            fake_vault,
             monkeypatch,
             inputs=["new-cid", "new-csec", pasted],
             with_app_creds=False,
@@ -241,20 +209,18 @@ class TestRunHeadlessFlow:
 
         _setup_server.run_headless_flow()
 
-        saved = json.loads(
-            fake_keyring[(WHOOP_KEYRING_SERVICE, WHOOP_KEYRING_USERNAME_APP)]
-        )
+        saved = fake_vault.get_json(WHOOP_VAULT_KEY_APP)
         assert saved == {"client_id": "new-cid", "client_secret": "new-csec"}
 
-    def test_all_empty_pastes_raise_after_max_attempts(self, fake_keyring, monkeypatch):
-        self._arrange(fake_keyring, monkeypatch, inputs=["   ", "", " "])
+    def test_all_empty_pastes_raise_after_max_attempts(self, fake_vault, monkeypatch):
+        self._arrange(fake_vault, monkeypatch, inputs=["   ", "", " "])
         with pytest.raises(MgdioAuthError, match="after 3 attempts"):
             _setup_server.run_headless_flow()
 
-    def test_bad_paste_reprompts_then_succeeds(self, fake_keyring, monkeypatch):
+    def test_bad_paste_reprompts_then_succeeds(self, fake_vault, monkeypatch):
         good = f"{WHOOP_REDIRECT_URI}?code=the-code&state=st-1"
         stale = f"{WHOOP_REDIRECT_URI}?code=old&state=stale-state"
-        self._arrange(fake_keyring, monkeypatch, inputs=["", stale, good])
+        self._arrange(fake_vault, monkeypatch, inputs=["", stale, good])
         bundle = {"access_token": "acc"}
         exchange = MagicMock(return_value=bundle)
         monkeypatch.setattr(_setup_server, "_exchange_code", exchange)
@@ -265,17 +231,17 @@ class TestRunHeadlessFlow:
         assert _setup_server.run_headless_flow() is bundle
         exchange.assert_called_once_with("the-code")
 
-    def test_persistently_stale_state_raises_mismatch(self, fake_keyring, monkeypatch):
+    def test_persistently_stale_state_raises_mismatch(self, fake_vault, monkeypatch):
         stale = f"{WHOOP_REDIRECT_URI}?code=old&state=stale-state"
-        self._arrange(fake_keyring, monkeypatch, inputs=[stale, stale, stale])
+        self._arrange(fake_vault, monkeypatch, inputs=[stale, stale, stale])
         with pytest.raises(MgdioAuthError, match="State mismatch"):
             _setup_server.run_headless_flow()
 
-    def test_line_wrapped_paste_is_accepted(self, fake_keyring, monkeypatch):
+    def test_line_wrapped_paste_is_accepted(self, fake_vault, monkeypatch):
         # Terminal copying wraps long URLs; whitespace inside the paste
         # must not break parsing.
         wrapped = f"{WHOOP_REDIRECT_URI}?code=the-\n  code&state=st-1  "
-        self._arrange(fake_keyring, monkeypatch, inputs=[wrapped])
+        self._arrange(fake_vault, monkeypatch, inputs=[wrapped])
         exchange = MagicMock(return_value={"access_token": "a"})
         monkeypatch.setattr(_setup_server, "_exchange_code", exchange)
         monkeypatch.setattr(
@@ -285,9 +251,9 @@ class TestRunHeadlessFlow:
         _setup_server.run_headless_flow()
         exchange.assert_called_once_with("the-code")
 
-    def test_validation_failure_raises(self, fake_keyring, monkeypatch):
+    def test_validation_failure_raises(self, fake_vault, monkeypatch):
         pasted = f"{WHOOP_REDIRECT_URI}?code=c&state=st-1"
-        self._arrange(fake_keyring, monkeypatch, inputs=[pasted])
+        self._arrange(fake_vault, monkeypatch, inputs=[pasted])
         monkeypatch.setattr(
             _setup_server,
             "_exchange_code",
@@ -301,11 +267,9 @@ class TestRunHeadlessFlow:
 
 
 class TestClosedStdin:
-    def test_eof_at_paste_prompt_raises_actionable_error(
-        self, fake_keyring, monkeypatch
-    ):
+    def test_eof_at_paste_prompt_raises_actionable_error(self, fake_vault, monkeypatch):
         self._arrange = TestRunHeadlessFlow._arrange
-        self._arrange(self, fake_keyring, monkeypatch, inputs=[])
+        self._arrange(self, fake_vault, monkeypatch, inputs=[])
         monkeypatch.setattr("builtins.input", MagicMock(side_effect=EOFError))
         with pytest.raises(MgdioAuthError, match="stdin closed"):
             _setup_server.run_headless_flow()

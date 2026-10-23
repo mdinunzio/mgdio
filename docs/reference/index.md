@@ -44,5 +44,5 @@ is always the right import path; the private `client` / `messages` /
 | [mgdio.maps](maps.md) | Geocoding and routes on an API key |
 | [mgdio.ynab](ynab.md) | Budgets, accounts, categories, transactions |
 | [mgdio.whoop](whoop.md) | Recovery, sleep, workouts, cycles, profile, body |
-| [mgdio.settings](settings.md) | Paths, scopes, keyring identifiers, env vars |
+| [mgdio.settings](settings.md) | Paths, scopes, vault keys, env vars |
 | [mgdio.exceptions](exceptions.md) | The error hierarchy |

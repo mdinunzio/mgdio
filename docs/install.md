@@ -15,7 +15,7 @@ uv add "git+ssh://git@github.com/mdinunzio/mgdio.git"
 
 # Pin to a branch, tag, or commit
 uv add "git+https://github.com/mdinunzio/mgdio.git@main"
-uv add "git+https://github.com/mdinunzio/mgdio.git@v0.5.0"
+uv add "git+https://github.com/mdinunzio/mgdio.git@v0.6.0"
 uv add "git+https://github.com/mdinunzio/mgdio.git@<commit-sha>"
 
 # Optional DataFrame backend for Sheets
@@ -45,6 +45,17 @@ uv add --upgrade "git+https://github.com/mdinunzio/mgdio.git"
 # or
 pip install --upgrade --force-reinstall "git+https://github.com/mdinunzio/mgdio.git"
 ```
+
+The credential store, [mgdvault](https://github.com/mdinunzio/mgdvault), is
+pulled in from GitHub automatically. After installing, set its passphrase once
+per machine and check what is in use:
+
+```bash
+export MGDVAULT_PASSWORD='a long passphrase'   # shell profile, or a gitignored .env
+mgdio auth status                              # first line shows the vault path
+```
+
+See [Credential vault](auth.md#credential-vault) for details.
 
 ## As a global command
 
@@ -86,7 +97,7 @@ git clone git@github.com:mdinunzio/mgdio.git
 cd mgdio
 uv sync --extra dev
 uv pip install -e .        # registers the `mgdio` console script
-uv run pytest -ra          # unit suite; never touches your real keyring
+uv run pytest -ra          # unit suite; never touches your real vault
 ```
 
 ### Build the docs locally

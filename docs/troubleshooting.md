@@ -20,8 +20,9 @@ A token needs an interactive auth flow and the process has no TTY. Run the
 [Unattended jobs never hang](auth.md#unattended-jobs-never-hang).
 
 **Testing without touching real APIs.**
-`uv run pytest -ra`. The unit suite uses an in-memory keyring fixture and never
-touches your real vault.
+`uv run pytest -ra`. The unit suite routes every secret read and write to an
+in-memory vault and never touches your real one, even with `MGDVAULT_PASSWORD`
+exported.
 
 **YNAB token rejected.**
 `mgdio auth ynab --reset` and paste a new one. The setup page calls
@@ -41,22 +42,23 @@ You pasted a redirect URL from a *different* mgdio session. State rotates every
 run, so finish the paste in the same terminal session that printed the auth
 URL. Re-run the command and try again.
 
-**`keyring.errors.NoKeyringError` on a Linux VPS.**
-mgdio normally falls back to a file-based store automatically (see
-[Linux keyring fallback](auth.md#linux-keyring-fallback)). If you still hit
-it, `keyrings.alt` may be missing (`pip install keyrings.alt`) or a stale
-`PYTHON_KEYRING_BACKEND` env var is forcing an unusable backend. Unset it and
-let mgdio choose.
+**`MGDVAULT_PASSWORD is not set`.**
+Every mgdio command needs the vault passphrase. Export it in your shell
+profile, or put it in a `.env` in the directory you run from. `mgdio auth
+status` shows which vault is in use without touching any provider. See
+[Credential vault](auth.md#credential-vault).
 
-**Headless auth hangs on a keyring password prompt.**
-`MGDIO_KEYRING_PLAINTEXT=0` (or an `EncryptedKeyring` env var) is set, which
-prompts for a password every run and blocks cron. Unset it to use the default
-no-prompt fallback.
+**`Could not unlock the KeePass database`.**
+Wrong passphrase for the file at `MGDVAULT_PATH` (or the default path). If you
+copied a `vault.kdbx` from another machine, use that machine's passphrase.
 
-**macOS: `errSecInvalidOwnerEdit` / error `-25244`.**
-A stale Keychain item from a rebuilt `.venv`. mgdio recovers automatically;
-if it cannot, the error message prints the `security delete-generic-password`
-command to run. See [Where credentials live](auth.md#where-credentials-live).
+**Tokens vanished after upgrading to 0.6.**
+They are still in the OS keychain. Run `mgdio auth migrate-keyring` on that
+machine; see [Migrating from mgdio ≤ 0.5](auth.md#migrating-from-mgdio-05).
+
+**`Timed out ... waiting for the vault write lock`.**
+Another process is mid-write, or died holding `vault.kdbx.lock`. Wait, or
+delete the stale `.lock` file if nothing is running.
 
 **Whoop callback URL never appears in the browser.**
 Usually VS Code Remote-SSH port forwarding. See the

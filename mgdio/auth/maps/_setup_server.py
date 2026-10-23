@@ -8,7 +8,7 @@ the browser at ``/``, and walks the user through:
    and Directions APIs enabled.
 2. Pasting the key into a single text field.
 3. Clicking "Save", which validates the key with a test geocode and
-   returns the validated string to the caller for keyring storage.
+   returns the validated string to the caller for vault storage.
 
 The server serves only the local user (``127.0.0.1`` bind), runs in a
 background thread, and shuts itself down once the user saves or cancels.
@@ -133,7 +133,7 @@ def _print_headless_instructions() -> None:
         "     Geocoding and Directions APIs. There is NO automatic spending\n"
         "     cap; a daily quota rejects requests instead of billing them.\n\n"
         "Paste the key below. It is verified with a test geocode before\n"
-        "being saved to your OS keyring.\n"
+        "being saved to your credential vault.\n"
     )
     print(msg, file=sys.stderr, flush=True)
 
@@ -360,9 +360,8 @@ _PAGE = """\
 <div class="note">
   When you click <em>Save</em>, mgdio runs a test geocode against Google
   to verify the key works and the Geocoding API is enabled. On success it
-  is stored in your OS credential vault (Windows Credential Manager /
-  macOS Keychain / Linux Secret Service) under <code>mgdio:maps</code>.
-  Nothing is written to disk.
+  is stored in your encrypted mgdvault credential vault under
+  <code>mgdio/maps/api_key</code>. Nothing is written in plaintext.
 </div>
 
 <script>
@@ -390,7 +389,7 @@ saveBtn.addEventListener('click', async () => {
     const data = await r.json();
     if (data.ok) {
       setStatus(
-        'Saved! Key stored in your OS keyring. You can close this tab.',
+        'Saved! Key stored in your credential vault. You can close this tab.',
         'ok'
       );
       cancelBtn.disabled = true;

@@ -33,7 +33,7 @@ def get_session() -> requests.Session:
     """Return the cached :class:`requests.Session` for YNAB calls.
 
     The session has ``Authorization: Bearer <token>`` set from the
-    keyring-cached personal access token.
+    vault-cached personal access token.
 
     Returns:
         A configured :class:`requests.Session`.

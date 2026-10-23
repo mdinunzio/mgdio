@@ -23,7 +23,7 @@ mgdio auth ynab --reset      # paste a new one
 
 The setup page links to <https://app.ynab.com/settings/developer> where you
 mint a token. Paste it in; mgdio validates it against `GET /v1/user` before
-saving to the keyring under `mgdio:ynab`, so typos surface immediately.
+saving to the credential vault under `mgdio/ynab/token`, so typos surface immediately.
 
 ## Money is milliunits
 

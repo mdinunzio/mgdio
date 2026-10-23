@@ -7,24 +7,23 @@ from unittest.mock import MagicMock
 import pytest
 
 from mgdio.auth.ynab import auth as ynab_auth
-from mgdio.exceptions import MgdioKeyringError
-from mgdio.settings import YNAB_KEYRING_SERVICE, YNAB_KEYRING_USERNAME
+from mgdio.settings import YNAB_VAULT_KEY
 
 
 class TestGetToken:
-    def test_returns_in_process_cached_token_without_keyring_call(
-        self, fake_keyring, monkeypatch
+    def test_returns_in_process_cached_token_without_vault_call(
+        self, fake_vault, monkeypatch
     ):
         monkeypatch.setattr(ynab_auth, "_token", "cached-token")
         run_setup = MagicMock()
         monkeypatch.setattr(ynab_auth, "run_setup_flow", run_setup)
 
         assert ynab_auth.get_token() == "cached-token"
-        assert fake_keyring == {}
+        assert fake_vault.list_keys() == []
         run_setup.assert_not_called()
 
-    def test_loads_token_from_keyring(self, fake_keyring, monkeypatch):
-        fake_keyring[(YNAB_KEYRING_SERVICE, YNAB_KEYRING_USERNAME)] = "stored-token"
+    def test_loads_token_from_vault(self, fake_vault, monkeypatch):
+        fake_vault.set(YNAB_VAULT_KEY, "stored-token")
         run_setup = MagicMock()
         monkeypatch.setattr(ynab_auth, "run_setup_flow", run_setup)
 
@@ -32,8 +31,8 @@ class TestGetToken:
         assert ynab_auth._token == "stored-token"
         run_setup.assert_not_called()
 
-    def test_runs_setup_flow_when_keyring_empty_and_persists_result(
-        self, fake_keyring, monkeypatch
+    def test_runs_setup_flow_when_vault_empty_and_persists_result(
+        self, fake_vault, monkeypatch
     ):
         run_setup = MagicMock(return_value="freshly-pasted-token")
         monkeypatch.setattr(ynab_auth, "run_setup_flow", run_setup)
@@ -42,52 +41,31 @@ class TestGetToken:
 
         assert result == "freshly-pasted-token"
         run_setup.assert_called_once()
-        assert (
-            fake_keyring[(YNAB_KEYRING_SERVICE, YNAB_KEYRING_USERNAME)]
-            == "freshly-pasted-token"
-        )
-
-
-class TestPreflightWritability:
-    def test_broken_vault_entry_fails_before_paste_flow(
-        self, fake_keyring, monkeypatch
-    ):
-        monkeypatch.setattr(
-            ynab_auth._keyring,
-            "ensure_writable",
-            MagicMock(side_effect=MgdioKeyringError("vault refused write")),
-        )
-        run_setup = MagicMock()
-        monkeypatch.setattr(ynab_auth, "run_setup_flow", run_setup)
-
-        with pytest.raises(MgdioKeyringError):
-            ynab_auth.get_token()
-        run_setup.assert_not_called()
+        assert fake_vault.get(YNAB_VAULT_KEY) == "freshly-pasted-token"
 
 
 class TestClearStoredToken:
-    def test_removes_keyring_entry_and_resets_cache(self, fake_keyring, monkeypatch):
-        fake_keyring[(YNAB_KEYRING_SERVICE, YNAB_KEYRING_USERNAME)] = "x"
+    def test_removes_vault_entry_and_resets_cache(self, fake_vault, monkeypatch):
+        fake_vault.set(YNAB_VAULT_KEY, "x")
         monkeypatch.setattr(ynab_auth, "_token", "x")
 
         ynab_auth.clear_stored_token()
 
-        assert (YNAB_KEYRING_SERVICE, YNAB_KEYRING_USERNAME) not in fake_keyring
+        assert not fake_vault.exists(YNAB_VAULT_KEY)
         assert ynab_auth._token is None
 
-    def test_swallows_missing_entry_without_raising(self, fake_keyring):
+    def test_swallows_missing_entry_without_raising(self, fake_vault):
         ynab_auth.clear_stored_token()
         assert ynab_auth._token is None
 
 
 class TestSettingsConsistency:
-    def test_keyring_identifiers_namespace_under_mgdio_ynab(self):
-        assert YNAB_KEYRING_SERVICE == "mgdio:ynab"
-        assert YNAB_KEYRING_USERNAME == "personal_access_token"
+    def test_vault_key_namespaced_under_mgdio_ynab(self):
+        assert YNAB_VAULT_KEY == "mgdio/ynab/token"
 
 
 class TestNonInteractiveGuard:
-    def test_implicit_flow_blocked(self, fake_keyring, monkeypatch):
+    def test_implicit_flow_blocked(self, fake_vault, monkeypatch):
         from mgdio.exceptions import MgdioInteractionRequiredError
 
         monkeypatch.setenv("MGDIO_NONINTERACTIVE", "1")
@@ -100,7 +78,7 @@ class TestNonInteractiveGuard:
 
 
 class TestAuthorize:
-    def test_bypasses_noninteractive_guard(self, fake_keyring, monkeypatch):
+    def test_bypasses_noninteractive_guard(self, fake_vault, monkeypatch):
         monkeypatch.setenv("MGDIO_NONINTERACTIVE", "1")
         run_setup = MagicMock(return_value="pasted-token")
         monkeypatch.setattr(ynab_auth, "run_setup_flow", run_setup)

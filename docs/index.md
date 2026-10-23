@@ -28,13 +28,20 @@ spelled out step by step in
 [Google Cloud Console setup](auth.md#google-cloud-console-setup). With the
 file downloaded:
 
+Pick a vault passphrase once per machine (the credential store is created on
+first use):
+
+```bash
+export MGDVAULT_PASSWORD='a long passphrase'   # shell profile, or a gitignored .env
+```
+
 ```bash
 uv run mgdio auth google --profile me
 ```
 
 A setup page opens in your browser. Drag in `client_secret.json`, click
-**Authorize**, and approve the consent screen. The token is stored in your OS
-keyring under `mgdio:google:me` and refreshes transparently from now on.
+**Authorize**, and approve the consent screen. The token is stored in your
+credential vault under `mgdio/google/me` and refreshes transparently from now on.
 
 !!! tip "No browser on this machine?"
     Add `--headless` to run a copy-paste flow from a Linux VPS or SSH
@@ -104,9 +111,10 @@ one-time `mgdio auth <provider>` command.
 - **One consent for Google.** Gmail, Sheets, Calendar, and Drive share one
   OAuth client and one token per Google account. Multiple accounts are
   [profiles](auth.md#multiple-google-accounts-profiles).
-- **Vault-backed, never plaintext.** Windows Credential Manager, macOS
-  Keychain, or Linux Secret Service, with an automatic file fallback on
-  headless Linux.
+- **Vault-backed, never plaintext.** An encrypted
+  [mgdvault](https://github.com/mdinunzio/mgdvault) KeePass file shared by all
+  your projects, unlocked by one env var; identical on a laptop, a headless
+  VPS, or in cron.
 - **Safe when unattended.** A stale token on a cron host raises a clear error
   naming the `mgdio auth` command to run instead of hanging on a browser that
   will never open.

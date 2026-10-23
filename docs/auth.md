@@ -7,8 +7,10 @@ function call. The design goals, in priority order:
   *Published*), long-lived personal tokens where the provider offers them.
 - **Native.** Official provider APIs, not SMTP or IMAP.
 - **Free.** Works against a personal `@gmail.com`; no Workspace account.
-- **Vault-backed.** Tokens live in Windows Credential Manager, macOS Keychain,
-  or Linux Secret Service. No plaintext token files.
+- **Vault-backed.** Tokens live in an encrypted
+  [mgdvault](https://github.com/mdinunzio/mgdvault) KeePass file shared by
+  every project on the machine, unlocked by one env var. Same behaviour on a
+  laptop, a headless VPS, or in cron. See [Credential vault](#credential-vault).
 - **Unattended-safe.** A missing or dead token on a cron host raises a clear
   error instead of blocking forever on a browser.
 
@@ -16,12 +18,12 @@ Each provider exposes the same triple: `get_credentials()` (or the provider's
 equivalent such as `get_token()` / `get_api_key()`), `clear_stored_token()`,
 and `reset_credentials_cache()`.
 
-| Provider | Flow | Keyring service | Command |
+| Provider | Flow | Vault key | Command |
 | --- | --- | --- | --- |
-| Google (Gmail, Sheets, Calendar, Drive) | OAuth, one consent for all four | `mgdio:google:<profile>` | `mgdio auth google --profile <slug>` |
-| Google Maps | API key pasted into a setup page | `mgdio:maps` | `mgdio auth maps` |
-| YNAB | Personal access token pasted into a setup page | `mgdio:ynab` | `mgdio auth ynab` |
-| Whoop | OAuth 2.0 code flow, auto-refresh | `mgdio:whoop` | `mgdio auth whoop` |
+| Google (Gmail, Sheets, Calendar, Drive) | OAuth, one consent for all four | `mgdio/google/<profile>` | `mgdio auth google --profile <slug>` |
+| Google Maps | API key pasted into a setup page | `mgdio/maps/api_key` | `mgdio auth maps` |
+| YNAB | Personal access token pasted into a setup page | `mgdio/ynab/token` | `mgdio auth ynab` |
+| Whoop | OAuth 2.0 code flow, auto-refresh | `mgdio/whoop/oauth_token` (+ `app_credentials`) | `mgdio auth whoop` |
 
 Maps, YNAB, and Whoop setup is described on their service pages. The rest of
 this page is about Google, which has the most moving parts.
@@ -64,8 +66,8 @@ uv run mgdio auth google --profile mdinunziosvc
 `--profile <slug>` names the Google account (lowercase letters, digits, `-`,
 `_`). A localhost setup page opens. Drag in the `client_secret.json` you
 downloaded, click **Authorize**, and approve the single consent screen covering
-all four scopes. The token is written to your OS vault under
-`mgdio:google:<slug>`; later calls read it from there and refresh silently.
+all four scopes. The token is written to your credential vault under
+`mgdio/google/<slug>`; later calls read it from there and refresh silently.
 
 Force a fresh consent flow (after rotating credentials or when scopes change):
 
@@ -89,8 +91,9 @@ To authenticate the remaining provider(s):
   mgdio auth maps
 ```
 
-This only reads the keyring. It makes no network calls and triggers no setup
-flows.
+The first line names the vault in use. This only reads the vault; it makes no
+network calls and triggers no setup flows. If the vault is not configured,
+every provider is reported as unauthenticated with the reason.
 
 ## Multiple Google accounts (profiles)
 
@@ -108,7 +111,6 @@ uv run mgdio auth google profiles
 
 # Remove credentials (confirms unless --yes)
 uv run mgdio auth google remove --profile personal
-uv run mgdio auth google remove --legacy    # the pre-profiles mgdio:google token
 uv run mgdio auth google remove --all
 
 # Use a specific profile for one command
@@ -172,34 +174,98 @@ command to run, instead of waiting on a browser forever.
 - Explicit `mgdio auth <provider>` commands are exempt, so exporting
   `MGDIO_NONINTERACTIVE=1` host-wide on a server is safe.
 
-### Linux keyring fallback
+### Headless hosts
 
-A minimal VPS image often has no Secret Service daemon, so the OS `keyring`
-cannot store a token. mgdio detects this at startup and falls back to a
-file-based store on its own. No manual backend configuration.
+The vault is a file, so a VPS or container works exactly like a laptop:
+export `MGDVAULT_PASSWORD` (shell profile, a systemd unit's `Environment=`,
+or a `.env` next to the job) and run the auth commands. Simpler still, copy
+an already-populated `vault.kdbx` from your laptop to the host; every token
+comes with it and no consent flows need redoing. The file is encrypted, so
+`scp` is fine as long as the passphrase travels separately.
 
-The default fallback is **unencrypted**: a `chmod 600` file at
-`~/.local/share/mgdio/keyring/mgdio_plaintext.cfg` inside a `chmod 700`
-directory. This is deliberate so cron jobs never hang on a password prompt.
-mgdio logs a one-time warning only when it *writes* a credential; read-only
-commands stay silent.
+Cron does not source your shell profile, so put `MGDVAULT_PASSWORD=...` at
+the top of the crontab (or in a `chmod 600` env file the entry sources) and
+use the absolute path to the binary, for example
+`*/15 * * * * /path/to/venv/bin/mgdio drive list --max 5`. Concurrent jobs
+are safe: token refreshes take the vault's write lock.
 
-- `MGDIO_KEYRING_PLAINTEXT=0` switches to an encrypted file backend, which
-  prompts for a password on every process (unsuitable for cron).
-- `PYTHON_KEYRING_BACKEND` or `MGDIO_KEYRING_BACKEND` forces a backend of your
-  choosing and mgdio will not override it.
+## Credential vault
 
-A cron entry is then just the absolute path to the binary, for example
-`*/15 * * * * /path/to/venv/bin/mgdio drive list --max 5`.
+Every secret mgdio holds lives in [mgdvault](https://github.com/mdinunzio/mgdvault),
+a small library that stores secrets in an encrypted KeePass (`.kdbx`) file in
+your user data directory and shares it across all your Python projects. One
+env var unlocks it:
 
-## Where credentials live
+```bash
+export MGDVAULT_PASSWORD='a long passphrase'
+```
 
-- **OAuth token**: OS vault under service `mgdio:google:<profile>`, username
-  `oauth_token`. Windows: *Credential Manager → Windows Credentials*. macOS:
-  *Keychain*. Linux: *Secret Service*, or the file fallback above.
-- **Profile index**: the list of known slugs lives next to
-  `client_secret.json` as `google/profiles.json`. The keyring remains the
-  source of truth for the token bytes.
+Put it in your shell profile (one copy for every project) or in a gitignored
+`.env`; mgdio loads `.env` on import. The database is created automatically
+the first time something is stored.
+
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `MGDVAULT_PASSWORD` | Master passphrase | required |
+| `MGDVAULT_PATH` | Location of the `.kdbx` file | `~/Library/Application Support/mgdvault/vault.kdbx` (macOS), `%LOCALAPPDATA%\mgdvault\vault.kdbx` (Windows), `~/.local/share/mgdvault/vault.kdbx` (Linux) |
+| `MGDVAULT_BACKEND` | `keepass` (default) or `keyring` for the OS credential manager | `keepass` |
+
+### Keys mgdio uses
+
+| Key | Contents |
+| --- | --- |
+| `mgdio/google/<profile>` | Google OAuth token bundle (one per account) |
+| `mgdio/ynab/token` | YNAB personal access token |
+| `mgdio/maps/api_key` | Google Maps Platform API key |
+| `mgdio/whoop/app_credentials` | Whoop developer app Client ID + Secret |
+| `mgdio/whoop/oauth_token` | Whoop OAuth token bundle |
+
+The set of Google profiles is simply the keys under `mgdio/google/`; there is
+no separate index. Inspect or manage entries with the `mgdvault` CLI, which
+never prints values unless asked:
+
+```bash
+uv run mgdvault info                 # backend, path, secret count
+uv run mgdvault list mgdio           # keys only
+uv run mgdvault exists mgdio/ynab/token
+uv run mgdvault delete mgdio/maps/api_key
+```
+
+The `.kdbx` file is a standard KeePass database; open it in
+[KeePassXC](https://keepassxc.org/) to audit what is stored.
+
+??? note "Why a file instead of the OS keychain"
+    mgdio ≤ 0.5 used the OS credential manager via `keyring`. Headless Linux
+    has no Secret Service daemon (so mgdio carried a plaintext-file
+    fallback), macOS ties each Keychain item to the binary that created it
+    (so every rebuilt `.venv` triggered permission dialogs or write refusals),
+    and none of it was portable between machines. The encrypted file has none
+    of those problems, and token refreshes go through a locked
+    read-modify-write so concurrent cron jobs cannot clobber each other,
+    which matters for Whoop, whose refresh tokens rotate on every use.
+    `MGDVAULT_BACKEND=keyring` still stores the same keys in the OS keychain
+    if you prefer it.
+
+### Migrating from mgdio ≤ 0.5
+
+Existing installs have their tokens in the OS keychain. On the machine that
+holds them, copy everything into the vault in one go. The keychain is only
+read, never modified, so re-running is safe:
+
+```bash
+export MGDVAULT_PASSWORD='...'
+uv run mgdio auth migrate-keyring
+uv run mgdio auth status
+```
+
+Then copy `vault.kdbx` to your other machines rather than migrating each one.
+A headless host that used the old plaintext-file fallback has no keychain to
+read; copy the vault file there or re-run the auth commands. Once satisfied,
+remove the old items from the keychain by hand (macOS: Keychain Access, search
+`mgdio:`).
+
+## Where non-secret files live
+
 - **`client_secret.json`**: one shared file (app identity, not per-account):
 
 | OS | Path |
@@ -216,19 +282,6 @@ uv run python -c "from mgdio.settings import GOOGLE_CLIENT_SECRET_PATH as p; pri
 
 `--reset` deletes only the token and reuses this file, so re-auth never
 requires re-downloading anything.
-
-??? note "macOS Keychain: stale items are handled automatically"
-    The Keychain binds each item's ACL to the binary that created it. After a
-    `.venv` rebuild the new python cannot overwrite the old item (error
-    `-25244`). mgdio deletes the stale item with Apple's `security` CLI and
-    retries. If that ever fails, the error includes the manual fix:
-
-    ```bash
-    security delete-generic-password -s "mgdio:google:<profile>" -a "oauth_token"
-    ```
-
-    You may also see a one-time *"python wants to access your keychain"*
-    dialog after a rebuild. Click **Always Allow**.
 
 ## Building your own Google API client
 

@@ -32,7 +32,7 @@ mgdio auth whoop
 ```
 
 A setup page opens where you paste the Client ID and Secret (saved to the
-keyring under `mgdio:whoop`), click **Authorize with Whoop**, and approve. The
+vault under `mgdio/whoop/app_credentials`), click **Authorize with Whoop**, and approve. The
 access and refresh token bundle is stored and **refreshed automatically**.
 
 ### Headless Whoop auth

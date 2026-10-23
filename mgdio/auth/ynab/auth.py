@@ -2,21 +2,20 @@
 
 YNAB doesn't use OAuth -- users mint a long-lived personal access token
 manually at https://app.ynab.com/settings/developer and paste it. We
-store the token in the OS keyring under ``mgdio:ynab`` and surface a
-provider-uniform :func:`get_token` that runs the localhost setup page
-on first call.
+store the token in the credential vault under ``mgdio/ynab/token`` and
+surface a provider-uniform :func:`get_token` that runs the localhost
+setup page on first call.
 """
 
 from __future__ import annotations
 
 import logging
 
-import keyring
+import mgdvault
 
-from mgdio.auth import _keyring
 from mgdio.auth._interactive import require_interactive
 from mgdio.auth.ynab._setup_server import run_headless_flow, run_setup_flow
-from mgdio.settings import YNAB_KEYRING_SERVICE, YNAB_KEYRING_USERNAME
+from mgdio.settings import YNAB_VAULT_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +45,7 @@ def get_token(headless: bool = False, *, _explicit: bool = False) -> str:
     runs: the browser localhost page by default, or a terminal
     copy-paste prompt when ``headless=True``. Either way the pasted
     token is validated against ``/v1/user`` before being saved to the
-    OS keyring.
+    vault.
 
     Args:
         headless: If True, prompt for the token on the terminal instead
@@ -60,32 +59,26 @@ def get_token(headless: bool = False, *, _explicit: bool = False) -> str:
     if _token is not None:
         return _token
 
-    stored = keyring.get_password(YNAB_KEYRING_SERVICE, YNAB_KEYRING_USERNAME)
+    stored = mgdvault.get(YNAB_VAULT_KEY, default=None)
     if stored:
         _token = stored
         return _token
 
     if not _explicit:
         require_interactive("YNAB", "mgdio auth ynab", "no stored token")
-    _keyring.ensure_writable(YNAB_KEYRING_SERVICE, YNAB_KEYRING_USERNAME)
     flow = run_headless_flow if headless else run_setup_flow
     _token = flow()
-    _keyring.set_password(YNAB_KEYRING_SERVICE, YNAB_KEYRING_USERNAME, _token)
+    mgdvault.set(YNAB_VAULT_KEY, _token)
     return _token
 
 
 def clear_stored_token() -> None:
-    """Delete the cached YNAB token from the OS keyring and in-process cache.
-
-    Raises:
-        MgdioKeyringError: If the token exists but the keyring refuses
-            to delete it (after stale-item recovery).
-    """
-    _keyring.delete_password(YNAB_KEYRING_SERVICE, YNAB_KEYRING_USERNAME)
+    """Delete the YNAB token from the vault and the in-process cache."""
+    mgdvault.delete(YNAB_VAULT_KEY)
     reset_token_cache()
 
 
 def reset_token_cache() -> None:
-    """Clear the in-process token cache (does not touch the keyring)."""
+    """Clear the in-process token cache (does not touch the vault)."""
     global _token
     _token = None

@@ -24,7 +24,7 @@ mgdio auth maps --headless   # paste the key on the terminal instead
 The setup page walks you through creating a key in the Cloud Console: enable
 the **Geocoding API** and **Directions API** (billing must be enabled, even for
 the free tier), paste the key, and mgdio validates it with a test geocode before
-storing it in the keyring under `mgdio:maps`.
+storing it in the credential vault under `mgdio/maps/api_key`.
 
 !!! danger "Cap usage at the free tier"
     Maps Platform requires a billing account and has **no automatic spending

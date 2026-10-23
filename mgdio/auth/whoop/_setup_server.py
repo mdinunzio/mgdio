@@ -7,14 +7,14 @@ and walks the user through:
 
 1. Reading instructions for creating a Whoop developer app and copying
    its Client ID + Secret.
-2. Pasting both into the form; they're saved to the OS keyring
+2. Pasting both into the form; they're saved to the credential vault
    (``mgdio:whoop`` / ``app_credentials``).
 3. Clicking "Authorize with Whoop", which opens Whoop's consent screen
    in a new tab. After the user approves, Whoop redirects back to the
    callback path on this same local server with an authorization code.
 4. The callback handler exchanges the code for an access+refresh token
    bundle, validates it against ``/v2/user/profile/basic``, and returns
-   it to the caller for keyring storage.
+   it to the caller for vault storage.
 
 The bind host, port, and callback path are all derived from
 ``WHOOP_REDIRECT_URI`` so they always agree with what the user
@@ -35,16 +35,14 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlencode, urlparse
 
-import keyring
+import mgdvault
 import requests
 
-from mgdio.auth import _keyring
 from mgdio.exceptions import MgdioAuthError
 from mgdio.settings import (
     WHOOP_API_BASE,
     WHOOP_AUTH_URL,
-    WHOOP_KEYRING_SERVICE,
-    WHOOP_KEYRING_USERNAME_APP,
+    WHOOP_VAULT_KEY_APP,
     WHOOP_REDIRECT_URI,
     WHOOP_SCOPES,
     WHOOP_TOKEN_URL,
@@ -134,7 +132,7 @@ def run_headless_flow() -> dict:
     parse the code out of it.
 
     If app credentials (Client ID / Secret) aren't stored yet, they're
-    prompted for on the terminal first and saved to the keyring.
+    prompted for on the terminal first and saved to the vault.
 
     A bad paste (empty, wrong state, no code) re-prompts up to
     ``_MAX_PASTE_ATTEMPTS`` times with a specific hint rather than
@@ -514,19 +512,14 @@ def _authorized_message(resp: requests.Response) -> str:
 
 
 def _save_app_credentials(client_id: str, client_secret: str) -> None:
-    _keyring.set_password(
-        WHOOP_KEYRING_SERVICE,
-        WHOOP_KEYRING_USERNAME_APP,
-        json.dumps({"client_id": client_id, "client_secret": client_secret}),
+    mgdvault.set_json(
+        WHOOP_VAULT_KEY_APP, {"client_id": client_id, "client_secret": client_secret}
     )
 
 
 def _load_app_credentials_or_empty() -> dict:
-    raw = keyring.get_password(WHOOP_KEYRING_SERVICE, WHOOP_KEYRING_USERNAME_APP)
-    if not raw:
-        return {}
     try:
-        return json.loads(raw)
+        return mgdvault.get_json(WHOOP_VAULT_KEY_APP, default=None) or {}
     except json.JSONDecodeError:
         return {}
 
@@ -768,9 +761,8 @@ _PAGE_TEMPLATE = """\
 <p id="status"></p>
 
 <div class="note">
-  Credentials are stored in your OS credential vault (Windows Credential
-  Manager / macOS Keychain / Linux Secret Service) under
-  <code>mgdio:whoop</code>. The redirect URI defaults to
+  Credentials are stored in your encrypted mgdvault credential vault
+  under <code>mgdio/whoop/</code>. The redirect URI defaults to
   <code>{redirect_uri}</code> &mdash; change it by setting
   <code>MGDIO_WHOOP_REDIRECT_URI</code> in your environment or
   <code>.env</code> (and updating your Whoop app to match).

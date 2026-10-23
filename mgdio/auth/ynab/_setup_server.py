@@ -8,7 +8,7 @@ opens the browser at ``/``, and walks the user through:
    https://app.ynab.com/settings/developer.
 2. Pasting the token into a single text field.
 3. Clicking "Save", which validates the token against ``/v1/user`` and
-   returns the validated string to the caller for keyring storage.
+   returns the validated string to the caller for vault storage.
 
 The server serves only the local user (``127.0.0.1`` bind), runs in a
 background thread, and shuts itself down once the user saves or cancels.
@@ -126,7 +126,7 @@ def _print_headless_instructions() -> None:
         "  2. Click New Token, re-enter your password, click Generate.\n"
         "  3. Copy the token string (YNAB won't show it again).\n\n"
         "Paste the token below. It is verified against GET /v1/user\n"
-        "before being saved to your OS keyring.\n"
+        "before being saved to your credential vault.\n"
     )
     print(msg, file=sys.stderr, flush=True)
 
@@ -312,9 +312,8 @@ _PAGE = """\
 <div class="note">
   When you click <em>Save</em>, mgdio calls
   <code>GET /v1/user</code> on YNAB to verify the token. On success it
-  is stored in your OS credential vault (Windows Credential Manager /
-  macOS Keychain / Linux Secret Service) under <code>mgdio:ynab</code>.
-  Nothing is written to disk.
+  is stored in your encrypted mgdvault credential vault under
+  <code>mgdio/ynab/token</code>. Nothing is written in plaintext.
 </div>
 
 <script>
@@ -342,7 +341,7 @@ saveBtn.addEventListener('click', async () => {
     const data = await r.json();
     if (data.ok) {
       setStatus(
-        'Saved! Token stored in your OS keyring. You can close this tab.',
+        'Saved! Token stored in your credential vault. You can close this tab.',
         'ok'
       );
       cancelBtn.disabled = true;

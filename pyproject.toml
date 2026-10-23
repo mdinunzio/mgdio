@@ -1,6 +1,6 @@
 [project]
 name = "mgdio"
-version = "0.5.1"
+version = "0.6.0"
 description = "Personal connectivity tools: Gmail, Calendar, Sheets, YNAB."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -20,18 +20,13 @@ dependencies = [
     "google-auth>=2.30",
     "google-auth-oauthlib>=1.2",
     "platformdirs>=4.2",
-    "keyring>=25.0",
     "click>=8.1",
     "python-dotenv>=1.0",
     "requests>=2.31",
-    # On Linux the OS often has no Secret Service daemon (headless VPS,
-    # container, SSH-only host), so the default `keyring` backend fails.
-    # Ship the file-based fallback backends + their crypto dependency so
-    # mgdio can auto-select one at import time without manual installs.
-    # Marker-scoped to Linux: Windows/macOS use the native vault and
-    # don't pull these.
-    "keyrings.alt>=5.0 ; sys_platform == 'linux'",
-    "pycryptodomex>=3.20 ; sys_platform == 'linux'",
+    # Credential storage. mgdvault is not on PyPI yet, so this is a PEP 508
+    # direct reference that both pip and uv resolve from GitHub. Switch to
+    # a plain ``mgdvault>=0.1`` once it is published.
+    "mgdvault @ git+https://github.com/mdinunzio/mgdvault",
 ]
 
 [project.urls]
@@ -52,10 +47,6 @@ dev = [
     "flake8-docstrings>=1.7",
     "pandas>=2.1",
     "polars>=0.20",
-    # Needed to exercise the headless-Linux file-keyring fallback in tests
-    # on any platform (the runtime dep is Linux-marker-scoped).
-    "keyrings.alt>=5.0",
-    "pycryptodomex>=3.20",
 ]
 docs = [
     "mkdocs>=1.6,<2",
@@ -73,6 +64,10 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["mgdio"]
+
+[tool.hatch.metadata]
+# Required for the git direct reference to mgdvault in project.dependencies.
+allow-direct-references = true
 
 [tool.black]
 line-length = 88

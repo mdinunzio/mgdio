@@ -11,10 +11,6 @@ class MgdioAuthError(MgdioError):
     """Authentication or authorization failure."""
 
 
-class MgdioKeyringError(MgdioAuthError):
-    """The OS credential vault refused to store or delete an entry."""
-
-
 class MgdioInteractionRequiredError(MgdioAuthError):
     """An interactive auth flow is needed but this session can't run one.
 

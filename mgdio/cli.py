@@ -9,12 +9,11 @@ from datetime import datetime
 from pathlib import Path
 
 import click
+from mgdvault import MgdvaultError
 
 from mgdio.auth.google import authorize_profile as authorize_google_profile
-from mgdio.auth.google import clear_legacy_token as clear_google_legacy_token
 from mgdio.auth.google import clear_stored_token as clear_google_token
 from mgdio.auth.google import (
-    detect_legacy_token,
     live_profiles,
 )
 from mgdio.auth.maps import authorize as authorize_maps
@@ -102,9 +101,10 @@ def auth() -> None:
 
 @auth.command("status")
 def auth_status() -> None:
-    """Show which providers are authenticated on this machine."""
-    from mgdio.auth.status import get_auth_status
+    """Show the credential vault and which providers are authenticated."""
+    from mgdio.auth.status import describe_vault, get_auth_status
 
+    click.echo(f"vault: {describe_vault()}")
     rows = get_auth_status()
     width = max(len(r.name) for r in rows)
     for r in rows:
@@ -117,6 +117,41 @@ def auth_status() -> None:
         click.echo("To authenticate the remaining provider(s):")
         for r in missing:
             click.echo(f"  {r.auth_command}")
+
+
+@auth.command("migrate-keyring")
+@click.option(
+    "--overwrite",
+    is_flag=True,
+    help="Replace vault entries that already exist (default: keep them).",
+)
+def auth_migrate_keyring(overwrite: bool) -> None:
+    """Copy secrets stored by mgdio <= 0.5 (OS keyring) into the vault.
+
+    Reads the pre-mgdvault keyring entries (``mgdio:google:<slug>``,
+    ``mgdio:ynab``, ``mgdio:whoop``, ``mgdio:maps``) and stores them at
+    the new ``mgdio/...`` vault keys so you don't have to redo every
+    consent flow. The keyring is only read, never modified; re-running
+    is safe. Existing vault entries are kept unless ``--overwrite``.
+
+    Only works where the old OS keyring is reachable (macOS Keychain,
+    Windows Credential Manager, Linux Secret Service). On a headless host
+    that used mgdio's file-based fallback, re-run the auth commands or
+    copy your ``vault.kdbx`` from another machine instead.
+    """
+    from mgdio.auth._migrate import migrate_from_keyring
+
+    try:
+        results = migrate_from_keyring(overwrite=overwrite)
+    except ModuleNotFoundError as exc:
+        raise click.ClickException(
+            "the `keyring` package is not installed, so the old entries can't "
+            "be read; `uv pip install keyring` and retry."
+        ) from exc
+    for r in results:
+        click.echo(f"{r.action:<9} {r.key}")
+    moved = sum(r.action == "migrated" for r in results)
+    click.echo(f"{moved} secret(s) migrated. Verify with: mgdio auth status")
 
 
 def _profile_option(func):
@@ -157,8 +192,8 @@ def auth_google(
     """Run (or re-run) the Google OAuth onboarding flow for a profile.
 
     Requests Gmail + Calendar + Sheets + Drive scopes in a single consent
-    screen. The token is stored in your OS keyring under
-    ``mgdio:google:<profile>``. ``--profile`` is required.
+    screen. The token is stored in your credential vault under
+    ``mgdio/google/<profile>``. ``--profile`` is required.
 
     Pass ``--headless`` on machines without a browser (e.g. a Linux VPS):
     mgdio will print the auth URL and prompt for the resulting redirect
@@ -176,12 +211,6 @@ def auth_google(
         clear_google_token(profile)
     authorize_google_profile(profile, headless=headless)
     click.echo(f"Authenticated profile '{profile}'.")
-    if detect_legacy_token():
-        click.echo(
-            "note: a legacy token at 'mgdio:google' (pre-profiles) is still "
-            "in your keyring and now unused; remove it with "
-            "`mgdio auth google remove --legacy`."
-        )
 
 
 @auth_google.command("profiles")
@@ -205,43 +234,22 @@ def auth_google_profiles() -> None:
 
 @auth_google.command("remove")
 @click.option("--profile", default=None, help="Profile slug to remove.")
-@click.option(
-    "--legacy",
-    is_flag=True,
-    help="Remove the pre-profiles token at the bare 'mgdio:google' service.",
-)
-@click.option("--all", "all_", is_flag=True, help="Remove every profile (+ legacy).")
+@click.option("--all", "all_", is_flag=True, help="Remove every profile.")
 @click.option(
     "--yes", "-y", is_flag=True, help="Skip the confirmation prompt (for scripts)."
 )
-def auth_google_remove(
-    profile: str | None, legacy: bool, all_: bool, yes: bool
-) -> None:
-    """Delete stored Google credentials (a profile, the legacy token, or all).
+def auth_google_remove(profile: str | None, all_: bool, yes: bool) -> None:
+    """Delete stored Google credentials (one profile, or all).
 
-    Examples: ``mgdio auth google remove --profile personal``,
-    ``--legacy`` (the old token), or ``--all``.
+    Examples: ``mgdio auth google remove --profile personal`` or ``--all``.
     """
-    selected = sum(bool(x) for x in (profile, legacy, all_))
-    if selected == 0:
-        raise click.UsageError("pass one of --profile <slug>, --legacy, or --all.")
-    if selected > 1:
-        raise click.UsageError("--profile, --legacy, and --all are mutually exclusive.")
+    if not profile and not all_:
+        raise click.UsageError("pass one of --profile <slug> or --all.")
+    if profile and all_:
+        raise click.UsageError("--profile and --all are mutually exclusive.")
 
-    # Build the work list + a human description for the confirmation.
-    profiles_to_remove: list[str] = []
-    remove_legacy = False
-    if all_:
-        profiles_to_remove = live_profiles()
-        remove_legacy = detect_legacy_token()
-    elif legacy:
-        remove_legacy = True
-    else:
-        profiles_to_remove = [profile]  # type: ignore[list-item]
-
+    profiles_to_remove = live_profiles() if all_ else [profile]
     targets = [f"profile '{slug}'" for slug in profiles_to_remove]
-    if remove_legacy:
-        targets.append("legacy 'mgdio:google' token")
     if not targets:
         click.echo("Nothing to remove.")
         return
@@ -253,9 +261,6 @@ def auth_google_remove(
     for slug in profiles_to_remove:
         clear_google_token(slug)
         click.echo(f"Removed profile '{slug}'.")
-    if remove_legacy:
-        clear_google_legacy_token()
-        click.echo("Removed legacy 'mgdio:google' token.")
 
 
 @auth.command("ynab")
@@ -274,8 +279,8 @@ def auth_ynab(reset: bool, headless: bool) -> None:
 
     Opens a localhost setup page in your browser with instructions to
     mint a token at app.ynab.com/settings/developer; paste the token
-    there and it's validated and saved to your OS keyring under
-    ``mgdio:ynab``.
+    there and it's validated and saved to your credential vault under
+    ``mgdio/ynab/token``.
 
     Pass ``--headless`` on machines without a browser (e.g. a Linux VPS):
     mgdio prints the instructions and reads the token from the terminal
@@ -316,8 +321,8 @@ def auth_whoop(reset: bool, headless: bool, catch: bool) -> None:
 
     Opens a localhost setup page in your browser: paste your Whoop app's
     Client ID + Secret, click "Authorize with Whoop", and approve. The
-    resulting token bundle is saved to your OS keyring under
-    ``mgdio:whoop`` and refreshed automatically on expiry.
+    resulting token bundle is saved to your credential vault under
+    ``mgdio/whoop/oauth_token`` and refreshed automatically on expiry.
 
     Pass ``--headless`` on machines without a browser (e.g. a Linux VPS):
     mgdio prints the auth URL to open elsewhere and prompts for the
@@ -362,7 +367,8 @@ def auth_maps(reset: bool, headless: bool) -> None:
     Maps uses an API key, not the shared Google login. Opens a localhost
     setup page with Cloud Console instructions (enable the Geocoding +
     Directions APIs, create a key); paste the key there and it's verified
-    with a test geocode and saved to your OS keyring under ``mgdio:maps``.
+    with a test geocode and saved to your credential vault under
+    ``mgdio/maps/api_key``.
 
     Pass ``--headless`` on machines without a browser (e.g. a Linux VPS):
     mgdio prints the instructions and reads the key from the terminal
@@ -1519,12 +1525,13 @@ def main() -> None:
     """Console-script entry point: render mgdio errors without a traceback.
 
     Click handles its own usage errors; anything mgdio raises on purpose
-    (auth failures, keyring refusals, API errors) carries an actionable
-    message, so print that instead of a stack trace.
+    (auth failures, API errors) or mgdvault raises (vault not configured,
+    wrong password, lock timeout) carries an actionable message, so print
+    that instead of a stack trace.
     """
     try:
         cli(standalone_mode=True)
-    except MgdioError as exc:
+    except (MgdioError, MgdvaultError) as exc:
         click.echo(f"error: {exc}", err=True)
         raise SystemExit(1) from exc
 

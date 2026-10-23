@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import base64
+import os
 from unittest.mock import MagicMock
 
+import mgdvault
 import pytest
+from mgdvault import MemoryVault
 
 from mgdio import settings as mgdio_settings
-from mgdio.auth import _keyring as auth_keyring_helpers
-from mgdio.auth import status as auth_status_mod
-from mgdio.auth.google import _profiles as google_profiles
 from mgdio.auth.google import auth as google_auth
 from mgdio.auth.maps import auth as maps_auth
 from mgdio.auth.whoop import auth as whoop_auth
@@ -32,6 +32,27 @@ def allow_interactive_auth(monkeypatch) -> None:
     with their own monkeypatch.setenv, which wins over this fixture.
     """
     monkeypatch.setenv("MGDIO_NONINTERACTIVE", "0")
+
+
+@pytest.fixture(autouse=True)
+def fake_vault(monkeypatch) -> MemoryVault:
+    """Route every mgdvault call at an in-memory vault; never the real one.
+
+    Autouse so no test can reach a developer's real KeePass file even if
+    ``MGDVAULT_PASSWORD`` is exported in their shell; the ``MGDVAULT_*``
+    variables are stripped too so nothing resolves from the environment.
+    Request the fixture by name to seed or inspect secrets::
+
+        fake_vault.set(YNAB_VAULT_KEY, "token")
+        assert fake_vault.exists(MAPS_VAULT_KEY)
+    """
+    for name in list(os.environ):
+        if name.startswith("MGDVAULT_"):
+            monkeypatch.delenv(name, raising=False)
+    vault = MemoryVault()
+    mgdvault.set_default_vault(vault)
+    yield vault
+    mgdvault.reset_default_vault()
 
 
 @pytest.fixture(autouse=True)
@@ -73,50 +94,12 @@ def tmp_appdata(tmp_path, monkeypatch):
     monkeypatch.setattr(mgdio_settings, "GOOGLE_DATA_DIR", google_dir)
     monkeypatch.setattr(mgdio_settings, "GOOGLE_CLIENT_SECRET_PATH", client_secret)
     monkeypatch.setattr(google_auth, "GOOGLE_CLIENT_SECRET_PATH", client_secret)
-    # Profile index lives alongside client_secret.json; _profiles reads it
-    # via settings.GOOGLE_PROFILE_INDEX_PATH at call time, so this one patch
-    # is enough.
     monkeypatch.setattr(
-        mgdio_settings, "GOOGLE_PROFILE_INDEX_PATH", google_dir / "profiles.json"
+        mgdio_settings,
+        "LEGACY_GOOGLE_PROFILE_INDEX_PATH",
+        google_dir / "profiles.json",
     )
     return tmp_path
-
-
-@pytest.fixture
-def fake_keyring(monkeypatch):
-    """Replace ``keyring`` calls in ``mgdio.auth.google.auth`` with a memory store."""
-    import keyring as real_keyring
-
-    store: dict[tuple[str, str], str] = {}
-
-    class _FakeKeyring:
-        errors = real_keyring.errors
-
-        @staticmethod
-        def get_password(service: str, username: str) -> str | None:
-            return store.get((service, username))
-
-        @staticmethod
-        def set_password(service: str, username: str, password: str) -> None:
-            store[(service, username)] = password
-
-        @staticmethod
-        def delete_password(service: str, username: str) -> None:
-            try:
-                del store[(service, username)]
-            except KeyError as exc:
-                raise real_keyring.errors.PasswordDeleteError(str(exc)) from exc
-
-    monkeypatch.setattr(google_auth, "keyring", _FakeKeyring)
-    monkeypatch.setattr(google_profiles, "keyring", _FakeKeyring)
-    monkeypatch.setattr(ynab_auth, "keyring", _FakeKeyring)
-    monkeypatch.setattr(whoop_auth, "keyring", _FakeKeyring)
-    monkeypatch.setattr(maps_auth, "keyring", _FakeKeyring)
-    monkeypatch.setattr(auth_status_mod, "keyring", _FakeKeyring)
-    # The robust write/delete helpers route through their own module-level
-    # `keyring`; point it at the same store so provider saves land here.
-    monkeypatch.setattr(auth_keyring_helpers, "keyring", _FakeKeyring)
-    return store
 
 
 @pytest.fixture

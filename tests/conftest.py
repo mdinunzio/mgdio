@@ -39,8 +39,10 @@ def fake_vault(monkeypatch) -> MemoryVault:
     """Route every mgdvault call at an in-memory vault; never the real one.
 
     Autouse so no test can reach a developer's real KeePass file even if
-    ``MGDVAULT_PASSWORD`` is exported in their shell; the ``MGDVAULT_*``
-    variables are stripped too so nothing resolves from the environment.
+    ``MGDVAULT_PASSWORD`` is exported in their shell: the ``MGDVAULT_*``
+    variables are stripped, and mgdvault's own ``.env`` discovery is
+    switched off (``MGDVAULT_DOTENV=0``) so the repo's ``.env`` cannot
+    re-supply the password when a test resets the default vault.
     Request the fixture by name to seed or inspect secrets::
 
         fake_vault.set(YNAB_VAULT_KEY, "token")
@@ -49,6 +51,7 @@ def fake_vault(monkeypatch) -> MemoryVault:
     for name in list(os.environ):
         if name.startswith("MGDVAULT_"):
             monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("MGDVAULT_DOTENV", "0")
     vault = MemoryVault()
     mgdvault.set_default_vault(vault)
     yield vault

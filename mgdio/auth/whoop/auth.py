@@ -1,22 +1,30 @@
-"""Whoop OAuth: keyring-backed token bundle + automatic refresh.
+"""Whoop OAuth: vault-backed token bundle + automatic refresh.
 
 Whoop uses a standard OAuth 2.0 authorization-code flow (confidential
 client -- the app's ``client_secret`` is used in the token exchange).
 First-time setup opens a localhost page where the user pastes their
-Client ID + Secret (saved to the keyring) and authorizes; the callback
+Client ID + Secret (saved to the vault) and authorizes; the callback
 exchanges the code for an access+refresh token bundle.
 
-Two keyring entries live under ``mgdio:whoop``:
+Two vault entries:
 
-* ``app_credentials`` -- ``{"client_id", "client_secret"}`` JSON. Needed
-  to refresh the access token, so it persists across ``--reset``.
-* ``oauth_token`` -- the token bundle JSON (access token, refresh token,
-  ``expires_at`` epoch seconds, scope, token type).
+* ``mgdio/whoop/app_credentials`` -- ``{"client_id", "client_secret"}``
+  JSON. Needed to refresh the access token, so it persists across
+  ``--reset``.
+* ``mgdio/whoop/oauth_token`` -- the token bundle JSON (access token,
+  refresh token, ``expires_at`` epoch seconds, scope, token type).
 
 Access tokens last one hour. :func:`get_access_token` transparently
 refreshes an expired token using the stored refresh token + app creds,
 falling back to the full setup flow only if refresh fails or there's no
 token at all.
+
+Whoop *rotates* refresh tokens: the old one is dead server-side the
+moment a refresh succeeds. Refresh therefore runs inside
+:func:`mgdvault.update`, which holds the vault's inter-process write
+lock across the exchange and re-reads first -- so two processes (say,
+two cron jobs) that both find the token expired can't each spend the
+same refresh token and strand one another.
 """
 
 from __future__ import annotations
@@ -25,10 +33,9 @@ import json
 import logging
 import time
 
-import keyring
+import mgdvault
 import requests
 
-from mgdio.auth import _keyring
 from mgdio.auth._interactive import require_interactive
 from mgdio.auth.whoop._setup_server import run_headless_flow, run_setup_flow
 from mgdio.exceptions import (
@@ -36,12 +43,7 @@ from mgdio.exceptions import (
     MgdioTokenRejectedError,
     MissingWhoopCredentialsError,
 )
-from mgdio.settings import (
-    WHOOP_KEYRING_SERVICE,
-    WHOOP_KEYRING_USERNAME_APP,
-    WHOOP_KEYRING_USERNAME_TOKEN,
-    WHOOP_TOKEN_URL,
-)
+from mgdio.settings import WHOOP_TOKEN_URL, WHOOP_VAULT_KEY_APP, WHOOP_VAULT_KEY_TOKEN
 
 logger = logging.getLogger(__name__)
 
@@ -74,9 +76,9 @@ def authorize(headless: bool = False) -> str:
 def get_access_token(headless: bool = False, *, _explicit: bool = False) -> str:
     """Return a valid Whoop access token, refreshing or onboarding as needed.
 
-    Resolution order: in-process cache -> keyring (refresh if expired) ->
+    Resolution order: in-process cache -> vault (refresh if expired) ->
     interactive setup flow. The result is cached in-process and persisted
-    to the keyring.
+    to the vault.
 
     Transient refresh failures (network errors, Whoop 5xx) propagate as
     :class:`MgdioAPIError` without touching the stored token -- retry
@@ -102,16 +104,11 @@ def get_access_token(headless: bool = False, *, _explicit: bool = False) -> str:
     if _token is not None and not _is_expired(_token):
         return _token["access_token"]
 
-    stored = _load_token_from_keyring()
+    stored = _load_token()
     if stored is not None and _is_expired(stored) and stored.get("refresh_token"):
         logger.debug("Refreshing expired Whoop access token")
         try:
-            stored = _refresh(stored)
-            # Whoop rotates refresh tokens: the old one is dead server-side
-            # the moment _refresh succeeds, so persist immediately. A crash
-            # between these two lines strands the keyring copy permanently
-            # -- that window is inherent to rotation, keep it minimal.
-            _save_token_to_keyring(stored)
+            stored = _refresh_and_store()
         except (MgdioTokenRejectedError, MissingWhoopCredentialsError) as exc:
             logger.warning(
                 "Whoop re-authorization required (%s); falling back to the "
@@ -123,34 +120,27 @@ def get_access_token(headless: bool = False, *, _explicit: bool = False) -> str:
     if stored is None:
         if not _explicit:
             require_interactive("Whoop", "mgdio auth whoop", "no usable stored token")
-        # The setup flow writes both keyring slots; verify they can be
-        # overwritten before asking the user to authorize.
-        _keyring.ensure_writable(WHOOP_KEYRING_SERVICE, WHOOP_KEYRING_USERNAME_TOKEN)
-        _keyring.ensure_writable(WHOOP_KEYRING_SERVICE, WHOOP_KEYRING_USERNAME_APP)
         flow = run_headless_flow if headless else run_setup_flow
         stored = flow()
-        _save_token_to_keyring(stored)
+        _save_token(stored)
 
     _token = stored
     return _token["access_token"]
 
 
 def clear_stored_token() -> None:
-    """Delete the cached OAuth token (not the app creds) and reset the cache.
+    """Delete the OAuth token (not the app creds) and reset the cache.
 
-    Leaves ``app_credentials`` in place so the next ``mgdio auth whoop``
-    can re-authorize without re-pasting the Client ID / Secret.
-
-    Raises:
-        MgdioKeyringError: If the token exists but the keyring refuses
-            to delete it (after stale-item recovery).
+    Leaves ``mgdio/whoop/app_credentials`` in place so the next
+    ``mgdio auth whoop`` can re-authorize without re-pasting the Client
+    ID / Secret.
     """
-    _keyring.delete_password(WHOOP_KEYRING_SERVICE, WHOOP_KEYRING_USERNAME_TOKEN)
+    mgdvault.delete(WHOOP_VAULT_KEY_TOKEN)
     reset_token_cache()
 
 
 def reset_token_cache() -> None:
-    """Clear the in-process token cache (does not touch the keyring)."""
+    """Clear the in-process token cache (does not touch the vault)."""
     global _token
     _token = None
 
@@ -212,6 +202,36 @@ def _refresh(token: dict) -> dict:
     )
 
 
+def _refresh_and_store() -> dict | None:
+    """Refresh the stored bundle under the vault's write lock and persist it.
+
+    The callback re-reads the bundle inside the lock: if another process
+    already refreshed it, that fresh bundle is adopted without spending
+    our (now-rotated, dead) refresh token. Returns None if the token was
+    removed from the vault in the meantime.
+
+    Raises:
+        MgdioTokenRejectedError, MissingWhoopCredentialsError,
+        MgdioAPIError: Propagated from :func:`_refresh`; the stored
+            value is left untouched.
+    """
+    result: dict[str, dict] = {}
+
+    def _do_refresh(current: str | None) -> str | None:
+        if current is None:
+            return None
+        bundle = json.loads(current)
+        if _is_expired(bundle) and bundle.get("refresh_token"):
+            bundle = _refresh(bundle)
+            result["bundle"] = bundle
+            return json.dumps(bundle)
+        result["bundle"] = bundle  # already refreshed by another process
+        return current
+
+    mgdvault.update(WHOOP_VAULT_KEY_TOKEN, _do_refresh)
+    return result.get("bundle")
+
+
 def _bundle_from_token_response(
     payload: dict,
     *,
@@ -228,23 +248,13 @@ def _bundle_from_token_response(
     }
 
 
-def _load_token_from_keyring() -> dict | None:
-    raw = keyring.get_password(WHOOP_KEYRING_SERVICE, WHOOP_KEYRING_USERNAME_TOKEN)
-    if not raw:
-        return None
-    return json.loads(raw)
+def _load_token() -> dict | None:
+    return mgdvault.get_json(WHOOP_VAULT_KEY_TOKEN, default=None)
 
 
-def _save_token_to_keyring(token: dict) -> None:
-    _keyring.set_password(
-        WHOOP_KEYRING_SERVICE,
-        WHOOP_KEYRING_USERNAME_TOKEN,
-        json.dumps(token),
-    )
+def _save_token(token: dict) -> None:
+    mgdvault.set_json(WHOOP_VAULT_KEY_TOKEN, token)
 
 
 def _load_app_credentials() -> dict | None:
-    raw = keyring.get_password(WHOOP_KEYRING_SERVICE, WHOOP_KEYRING_USERNAME_APP)
-    if not raw:
-        return None
-    return json.loads(raw)
+    return mgdvault.get_json(WHOOP_VAULT_KEY_APP, default=None)

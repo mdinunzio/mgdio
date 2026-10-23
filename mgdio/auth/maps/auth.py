@@ -2,21 +2,20 @@
 
 Google Maps Platform (Geocoding, Directions) authenticates with an API
 key, not the shared Google OAuth token. Users create a key in the Cloud
-Console and paste it into a localhost setup page; we store it in the OS
-keyring under ``mgdio:maps`` and surface a :func:`get_api_key` that runs
-the setup page on first call.
+Console and paste it into a localhost setup page; we store it in the
+credential vault under ``mgdio/maps/api_key`` and surface a
+:func:`get_api_key` that runs the setup page on first call.
 """
 
 from __future__ import annotations
 
 import logging
 
-import keyring
+import mgdvault
 
-from mgdio.auth import _keyring
 from mgdio.auth._interactive import require_interactive
 from mgdio.auth.maps._setup_server import run_headless_flow, run_setup_flow
-from mgdio.settings import MAPS_KEYRING_SERVICE, MAPS_KEYRING_USERNAME
+from mgdio.settings import MAPS_VAULT_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +44,7 @@ def get_api_key(headless: bool = False, *, _explicit: bool = False) -> str:
     On first call (or after :func:`clear_stored_token`) the setup flow
     runs: the browser localhost page by default, or a terminal
     copy-paste prompt when ``headless=True``. Either way the pasted key
-    is validated with a test geocode before being saved to the keyring.
+    is validated with a test geocode before being saved to the vault.
 
     Args:
         headless: If True, prompt for the key on the terminal instead of
@@ -59,32 +58,26 @@ def get_api_key(headless: bool = False, *, _explicit: bool = False) -> str:
     if _api_key is not None:
         return _api_key
 
-    stored = keyring.get_password(MAPS_KEYRING_SERVICE, MAPS_KEYRING_USERNAME)
+    stored = mgdvault.get(MAPS_VAULT_KEY, default=None)
     if stored:
         _api_key = stored
         return _api_key
 
     if not _explicit:
         require_interactive("Google Maps", "mgdio auth maps", "no stored API key")
-    _keyring.ensure_writable(MAPS_KEYRING_SERVICE, MAPS_KEYRING_USERNAME)
     flow = run_headless_flow if headless else run_setup_flow
     _api_key = flow()
-    _keyring.set_password(MAPS_KEYRING_SERVICE, MAPS_KEYRING_USERNAME, _api_key)
+    mgdvault.set(MAPS_VAULT_KEY, _api_key)
     return _api_key
 
 
 def clear_stored_token() -> None:
-    """Delete the cached Maps API key from the OS keyring and cache.
-
-    Raises:
-        MgdioKeyringError: If the key exists but the keyring refuses to
-            delete it (after stale-item recovery).
-    """
-    _keyring.delete_password(MAPS_KEYRING_SERVICE, MAPS_KEYRING_USERNAME)
+    """Delete the Maps API key from the vault and the in-process cache."""
+    mgdvault.delete(MAPS_VAULT_KEY)
     reset_key_cache()
 
 
 def reset_key_cache() -> None:
-    """Clear the in-process API-key cache (does not touch the keyring)."""
+    """Clear the in-process API-key cache (does not touch the vault)."""
     global _api_key
     _api_key = None

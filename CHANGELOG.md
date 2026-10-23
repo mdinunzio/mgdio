@@ -5,6 +5,53 @@ Notable changes to mgdio. The format follows
 [Semantic Versioning](https://semver.org/). Releases before 0.3.5 predate
 this file — see the git history.
 
+## [0.6.0] - 2026-10-23
+
+### Changed
+
+- **Credential storage moved from the OS keyring to
+  [mgdvault](https://github.com/mdinunzio/mgdvault).** Every secret now
+  lives in an encrypted KeePass file shared by all projects on the
+  machine and unlocked by a single `MGDVAULT_PASSWORD` env var, so a
+  laptop, a headless VPS, CI and cron all behave the same way. Keys:
+  `mgdio/google/<profile>`, `mgdio/ynab/token`, `mgdio/maps/api_key`,
+  `mgdio/whoop/app_credentials`, `mgdio/whoop/oauth_token`. The vault
+  file is portable: copy `vault.kdbx` to another machine and every
+  token comes with it. **Breaking:** existing installs must run
+  `mgdio auth migrate-keyring` once (or redo the auth flows); see the
+  README's *Migrating from mgdio ≤ 0.5*.
+- Google and Whoop token refreshes are written back through
+  `mgdvault.update`, a locked read-modify-write, so concurrent processes
+  can no longer overwrite each other's refreshed token. For Whoop, whose
+  refresh tokens rotate on every use, a process that finds the token
+  already refreshed inside the lock adopts it instead of spending a
+  now-dead refresh token.
+- The set of Google profiles is now simply the keys under
+  `mgdio/google/`; the on-disk `profiles.json` index is gone (only read
+  by the migration command).
+- `mgdio auth status` prints the vault in use on its first line, and
+  reports every provider as unauthenticated with the reason (rather than
+  crashing) when the vault is not configured.
+- The CLI renders mgdvault errors (password unset, wrong password, lock
+  timeout) as one-line messages, like mgdio's own errors.
+
+### Added
+
+- `mgdio auth migrate-keyring [--overwrite]` — one-shot copy of the
+  pre-0.6 OS-keyring entries into the vault. Read-only on the keyring;
+  existing vault entries win unless `--overwrite`.
+
+### Removed
+
+- `keyring`, `keyrings.alt` and `pycryptodomex` as direct dependencies,
+  the headless-Linux plaintext-file keyring fallback
+  (`mgdio.keyring_backend`, `MGDIO_KEYRING_PLAINTEXT`,
+  `MGDIO_KEYRING_BACKEND`), the macOS stale-Keychain-item recovery
+  (`mgdio.auth._keyring`) and `MgdioKeyringError`. None of those failure
+  modes exist with a file-based vault.
+- The pre-profiles legacy Google token handling: `mgdio auth google
+  remove --legacy`, `detect_legacy_token`, `clear_legacy_token`.
+
 ## [0.5.0] - 2026-08-03
 
 ### Added

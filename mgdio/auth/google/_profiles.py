@@ -1,14 +1,9 @@
 """Google account "profiles": per-account token bookkeeping + resolution.
 
 mgdio can hold one OAuth token per Google account, each named by a slug
-and stored at keyring service ``mgdio:google:<slug>``. Because the
-``keyring`` library has no portable way to *list* stored entries (Secret
-Service, Windows Credential Manager, and the ``keyrings.alt`` plaintext
-fallback all differ), the set of known profiles is tracked in an on-disk
-index file (:data:`mgdio.settings.GOOGLE_PROFILE_INDEX_PATH`). The index
-lists which slugs *should* exist; the keyring remains the source of truth
-for the token bytes, so :func:`resolve_profile` only ever auto-selects a
-slug that actually has a token (defending against a stale index).
+and stored in the credential vault at ``mgdio/google/<slug>``. The set
+of known profiles is simply the set of keys under that prefix: the vault
+is the single source of truth, so there is no separate index to drift.
 
 There is no stored "default" profile. Which profile is the default for a
 given environment is set purely via the ``MGDIO_GOOGLE_PROFILE`` env var
@@ -17,12 +12,10 @@ given environment is set purely via the ``MGDIO_GOOGLE_PROFILE`` env var
 
 from __future__ import annotations
 
-import json
 import logging
 import os
-import tempfile
 
-import keyring
+import mgdvault
 
 from mgdio import settings
 from mgdio.exceptions import MgdioAuthError
@@ -51,96 +44,21 @@ def validate_slug(slug: str) -> str:
     return slug
 
 
-def read_index() -> list[str]:
-    """Return the sorted list of known profile slugs from the index file.
-
-    Returns an empty list if the index is absent, empty, or corrupt -- a
-    missing/garbled index simply means "no known profiles", never a crash.
-    """
-    path = settings.GOOGLE_PROFILE_INDEX_PATH
-    try:
-        raw = path.read_text(encoding="utf-8")
-    except OSError:
-        return []
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
-        logger.warning("Profile index %s is corrupt; treating as empty.", path)
-        return []
-    # Accept both the object shape {"version":1,"profiles":[...]} and a
-    # bare list (tolerant of hand edits / future shapes).
-    if isinstance(data, dict):
-        slugs = data.get("profiles", [])
-    elif isinstance(data, list):
-        slugs = data
-    else:
-        return []
-    return sorted({s for s in slugs if isinstance(s, str)})
-
-
-def _write_index(slugs: list[str]) -> None:
-    """Atomically write the sorted, de-duplicated slug list to the index."""
-    path = settings.GOOGLE_PROFILE_INDEX_PATH
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {"version": 1, "profiles": sorted(set(slugs))}
-    fd, tmp_name = tempfile.mkstemp(dir=str(path.parent), suffix=".json.tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(payload, handle, indent=2)
-        os.replace(tmp_name, path)
-    except OSError:
-        try:
-            os.unlink(tmp_name)
-        except OSError:  # pragma: no cover - best effort cleanup
-            pass
-        raise
-    try:
-        os.chmod(path, 0o600)
-    except OSError:  # pragma: no cover - best effort
-        pass
-
-
-def add_to_index(slug: str) -> None:
-    """Add ``slug`` to the profile index (idempotent)."""
-    slugs = read_index()
-    if slug not in slugs:
-        slugs.append(slug)
-        _write_index(slugs)
-
-
-def remove_from_index(slug: str) -> None:
-    """Remove ``slug`` from the profile index (idempotent)."""
-    slugs = read_index()
-    if slug in slugs:
-        slugs.remove(slug)
-        _write_index(slugs)
-
-
 def profile_has_token(slug: str) -> bool:
-    """Return True if a keyring token exists for ``slug``."""
-    try:
-        raw = keyring.get_password(
-            settings.google_keyring_service(slug), settings.GOOGLE_KEYRING_USERNAME
-        )
-    except Exception:  # pragma: no cover - backend hiccup -> treat as absent
-        return False
-    return bool(raw)
+    """Return True if a vault token exists for ``slug``."""
+    return mgdvault.exists(settings.google_vault_key(slug))
 
 
 def live_profiles() -> list[str]:
-    """Return indexed slugs that actually have a token (the live set)."""
-    return [s for s in read_index() if profile_has_token(s)]
-
-
-def detect_legacy_token() -> bool:
-    """Return True if a pre-profiles token exists at ``mgdio:google``."""
-    try:
-        raw = keyring.get_password(
-            settings.LEGACY_GOOGLE_KEYRING_SERVICE, settings.GOOGLE_KEYRING_USERNAME
-        )
-    except Exception:  # pragma: no cover
-        return False
-    return bool(raw)
+    """Return the sorted slugs that have a token in the vault."""
+    prefix = settings.GOOGLE_VAULT_PREFIX + "/"
+    slugs = []
+    for key in mgdvault.list_keys(settings.GOOGLE_VAULT_PREFIX):
+        tail = key[len(prefix) :] if key.startswith(prefix) else ""
+        # Exactly one segment below the prefix, and a well-formed slug.
+        if tail and "/" not in tail and settings.GOOGLE_PROFILE_SLUG_RE.match(tail):
+            slugs.append(tail)
+    return sorted(slugs)
 
 
 def resolve_profile(explicit: str | None = None) -> str:
@@ -152,7 +70,7 @@ def resolve_profile(explicit: str | None = None) -> str:
        valid slug with an existing token, else raise.
     2. ``MGDIO_GOOGLE_PROFILE`` env var: used if set; must name an
        existing token, else raise (no silent fall-through).
-    3. The sole profile, if exactly one exists in the keyring.
+    3. The sole profile, if exactly one exists in the vault.
     4. Otherwise raise, listing what to do.
 
     Args:

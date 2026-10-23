@@ -26,7 +26,6 @@ class TestAuthGoogle:
         clear = MagicMock()
         monkeypatch.setattr(cli_module, "authorize_google_profile", authorize)
         monkeypatch.setattr(cli_module, "clear_google_token", clear)
-        monkeypatch.setattr(cli_module, "detect_legacy_token", lambda: False)
 
         result = CliRunner().invoke(
             cli_module.cli, ["auth", "google", "--profile", "svc"]
@@ -41,7 +40,6 @@ class TestAuthGoogle:
         parent = MagicMock()
         monkeypatch.setattr(cli_module, "clear_google_token", parent.clear)
         monkeypatch.setattr(cli_module, "authorize_google_profile", parent.authorize)
-        monkeypatch.setattr(cli_module, "detect_legacy_token", lambda: False)
 
         result = CliRunner().invoke(
             cli_module.cli, ["auth", "google", "--profile", "svc", "--reset"]
@@ -55,7 +53,6 @@ class TestAuthGoogle:
         authorize = MagicMock()
         monkeypatch.setattr(cli_module, "authorize_google_profile", authorize)
         monkeypatch.setattr(cli_module, "clear_google_token", MagicMock())
-        monkeypatch.setattr(cli_module, "detect_legacy_token", lambda: False)
 
         result = CliRunner().invoke(
             cli_module.cli, ["auth", "google", "--profile", "svc", "--headless"]
@@ -98,7 +95,7 @@ class TestAuthGoogle:
     def test_remove_rejects_multiple_targets(self, monkeypatch):
         result = CliRunner().invoke(
             cli_module.cli,
-            ["auth", "google", "remove", "--profile", "svc", "--legacy"],
+            ["auth", "google", "remove", "--profile", "svc", "--all"],
         )
         assert result.exit_code != 0
         assert "mutually exclusive" in result.output
@@ -130,25 +127,10 @@ class TestAuthGoogle:
         assert result.exit_code != 0  # aborted
         clear.assert_not_called()
 
-    def test_remove_legacy(self, monkeypatch):
-        clear_legacy = MagicMock()
-        monkeypatch.setattr(cli_module, "clear_google_legacy_token", clear_legacy)
-
-        result = CliRunner().invoke(
-            cli_module.cli, ["auth", "google", "remove", "--legacy", "--yes"]
-        )
-
-        assert result.exit_code == 0, result.output
-        clear_legacy.assert_called_once()
-        assert "legacy" in result.output.lower()
-
     def test_remove_all(self, monkeypatch):
         clear = MagicMock()
-        clear_legacy = MagicMock()
         monkeypatch.setattr(cli_module, "live_profiles", lambda: ["a", "b"])
-        monkeypatch.setattr(cli_module, "detect_legacy_token", lambda: True)
         monkeypatch.setattr(cli_module, "clear_google_token", clear)
-        monkeypatch.setattr(cli_module, "clear_google_legacy_token", clear_legacy)
 
         result = CliRunner().invoke(
             cli_module.cli, ["auth", "google", "remove", "--all", "--yes"]
@@ -156,7 +138,16 @@ class TestAuthGoogle:
 
         assert result.exit_code == 0, result.output
         assert clear.call_count == 2
-        clear_legacy.assert_called_once()
+
+    def test_remove_all_with_no_profiles(self, monkeypatch):
+        monkeypatch.setattr(cli_module, "live_profiles", lambda: [])
+
+        result = CliRunner().invoke(
+            cli_module.cli, ["auth", "google", "remove", "--all", "--yes"]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "Nothing to remove" in result.output
 
 
 class TestAuthStatus:
@@ -193,6 +184,79 @@ class TestAuthStatus:
         assert result.exit_code == 0, result.output
         assert "[x] maps" in result.output
         assert "remaining" not in result.output
+
+    def test_prints_vault_location_first(self, monkeypatch, fake_vault):
+        from mgdio.auth.status import ProviderStatus
+
+        rows = [ProviderStatus("maps", True, "API key stored", "mgdio auth maps")]
+        monkeypatch.setattr("mgdio.auth.status.get_auth_status", lambda: rows)
+
+        result = CliRunner().invoke(cli_module.cli, ["auth", "status"])
+
+        assert result.exit_code == 0, result.output
+        assert result.output.splitlines()[0] == (
+            f"vault: {fake_vault.describe_location()}"
+        )
+
+
+class TestAuthMigrateKeyring:
+    def test_prints_each_result_and_summary(self, monkeypatch):
+        from mgdio.auth._migrate import MigrationResult
+
+        migrate = MagicMock(
+            return_value=[
+                MigrationResult("mgdio/ynab/token", "migrated"),
+                MigrationResult("mgdio/maps/api_key", "absent"),
+                MigrationResult("mgdio/whoop/oauth_token", "skipped"),
+            ]
+        )
+        monkeypatch.setattr("mgdio.auth._migrate.migrate_from_keyring", migrate)
+
+        result = CliRunner().invoke(cli_module.cli, ["auth", "migrate-keyring"])
+
+        assert result.exit_code == 0, result.output
+        migrate.assert_called_once_with(overwrite=False)
+        assert "migrated  mgdio/ynab/token" in result.output
+        assert "absent    mgdio/maps/api_key" in result.output
+        assert "1 secret(s) migrated" in result.output
+
+    def test_overwrite_flag_passes_through(self, monkeypatch):
+        migrate = MagicMock(return_value=[])
+        monkeypatch.setattr("mgdio.auth._migrate.migrate_from_keyring", migrate)
+
+        result = CliRunner().invoke(
+            cli_module.cli, ["auth", "migrate-keyring", "--overwrite"]
+        )
+
+        assert result.exit_code == 0, result.output
+        migrate.assert_called_once_with(overwrite=True)
+
+    def test_missing_keyring_package_is_a_clean_error(self, monkeypatch):
+        monkeypatch.setattr(
+            "mgdio.auth._migrate.migrate_from_keyring",
+            MagicMock(side_effect=ModuleNotFoundError("keyring")),
+        )
+
+        result = CliRunner().invoke(cli_module.cli, ["auth", "migrate-keyring"])
+
+        assert result.exit_code != 0
+        assert "keyring" in result.output
+
+
+class TestMainErrorRendering:
+    def test_mgdvault_errors_render_without_traceback(self, monkeypatch, capsys):
+        from mgdvault import VaultConfigurationError
+
+        def boom(**_kwargs):
+            raise VaultConfigurationError("MGDVAULT_PASSWORD is not set.")
+
+        monkeypatch.setattr(cli_module, "cli", boom)
+
+        with pytest.raises(SystemExit) as exc_info:
+            cli_module.main()
+
+        assert exc_info.value.code == 1
+        assert "error: MGDVAULT_PASSWORD is not set." in capsys.readouterr().err
 
 
 class TestAuthYnab:
@@ -1100,9 +1164,9 @@ class TestMainEntryPoint:
     def test_mgdio_errors_print_one_line_message_not_traceback(
         self, monkeypatch, capsys
     ):
-        from mgdio.exceptions import MgdioKeyringError
+        from mgdio.exceptions import MgdioAuthError
 
-        boom = MagicMock(side_effect=MgdioKeyringError("vault refused; run X"))
+        boom = MagicMock(side_effect=MgdioAuthError("vault refused; run X"))
         monkeypatch.setattr(cli_module, "cli", boom)
 
         with pytest.raises(SystemExit) as excinfo:

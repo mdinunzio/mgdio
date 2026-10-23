@@ -57,9 +57,9 @@ class TestPageContent:
         assert 'id="save"' in _setup_server._PAGE
         assert "Save token" in _setup_server._PAGE
 
-    def test_page_mentions_keyring_storage(self):
-        assert "OS credential vault" in _setup_server._PAGE
-        assert "mgdio:ynab" in _setup_server._PAGE
+    def test_page_mentions_vault_storage(self):
+        assert "mgdvault credential vault" in _setup_server._PAGE
+        assert "mgdio/ynab/token" in _setup_server._PAGE
 
 
 class TestHeadlessFlow:

@@ -75,8 +75,10 @@ def test_extension_rewrites_real_package_docstrings(ext: ModuleType) -> None:
     )
 
     # Third-party target degrades to inline code, not a dangling link.
-    backend_doc = pkg["keyring_backend"].docstring.value
-    assert "`keyring`" in backend_doc and "[`keyring`]" not in backend_doc
+    google_auth_doc = pkg["auth.google.auth"].docstring.value
+    assert ":func:" not in google_auth_doc
+    assert "`mgdvault.update`" in google_auth_doc
+    assert "[`mgdvault.update`]" not in google_auth_doc
 
     # Private submodule target degrades to inline code.
     headless_doc = pkg["auth.google._headless_flow"].docstring.value
